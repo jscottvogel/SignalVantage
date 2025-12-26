@@ -23,7 +23,10 @@ import {
   Avatar,
   Divider,
   Paper,
-  CircularProgress
+  CircularProgress,
+  Snackbar,
+  Alert,
+  Stack
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import GroupIcon from '@mui/icons-material/Group';
@@ -32,6 +35,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import MenuIcon from '@mui/icons-material/Menu';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
+import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
 
 import { StrategicObjectiveCard } from "./components/StrategicObjectiveCard";
 import { CreateObjectiveForm } from "./components/CreateObjectiveForm";
@@ -39,7 +43,7 @@ import { ObjectiveDetailModal } from "./components/ObjectiveDetailModal";
 
 const client = generateClient<Schema>();
 
-const drawerWidth = 240;
+const drawerWidth = 260; // Slightly wider for better breathing room
 
 type ViewState = 'dashboard' | 'team' | 'settings' | 'profile';
 
@@ -52,8 +56,23 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
   const [selectedObjective, setSelectedObjective] = useState<Schema["StrategicObjective"]["type"] | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Feedback Handling
+  const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' | 'info' }>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const showSuccess = (msg: string) => {
+    setSnackbar({ open: true, message: msg, severity: 'success' });
+  };
+
+  const showError = (msg: string) => {
+    setSnackbar({ open: true, message: msg, severity: 'error' });
   };
 
   const checkAndBootstrap = async (currentUser: any) => {
@@ -84,13 +103,11 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
           setOrg(organization);
         }
       } else {
-        console.log("Creating Default Organization...");
         const { data: newOrg, errors: orgErrors } = await client.models.Organization.create({
-          name: "My Org",
+          name: "My Organization",
         });
         if (orgErrors) throw new Error(orgErrors[0].message);
 
-        console.log("Creating Owner Membership...");
         const { errors: memErrors } = await client.models.Membership.create({
           role: "OWNER",
           organizationId: newOrg!.id,
@@ -102,6 +119,7 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
       }
     } catch (e) {
       console.error("Error bootstrapping:", e);
+      showError("Failed to load organization data.");
     } finally {
       setLoading(false);
     }
@@ -114,43 +132,51 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
   }, [user?.userId]);
 
   const drawer = (
-    <div>
-      <Toolbar sx={{ justifyContent: 'center' }}>
-        <Typography variant="h6" color="primary" fontWeight="bold" sx={{ letterSpacing: 1 }}>
-          VANTAGE
-        </Typography>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Toolbar sx={{ px: 3, minHeight: 70 }}>
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <SignalCellularAltIcon sx={{ color: 'secondary.main', fontSize: 32 }} />
+          <Box>
+            <Typography variant="h6" color="inherit" fontWeight={700} lineHeight={1.1}>
+              VANTAGE
+            </Typography>
+            <Typography variant="caption" color="grey.500" display="block">
+              EXECUTIVE OS
+            </Typography>
+          </Box>
+        </Stack>
       </Toolbar>
-      <Divider />
-      <List sx={{ mt: 2 }}>
-        <ListItem disablePadding>
-          <ListItemButton selected={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')}>
-            <ListItemIcon><DashboardIcon color={currentView === 'dashboard' ? 'primary' : 'inherit'} /></ListItemIcon>
-            <ListItemText primary="Dashboard" primaryTypographyProps={{ fontWeight: currentView === 'dashboard' ? 600 : 400 }} />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton selected={currentView === 'team'} onClick={() => setCurrentView('team')}>
-            <ListItemIcon><GroupIcon color={currentView === 'team' ? 'primary' : 'inherit'} /></ListItemIcon>
-            <ListItemText primary="Team" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton selected={currentView === 'settings'} onClick={() => setCurrentView('settings')}>
-            <ListItemIcon><SettingsIcon color={currentView === 'settings' ? 'primary' : 'inherit'} /></ListItemIcon>
-            <ListItemText primary="Settings" />
-          </ListItemButton>
-        </ListItem>
-        <ListItem disablePadding>
-          <ListItemButton selected={currentView === 'profile'} onClick={() => setCurrentView('profile')}>
-            <ListItemIcon><PersonIcon color={currentView === 'profile' ? 'primary' : 'inherit'} /></ListItemIcon>
-            <ListItemText primary="Profile" />
-          </ListItemButton>
-        </ListItem>
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+      <List sx={{ mt: 2, px: 1 }}>
+        {[
+          { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+          { id: 'team', label: 'Team', icon: <GroupIcon /> },
+          { id: 'settings', label: 'Settings', icon: <SettingsIcon /> },
+          { id: 'profile', label: 'Profile', icon: <PersonIcon /> },
+        ].map((item) => (
+          <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
+            <ListItemButton
+              selected={currentView === item.id}
+              onClick={() => { setCurrentView(item.id as ViewState); setMobileOpen(false); }}
+            >
+              <ListItemIcon sx={{ color: currentView === item.id ? 'secondary.main' : 'inherit' }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.label}
+                primaryTypographyProps={{
+                  fontWeight: currentView === item.id ? 600 : 400,
+                  color: currentView === item.id ? 'white' : 'grey.400'
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+        ))}
       </List>
 
       <Box sx={{ flexGrow: 1 }} />
-      <Divider />
-      <List>
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.08)' }} />
+      <List sx={{ px: 1 }}>
         <ListItem disablePadding>
           <ListItemButton onClick={signOut}>
             <ListItemIcon><LogoutIcon /></ListItemIcon>
@@ -158,44 +184,76 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
           </ListItemButton>
         </ListItem>
       </List>
-    </div>
+
+      <Box p={2}>
+        <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 2 }}>
+          <Typography variant="caption" color="grey.500" display="block" gutterBottom>
+            Logged in as
+          </Typography>
+          <Typography variant="body2" color="white" noWrap>
+            {user?.signInDetails?.loginId || 'User'}
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
   );
 
   const renderContent = () => {
     switch (currentView) {
       case 'team':
-        return <Paper sx={{ p: 4, textAlign: 'center' }}><Typography>Team management coming soon.</Typography></Paper>;
+        return <Paper sx={{ p: 6, textAlign: 'center' }}><Typography color="text.secondary">Team management interface coming soon.</Typography></Paper>;
       case 'settings':
-        return <Paper sx={{ p: 4, textAlign: 'center' }}><Typography>Settings coming soon.</Typography></Paper>;
+        return <Paper sx={{ p: 6, textAlign: 'center' }}><Typography color="text.secondary">Organization settings coming soon.</Typography></Paper>;
       case 'profile':
-        return <Paper sx={{ p: 4, textAlign: 'center' }}><Typography>Profile management coming soon.</Typography></Paper>;
+        return <Paper sx={{ p: 6, textAlign: 'center' }}><Typography color="text.secondary">User profile management coming soon.</Typography></Paper>;
       default:
         return (
           <>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-              <Typography variant="h4" component="h1" fontWeight="bold" color="text.primary">
-                Strategic Objectives
-              </Typography>
+              <Box>
+                <Typography variant="h2" gutterBottom>
+                  Strategic Objectives
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                  Track high-level goals and drill down into outcomes and key results.
+                </Typography>
+              </Box>
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
                 onClick={() => setShowCreateModal(true)}
-                size="large"
+                size="medium"
               >
-                Create New
+                New Objective
               </Button>
             </Box>
 
             {loading ? (
               <Box display="flex" justifyContent="center" p={8}><CircularProgress /></Box>
             ) : objectives.length === 0 ? (
-              <Paper sx={{ p: 8, textAlign: 'center', borderStyle: 'dashed' }}>
-                <Typography variant="h6" color="text.secondary" gutterBottom>No Strategic Objectives Yet</Typography>
-                <Typography color="text.secondary" mb={4}>Start by defining what your organization wants to achieve.</Typography>
-                <Button variant="outlined" onClick={() => setShowCreateModal(true)}>Create First Objective</Button>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 8,
+                  textAlign: 'center',
+                  borderStyle: 'dashed',
+                  borderColor: 'divider',
+                  bgcolor: 'background.default'
+                }}
+              >
+                <Stack spacing={2} alignItems="center">
+                  <SignalCellularAltIcon sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5 }} />
+                  <Typography variant="h5" color="text.primary" fontWeight={600}>No Strategic Objectives Yet</Typography>
+                  <Typography color="text.secondary" maxWidth="sm">
+                    Objectives are the highest level of your strategy. They define what your organization ultimately wants to achieve. Start by creating your first one.
+                  </Typography>
+                  <Box pt={2}>
+                    <Button variant="contained" onClick={() => setShowCreateModal(true)}>Create Objective</Button>
+                  </Box>
+                </Stack>
               </Paper>
             ) : (
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 3 }}>
                 {objectives.map(obj => (
                   <Box key={obj.id}>
                     <StrategicObjectiveCard
@@ -211,19 +269,31 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
     }
   };
 
-  if (!org && !loading) return <Box p={4} textAlign="center"><Typography>No organization found.</Typography></Box>;
+  if (!org && !loading) return (
+    <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+      <Typography color="text.secondary">Unable to access workspace. Please contact support.</Typography>
+    </Box>
+  );
 
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
 
-      {/* Top Bar for Mobile Menu & Context */}
+      {/* Top Bar (Mobile Only for Title, Desktop has header in sidebar usually, but here we keep app bar for breadcrumbs/user mostly on mobile) */}
       <AppBar
         position="fixed"
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
+          bgcolor: 'background.default', // Blend with background
+          color: 'text.primary',
+          borderBottom: 1,
+          borderColor: 'divider',
+          boxShadow: 'none',
+          backdropFilter: 'blur(8px)',
+          backgroundColor: 'rgba(248, 250, 252, 0.8)' // Semi-transparent
         }}
+        elevation={0}
       >
         <Toolbar>
           <IconButton
@@ -234,11 +304,16 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
           >
             <MenuIcon />
           </IconButton>
+
+          {/* Breadcrumb-ish title for context */}
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
-            {org ? org.name : 'Signal Vantage'}
+            {/* Dynamic Title based on View */}
+            {org?.name}
           </Typography>
-          <Box display="flex" alignItems="center" p={1}>
-            <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main', fontSize: '0.875rem' }}>
+
+          <Box display="flex" alignItems="center" gap={2}>
+            <Button color="inherit" size="small" sx={{ display: { xs: 'none', sm: 'block' } }}>Help</Button>
+            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.875rem' }}>
               {user?.signInDetails?.loginId?.[0]?.toUpperCase() || 'U'}
             </Avatar>
           </Box>
@@ -255,9 +330,7 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better open performance on mobile
-          }}
+          ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: 'block', sm: 'none' },
             '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
@@ -281,10 +354,16 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
       {/* Main Content Area */}
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` }, minHeight: '100vh', bgcolor: 'background.default' }}
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          minHeight: '100vh',
+          bgcolor: 'background.default'
+        }}
       >
         <Toolbar /> {/* Spacer for AppBar */}
-        <Container maxWidth="xl">
+        <Container maxWidth="xl" sx={{ py: 2 }}>
           {loading && !org ? (
             <Box display="flex" justifyContent="center" alignItems="center" height="60vh">
               <CircularProgress />
@@ -295,12 +374,22 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
         </Container>
       </Box>
 
+      {/* Global Snackbar */}
+      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
       {/* Dialogs */}
       {showCreateModal && org && (
         <CreateObjectiveForm
           organizationId={org.id}
           onClose={() => setShowCreateModal(false)}
-          onSuccess={(newObj) => setObjectives([...objectives, newObj])}
+          onSuccess={(newObj) => {
+            setObjectives([...objectives, newObj]);
+            showSuccess('Objective created successfully');
+          }}
         />
       )}
 
