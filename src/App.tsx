@@ -3,6 +3,8 @@ import { Authenticator } from "@aws-amplify/ui-react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../amplify/data/resource";
 import "@aws-amplify/ui-react/styles.css";
+import { StrategicObjectiveCard } from "./components/StrategicObjectiveCard";
+import { CreateObjectiveForm } from "./components/CreateObjectiveForm";
 
 const client = generateClient<Schema>();
 
@@ -11,14 +13,13 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
   const [org, setOrg] = useState<Schema["Organization"]["type"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [objectives, setObjectives] = useState<Schema["StrategicObjective"]["type"][]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Function to bootstrap User and Org
   const checkAndBootstrap = async (currentUser: any) => {
     try {
       setLoading(true);
       // 1. Check if UserProfile exists
-      // standard owner auth: owner match is based on sub or username depending on config.
-      // We'll try to list profiles filtered by owner implicitly or just list and see if we have one.
       const { data: profiles } = await client.models.UserProfile.list();
 
       let userProfile = profiles[0];
@@ -34,12 +35,6 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
       }
 
       // 2. Check for Memberships
-      // We need to fetch memberships for this user.
-      // Since we can't filter deeply easily without indexes, we'll list memberships linked to this profile.
-      // Actually, we can use the 'memberships' field on the userProfile if we fetch it with selection set,
-      // but list() default selection might not include it.
-      // Let's use lazy loading or secondary query.
-
       const { data: memberships } = await userProfile.memberships();
 
       if (memberships.length > 0) {
@@ -77,26 +72,6 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
     }
   };
 
-  const handleCreateObjective = async () => {
-    if (!org) return;
-    const title = window.prompt("Enter Strategic Objective Title:");
-    if (!title) return; // User cancelled or empty
-
-    try {
-      const { data: newObj, errors } = await client.models.StrategicObjective.create({
-        title,
-        organizationId: org.id
-      });
-      if (errors) throw new Error(errors[0].message);
-      if (newObj) {
-        setObjectives([...objectives, newObj]);
-      }
-    } catch (e) {
-      console.error("Error creating objective:", e);
-      alert("Failed to create objective");
-    }
-  };
-
   useEffect(() => {
     if (user) {
       checkAndBootstrap(user);
@@ -119,49 +94,62 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
       </header>
 
       {org ? (
-        <div style={{ width: '100%', maxWidth: '1200px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+        <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
-          {/* Strategic Objectives Section */}
-          <div className="card" style={{ gridColumn: '1 / -1' }}>
+          <section>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h2>Strategic Objectives</h2>
-              <button onClick={handleCreateObjective}>+ Create</button>
+              <button onClick={() => setShowCreateModal(true)}>+ Create New</button>
             </div>
+
             {objectives.length === 0 ? (
-              <p style={{ fontStyle: 'italic' }}>No strategic objectives yet. Create one to get started.</p>
+              <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+                <p style={{ fontStyle: 'italic', marginBottom: '1rem' }}>No strategic objectives yet.</p>
+                <button onClick={() => setShowCreateModal(true)}>Create Your First Objective</button>
+              </div>
             ) : (
-              <ul style={{ listStyle: 'none', padding: 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                 {objectives.map(obj => (
-                  <li key={obj.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)' }}>
-                    {obj.title}
-                  </li>
+                  <StrategicObjectiveCard key={obj.id} objective={obj} />
                 ))}
-              </ul>
+              </div>
             )}
-          </div>
+          </section>
 
-          {/* Quick Actions */}
-          <div className="card">
-            <h2>Manage Team</h2>
-            <p>View and manage your team members.</p>
-            <button onClick={() => alert("Manage Team - Coming Soon")} style={{ width: '100%', marginTop: '1rem' }}>Manage Team</button>
-          </div>
+          <section>
+            <h2 style={{ marginBottom: '1rem' }}>Manage</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
+              <div className="card">
+                <h3>Team</h3>
+                <p>View and manage your team members.</p>
+                <button onClick={() => alert("Manage Team - Coming Soon")} style={{ width: '100%', marginTop: '1rem' }}>Manage Team</button>
+              </div>
 
-          <div className="card">
-            <h2>Settings</h2>
-            <p>Update organization settings and preferences.</p>
-            <button onClick={() => alert("Settings - Coming Soon")} style={{ width: '100%', marginTop: '1rem' }}>Manage Settings</button>
-          </div>
+              <div className="card">
+                <h3>Settings</h3>
+                <p>Update organization settings.</p>
+                <button onClick={() => alert("Settings - Coming Soon")} style={{ width: '100%', marginTop: '1rem' }}>Manage Settings</button>
+              </div>
 
-          <div className="card">
-            <h2>Profile</h2>
-            <p>Update your personal profile information.</p>
-            <button onClick={() => alert("Profile - Coming Soon")} style={{ width: '100%', marginTop: '1rem' }}>Manage Profile</button>
-          </div>
+              <div className="card">
+                <h3>Profile</h3>
+                <p>Update your personal profile.</p>
+                <button onClick={() => alert("Profile - Coming Soon")} style={{ width: '100%', marginTop: '1rem' }}>Manage Profile</button>
+              </div>
+            </div>
+          </section>
 
         </div>
       ) : (
         <p>No organization found.</p>
+      )}
+
+      {showCreateModal && org && (
+        <CreateObjectiveForm
+          organizationId={org.id}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={(newObj) => setObjectives([...objectives, newObj])}
+        />
       )}
     </main>
   );
