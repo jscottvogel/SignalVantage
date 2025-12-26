@@ -26,6 +26,8 @@ import AddIcon from '@mui/icons-material/Add';
 import PersonIcon from '@mui/icons-material/Person';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import HeartbeatWizard from './HeartbeatWizard';
 
 const client = generateClient<Schema>();
 
@@ -63,6 +65,12 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [itemMetricName, setItemMetricName] = useState('');
     const [selectedOwnerId, setSelectedOwnerId] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Heartbeat Wizard State
+    const [heartbeatState, setHeartbeatState] = useState<{ open: boolean, initiative: any | null }>({
+        open: false,
+        initiative: null
+    });
 
     const refreshTree = useCallback(async () => {
         try {
@@ -162,6 +170,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         setItemStatus(initStatus);
         setItemMetricName(initMetric);
         setSelectedOwnerId(initOwner);
+    };
+
+    const openHeartbeatWizard = (initiative: any) => {
+        setHeartbeatState({ open: true, initiative });
     };
 
     const handleDelete = async (type: ItemType, id: string) => {
@@ -310,7 +322,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         if (['active', 'on_track'].includes(status.toLowerCase())) color = 'success';
         if (['draft', 'planned'].includes(status.toLowerCase())) color = 'info';
         if (['closed', 'completed'].includes(status.toLowerCase())) color = 'default';
-        if (['cancelled', 'off_track'].includes(status.toLowerCase())) color = 'error';
+        if (['cancelled', 'off_track', 'low'].includes(status.toLowerCase())) color = 'error';
+        if (status.toLowerCase() === 'medium') color = 'warning';
+        if (status.toLowerCase() === 'high') color = 'success';
 
         return <Chip label={status} size="small" color={color} sx={{ height: 20, fontSize: '0.65rem', textTransform: 'uppercase' }} />;
     };
@@ -445,9 +459,23 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                 <Stack direction="row" alignItems="center" spacing={1}>
                                                                                     <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
                                                                                     <Typography variant="body2">{init.title}</Typography>
+                                                                                    {init.latestHeartbeat?.ownerInput?.ownerConfidence && (
+                                                                                        <Tooltip title="Latest Confidence">
+                                                                                            <Box>
+                                                                                                <StatusChip status={init.latestHeartbeat.ownerInput.ownerConfidence} />
+                                                                                            </Box>
+                                                                                        </Tooltip>
+                                                                                    )}
                                                                                     <StatusChip status={init.state?.lifecycle} />
                                                                                     <OwnerChip owner={init.owner} />
                                                                                     <Box flexGrow={1} />
+
+                                                                                    <Tooltip title="Log Heartbeat">
+                                                                                        <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard(init)}>
+                                                                                            <MonitorHeartIcon fontSize="small" />
+                                                                                        </IconButton>
+                                                                                    </Tooltip>
+
                                                                                     <Tooltip title="Edit Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'initiative', '', init)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
                                                                                     <Tooltip title="Delete Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('initiative', init.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
                                                                                 </Stack>
@@ -577,6 +605,13 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <HeartbeatWizard
+                open={heartbeatState.open}
+                onClose={() => setHeartbeatState({ ...heartbeatState, open: false })}
+                initiative={heartbeatState.initiative}
+                onComplete={refreshTree}
+            />
         </Dialog>
     );
 }

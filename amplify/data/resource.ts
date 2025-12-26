@@ -184,6 +184,25 @@ const schema = a.schema({
     version: a.integer(),
   }),
 
+  Heartbeat: a
+    .model({
+      type: a.enum(['SCHEDULED', 'EVENT_TRIGGERED']),
+      status: a.enum(['PENDING', 'COMPLETED']),
+
+      timestamp: a.datetime().required(),
+      authorId: a.id(),
+
+      ownerInput: a.ref('OwnerInput'),
+      systemAssessment: a.ref('SystemAssessment'),
+
+      initiativeId: a.id(),
+      initiative: a.belongsTo('Initiative', 'initiativeId'),
+
+      keyResultId: a.id(),
+      keyResult: a.belongsTo('KeyResult', 'keyResultId'),
+    })
+    .authorization((allow) => [allow.authenticated()]),
+
   StrategicObjective: a
     .model({
       title: a.string().required(),
@@ -228,6 +247,7 @@ const schema = a.schema({
       status: a.enum(['active', 'draft', 'closed', 'archived']),
       confidence: a.ref('Confidence'),
       latestHeartbeat: a.ref('LatestHeartbeat'),
+      heartbeats: a.hasMany('Heartbeat', 'keyResultId'),
 
       organizationId: a.id().required(),
       organization: a.belongsTo('Organization', 'organizationId'),
@@ -250,6 +270,7 @@ const schema = a.schema({
       state: a.ref('InitiativeState'),
       heartbeatCadence: a.ref('HeartbeatCadence'),
       latestHeartbeat: a.ref('InitiativeHeartbeat'),
+      heartbeats: a.hasMany('Heartbeat', 'initiativeId'),
       audit: a.ref('Audit'),
 
       organizationId: a.id().required(),
