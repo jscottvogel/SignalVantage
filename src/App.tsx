@@ -26,7 +26,9 @@ import {
   CircularProgress,
   Snackbar,
   Alert,
-  Stack
+  Stack,
+  Skeleton,
+  Chip
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import GroupIcon from '@mui/icons-material/Group';
@@ -44,6 +46,109 @@ import { ObjectiveDetailModal } from "./components/ObjectiveDetailModal";
 const client = generateClient<Schema>();
 
 const drawerWidth = 260; // Slightly wider for better breathing room
+
+const SkeletonDashboard = () => (
+  <Box>
+    <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+      <Box>
+        <Skeleton variant="text" width={200} height={40} />
+        <Skeleton variant="text" width={300} height={20} />
+      </Box>
+      <Skeleton variant="rectangular" width={140} height={40} sx={{ borderRadius: 1 }} />
+    </Box>
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 3 }}>
+      {[1, 2, 3].map((i) => (
+        <Paper key={i} variant="outlined" sx={{ p: 3, height: 200 }}>
+          <Stack spacing={2}>
+            <Box display="flex" justifyContent="space-between">
+              <Skeleton variant="rounded" width={80} height={24} />
+              <Skeleton variant="circular" width={24} height={24} />
+            </Box>
+            <Skeleton variant="text" width="80%" height={32} />
+            <Skeleton variant="text" width="100%" />
+            <Skeleton variant="text" width="90%" />
+          </Stack>
+        </Paper>
+      ))}
+    </Box>
+  </Box>
+);
+
+const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchMembers = async () => {
+      try {
+        const { data: membershipList } = await org.members();
+        const membersWithProfiles = await Promise.all(
+          membershipList.map(async (m) => {
+            const { data: profile } = await m.user();
+            return { ...m, profile };
+          })
+        );
+        if (mounted) setMembers(membersWithProfiles);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    fetchMembers();
+    return () => { mounted = false; };
+  }, [org]);
+
+  if (loading) return <Box p={4}><CircularProgress /></Box>;
+
+  return (
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Box>
+          <Typography variant="h4" gutterBottom fontWeight="bold">Team</Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage members and permissions.
+          </Typography>
+        </Box>
+        <Button variant="outlined" startIcon={<AddIcon />}>Invite Member</Button>
+      </Box>
+
+      <Paper variant="outlined">
+        <List disablePadding>
+          {members.map((m, idx) => (
+            <Box key={m.id}>
+              <ListItem sx={{ py: 2, px: 3 }}>
+                <ListItemButton sx={{ borderRadius: 2 }}>
+                  <ListItemIcon>
+                    <Avatar sx={{ bgcolor: 'secondary.main' }}>
+                      {m.profile?.preferredName?.[0]?.toUpperCase() || 'U'}
+                    </Avatar>
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        {m.profile?.preferredName || 'Unknown User'}
+                      </Typography>
+                    }
+                    secondary={m.profile?.email || 'No email'}
+                  />
+                  <Chip
+                    label={m.role}
+                    size="small"
+                    color={m.role === 'OWNER' ? 'primary' : 'default'}
+                    variant={m.role === 'OWNER' ? 'filled' : 'outlined'}
+                  />
+                </ListItemButton>
+              </ListItem>
+              {idx < members.length - 1 && <Divider />}
+            </Box>
+          ))}
+        </List>
+      </Paper>
+    </Box>
+  );
+};
 
 type ViewState = 'dashboard' | 'team' | 'settings' | 'profile';
 
@@ -201,7 +306,7 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
   const renderContent = () => {
     switch (currentView) {
       case 'team':
-        return <Paper sx={{ p: 6, textAlign: 'center' }}><Typography color="text.secondary">Team management interface coming soon.</Typography></Paper>;
+        return org ? <TeamView org={org} /> : null;
       case 'settings':
         return <Paper sx={{ p: 6, textAlign: 'center' }}><Typography color="text.secondary">Organization settings coming soon.</Typography></Paper>;
       case 'profile':
@@ -229,7 +334,7 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
             </Box>
 
             {loading ? (
-              <Box display="flex" justifyContent="center" p={8}><CircularProgress /></Box>
+              <SkeletonDashboard />
             ) : objectives.length === 0 ? (
               <Paper
                 variant="outlined"
