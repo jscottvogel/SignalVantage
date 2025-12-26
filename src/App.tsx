@@ -110,7 +110,11 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
             ) : (
               <div className="grid-cols-auto">
                 {objectives.map(obj => (
-                  <StrategicObjectiveCard key={obj.id} objective={obj} />
+                  <StrategicObjectiveCard
+                    key={obj.id}
+                    objective={obj}
+                    onClick={() => alert(`Showing details for: ${obj.title}`)}
+                  />
                 ))}
               </div>
             )}

@@ -3,9 +3,10 @@ import type { Schema } from '../../amplify/data/resource';
 
 interface Props {
     objective: Schema['StrategicObjective']['type'];
+    onClick: () => void;
 }
 
-export function StrategicObjectiveCard({ objective }: Props) {
+export function StrategicObjectiveCard({ objective, onClick }: Props) {
     const [outcomeCount, setOutcomeCount] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -30,19 +31,23 @@ export function StrategicObjectiveCard({ objective }: Props) {
     }, [objective]);
 
     return (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
+        <div
+            className="card card-interactive"
+            onClick={onClick}
+            style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}
+        >
             <div>
-                <h3>{objective.title}</h3>
+                <h3 style={{ textDecoration: 'none' }}>{objective.title}</h3>
                 <p className="mt-4" style={{ lineClamp: 3, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3 }}>
                     {objective.description || "No description provided."}
                 </p>
             </div>
 
             <div className="flex-between mt-4" style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
-                <div className="text-small text-muted">
+                <div className="text-small text-muted" style={{ fontWeight: 500 }}>
                     {loading ? '...' : `${outcomeCount} Outcomes`}
                 </div>
-                <button className="btn-secondary text-small">View Details</button>
+                <div style={{ color: 'var(--color-primary)', fontSize: '1.2rem' }}>&rsaquo;</div>
             </div>
         </div>
     );

@@ -1,33 +1,38 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Executive Palette */
-  --color-brand-primary: #3b82f6;
-  /* Trustworthy Blue */
-  --color-brand-accent: #f59e0b;
-  /* Executive Gold for highlights */
+  /* Professional Light Palette */
+  --color-primary: #2563eb;
+  /* Professional Blue */
+  --color-primary-dark: #1d4ed8;
+  --color-accent: #0f172a;
+  /* Navy for headers/emphasis */
 
-  --bg-app: #0f172a;
-  /* Deep Slate */
-  --bg-surface: #1e293b;
-  /* Lighter Slate */
-  --bg-surface-hover: #334155;
-  --bg-input: #020617;
+  --bg-app: #f3f4f6;
+  /* Very light gray, easier on eyes than stark white */
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f8fafc;
+  --bg-input: #ffffff;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
+  --text-primary: #111827;
+  /* Near black for best readability */
+  --text-secondary: #4b5563;
+  /* Medium gray */
+  --text-tertiary: #9ca3af;
 
-  --border-subtle: #334155;
-  --border-focus: #3b82f6;
+  --border-subtle: #e5e7eb;
+  --border-strong: #d1d5db;
+  --border-focus: #2563eb;
 
   /* Spacing & Layout */
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
 
-  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
-  --shadow-overlay: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-card-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-overlay: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -52,14 +57,15 @@ h2,
 h3,
 h4,
 h5 {
-  color: var(--text-primary);
+  color: var(--color-accent);
   font-weight: 600;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.015em;
   margin: 0;
 }
 
 h1 {
-  font-size: 2rem;
+  font-size: 1.875rem;
+  font-weight: 700;
 }
 
 h2 {
@@ -67,17 +73,18 @@ h2 {
 }
 
 h3 {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 
 a {
-  color: var(--color-brand-primary);
+  color: var(--color-primary);
   text-decoration: none;
-  transition: color 0.15s ease;
+  font-weight: 500;
 }
 
 a:hover {
-  color: #60a5fa;
+  color: var(--color-primary-dark);
   text-decoration: underline;
 }
 
