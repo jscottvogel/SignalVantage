@@ -6,12 +6,13 @@ import "@aws-amplify/ui-react/styles.css";
 
 const client = generateClient<Schema>();
 
-function App() {
+// Internal component to handle the authenticated logic
+function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => void) | undefined }) {
   const [org, setOrg] = useState<Schema["Organization"]["type"] | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Function to bootstrap User and Org
-  const checkAndBootstrap = async (user: any) => {
+  const checkAndBootstrap = async (currentUser: any) => {
     try {
       setLoading(true);
       // 1. Check if UserProfile exists
@@ -24,8 +25,8 @@ function App() {
       if (!userProfile) {
         console.log("Creating new UserProfile...");
         const { data: newProfile, errors } = await client.models.UserProfile.create({
-          email: user?.signInDetails?.loginId || "unknown",
-          preferredName: user?.signInDetails?.loginId || "User",
+          email: currentUser?.signInDetails?.loginId || "unknown",
+          preferredName: currentUser?.signInDetails?.loginId || "User",
         });
         if (errors) throw new Error(errors[0].message);
         userProfile = newProfile!;
@@ -70,39 +71,42 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    if (user) {
+      checkAndBootstrap(user);
+    }
+  }, [user?.userId]);
+
+  if (loading) {
+    return (
+      <main>
+        <div>Setting up your workspace...</div>
+      </main>
+    );
+  }
+
+  return (
+    <main>
+      <h1>Organization Dashboard</h1>
+      {org ? (
+        <div className="card">
+          <h2>{org.name}</h2>
+          <p>Welcome, Owner.</p>
+        </div>
+      ) : (
+        <p>No organization found.</p>
+      )}
+      <button onClick={signOut}>Sign out</button>
+    </main>
+  );
+}
+
+function App() {
   return (
     <Authenticator>
-      {({ signOut, user }) => {
-        // Trigger bootstrap once we have a user
-        useEffect(() => {
-          if (user) {
-            checkAndBootstrap(user);
-          }
-        }, [user?.userId]); // Run when user ID changes
-
-        if (loading) {
-          return (
-            <main>
-              <div>Setting up your workspace...</div>
-            </main>
-          );
-        }
-
-        return (
-          <main>
-            <h1>Organization Dashboard</h1>
-            {org ? (
-              <div className="card">
-                <h2>{org.name}</h2>
-                <p>Welcome, Owner.</p>
-              </div>
-            ) : (
-              <p>No organization found.</p>
-            )}
-            <button onClick={signOut}>Sign out</button>
-          </main>
-        );
-      }}
+      {({ signOut, user }) => (
+        <Dashboard user={user} signOut={signOut} />
+      )}
     </Authenticator>
   );
 }
