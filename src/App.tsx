@@ -20,6 +20,7 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [selectedObjective, setSelectedObjective] = useState<Schema["StrategicObjective"]["type"] | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Function to bootstrap User and Org
   const checkAndBootstrap = async (currentUser: any) => {
@@ -129,8 +130,7 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
     }
   };
 
-  // Toggle for mobile menu
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
 
   return (
     <>
