@@ -129,76 +129,81 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
     }
   };
 
-  return (
-    <main className="layout-container">
-      <header className="dashboard-header">
-        <div>
-          <h1 style={{ fontSize: '1.5rem' }}>{org?.name || "Organization"}</h1>
-          <span className="text-small text-muted">Executive Dashboard</span>
-        </div>
+  // Toggle for mobile menu
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-        <div className="flex-row">
-          <nav className="flex-row" style={{ gap: '0.5rem', marginRight: '1rem', borderRight: '1px solid var(--border-subtle)', paddingRight: '1rem' }}>
+  return (
+    <>
+      <header className="nav-header">
+        <div className="nav-container">
+          <div className="nav-brand">
+            <h1>{org?.name || "Signal Vantage"}</h1>
+          </div>
+
+          <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            {mobileMenuOpen ? '✕' : '☰'}
+          </button>
+
+          <nav className={`nav-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
             <button
-              onClick={() => setCurrentView('dashboard')}
-              title="Dashboard"
-              className={`btn-text ${currentView === 'dashboard' ? 'text-primary' : ''}`}
-              style={{ padding: '0.5rem' }}
+              onClick={() => { setCurrentView('dashboard'); setMobileMenuOpen(false); }}
+              className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
             >
-              <HomeIcon style={{ width: '24px', height: '24px' }} />
+              <HomeIcon style={{ width: '18px' }} /> Dashboard
             </button>
             <button
-              onClick={() => setCurrentView('team')}
-              title="Manage Team"
-              className={`btn-text ${currentView === 'team' ? 'text-primary' : ''}`}
-              style={{ padding: '0.5rem' }}
+              onClick={() => { setCurrentView('team'); setMobileMenuOpen(false); }}
+              className={`nav-item ${currentView === 'team' ? 'active' : ''}`}
             >
-              <UserGroupIcon style={{ width: '24px', height: '24px' }} />
+              <UserGroupIcon style={{ width: '18px' }} /> Team
             </button>
             <button
-              onClick={() => setCurrentView('settings')}
-              title="Settings"
-              className={`btn-text ${currentView === 'settings' ? 'text-primary' : ''}`}
-              style={{ padding: '0.5rem' }}
+              onClick={() => { setCurrentView('settings'); setMobileMenuOpen(false); }}
+              className={`nav-item ${currentView === 'settings' ? 'active' : ''}`}
             >
-              <Cog6ToothIcon style={{ width: '24px', height: '24px' }} />
+              <Cog6ToothIcon style={{ width: '18px' }} /> Settings
             </button>
             <button
-              onClick={() => setCurrentView('profile')}
-              title="Profile"
-              className={`btn-text ${currentView === 'profile' ? 'text-primary' : ''}`}
-              style={{ padding: '0.5rem' }}
+              onClick={() => { setCurrentView('profile'); setMobileMenuOpen(false); }}
+              className={`nav-item ${currentView === 'profile' ? 'active' : ''}`}
             >
-              <UserCircleIcon style={{ width: '24px', height: '24px' }} />
+              <UserCircleIcon style={{ width: '18px' }} /> Profile
+            </button>
+
+            <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.5rem 0', display: mobileMenuOpen ? 'block' : 'none' }}></div>
+
+            <button onClick={signOut} className="nav-item">
+              Sign Out
             </button>
           </nav>
-          <button onClick={signOut} className="btn-secondary text-small">Sign Out</button>
         </div>
       </header>
 
-      {org ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-          {renderContent()}
-        </div>
-      ) : (
-        <p className="text-muted">No organization found.</p>
-      )}
+      <main className="layout-container">
+        {org ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+            {renderContent()}
+          </div>
+        ) : (
+          <p className="text-muted">No organization found.</p>
+        )}
 
-      {showCreateModal && org && (
-        <CreateObjectiveForm
-          organizationId={org.id}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={(newObj) => setObjectives([...objectives, newObj])}
-        />
-      )}
+        {showCreateModal && org && (
+          <CreateObjectiveForm
+            organizationId={org.id}
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={(newObj) => setObjectives([...objectives, newObj])}
+          />
+        )}
 
-      {selectedObjective && (
-        <ObjectiveDetailModal
-          objective={selectedObjective}
-          onClose={() => setSelectedObjective(null)}
-        />
-      )}
-    </main>
+        {selectedObjective && (
+          <ObjectiveDetailModal
+            objective={selectedObjective}
+            onClose={() => setSelectedObjective(null)}
+          />
+        )}
+      </main>
+    </>
   );
 }
 
