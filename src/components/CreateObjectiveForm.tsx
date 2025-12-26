@@ -132,85 +132,96 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess }: Prop
     };
 
     return (
-        <div className="modal-overlay" style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center',
-            zIndex: 1000, overflowY: 'auto'
-        }}>
-            <div className="card" style={{ width: '800px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-surface)' }}>
-                <h2>Create Strategic Objective</h2>
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
+        <div className="modal-overlay">
+            <div className="modal-content">
+                <div className="flex-between mb-4">
+                    <h2>Create Strategic Objective</h2>
+                    <button type="button" className="btn-text text-muted" onClick={onClose} aria-label="Close">✕</button>
+                </div>
 
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     <div>
-                        <label>Title</label>
+                        <label className="text-small text-muted" style={{ display: 'block', marginBottom: '0.4rem' }}>Title</label>
                         <input
                             value={title}
                             onChange={e => setTitle(e.target.value)}
                             required
-                            style={{ width: '100%', padding: '0.5rem', background: '#333', color: 'white', border: '1px solid #555' }}
+                            placeholder="e.g. Expand Market Share"
                         />
                     </div>
 
                     <div>
-                        <label>Description</label>
+                        <label className="text-small text-muted" style={{ display: 'block', marginBottom: '0.4rem' }}>Description</label>
                         <textarea
                             value={description}
                             onChange={e => setDescription(e.target.value)}
-                            style={{ width: '100%', padding: '0.5rem', background: '#333', color: 'white', border: '1px solid #555' }}
+                            rows={3}
+                            placeholder="Briefly describe the objective..."
                         />
                     </div>
 
-                    <hr style={{ borderColor: 'var(--border-color)', width: '100%' }} />
+                    <hr style={{ borderColor: 'var(--border-subtle)', width: '100%' }} />
 
-                    <h3>Outcomes</h3>
-                    {outcomes.map((outcome, oIdx) => (
-                        <div key={oIdx} style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '8px', marginBottom: '1rem' }}>
-                            <div style={{ marginBottom: '0.5rem' }}>
-                                <input
-                                    placeholder="Outcome Title"
-                                    value={outcome.title}
-                                    onChange={e => updateOutcome(oIdx, 'title', e.target.value)}
-                                    style={{ width: '100%', padding: '0.5rem', background: '#222', color: 'white', border: 'none' }}
-                                />
-                            </div>
-
-                            <div style={{ marginLeft: '20px', borderLeft: '2px solid var(--primary-color)', paddingLeft: '10px' }}>
-                                <h4>Key Results</h4>
-                                {outcome.keyResults.map((kr, kIdx) => (
-                                    <div key={kIdx} style={{ marginBottom: '1rem' }}>
-                                        <input
-                                            placeholder="KR Statement"
-                                            value={kr.statement}
-                                            onChange={e => updateKeyResult(oIdx, kIdx, e.target.value)}
-                                            style={{ width: '100%', padding: '0.5rem', background: '#222', color: 'white', border: 'none' }}
-                                        />
-
-                                        <div style={{ marginLeft: '20px', marginTop: '5px' }}>
-                                            <h5 style={{ margin: '5px 0' }}>Initiatives</h5>
-                                            {kr.initiatives.map((init, iIdx) => (
-                                                <div key={iIdx} style={{ display: 'flex', gap: '10px', marginBottom: '5px' }}>
-                                                    <input
-                                                        placeholder="Initiative Title"
-                                                        value={init.title}
-                                                        onChange={e => updateInitiative(oIdx, kIdx, iIdx, 'title', e.target.value)}
-                                                        style={{ flex: 1, padding: '0.3rem', background: '#222', color: 'white', border: 'none' }}
-                                                    />
-                                                </div>
-                                            ))}
-                                            <button type="button" onClick={() => addInitiative(oIdx, kIdx)} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}>+ Add Initiative</button>
-                                        </div>
-                                    </div>
-                                ))}
-                                <button type="button" onClick={() => addKeyResult(oIdx)} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}>+ Add Key Result</button>
-                            </div>
+                    <div>
+                        <div className="flex-between mb-4">
+                            <h3>Outcomes</h3>
+                            <button type="button" className="btn-secondary text-small" onClick={addOutcome}>+ Add Outcome</button>
                         </div>
-                    ))}
 
-                    <button type="button" onClick={addOutcome} style={{ alignSelf: 'flex-start' }}>+ Add Outcome</button>
+                        {outcomes.map((outcome, oIdx) => (
+                            <div key={oIdx} className="card mb-4" style={{ padding: '1rem', border: '1px solid var(--border-subtle)' }}>
+                                <div className="mb-4">
+                                    <input
+                                        placeholder="Outcome Title (e.g. Increase Customer Retention)"
+                                        value={outcome.title}
+                                        onChange={e => updateOutcome(oIdx, 'title', e.target.value)}
+                                        style={{ fontWeight: 600 }}
+                                    />
+                                </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
-                        <button type="button" onClick={onClose} style={{ background: 'transparent', border: '1px solid #666' }}>Cancel</button>
-                        <button type="submit" disabled={loading}>{loading ? 'Creating...' : 'Create All'}</button>
+                                <div style={{ paddingLeft: '1rem', borderLeft: '2px solid var(--border-subtle)' }}>
+                                    <div className="flex-between mb-4">
+                                        <h4 className="text-muted text-small">Key Results</h4>
+                                        <button type="button" className="btn-text text-small" onClick={() => addKeyResult(oIdx)}>+ Add KR</button>
+                                    </div>
+
+                                    {outcome.keyResults.map((kr, kIdx) => (
+                                        <div key={kIdx} className="mb-4">
+                                            <input
+                                                placeholder="KR Statement (e.g. Achieve 95% Renewal Rate)"
+                                                value={kr.statement}
+                                                onChange={e => updateKeyResult(oIdx, kIdx, e.target.value)}
+                                                className="mb-4"
+                                            />
+
+                                            <div style={{ paddingLeft: '1rem' }}>
+                                                <div className="flex-between mb-4">
+                                                    <h5 className="text-muted text-small">Initiatives</h5>
+                                                    <button type="button" className="btn-text text-small" onClick={() => addInitiative(oIdx, kIdx)}>+ Add Initiative</button>
+                                                </div>
+
+                                                {kr.initiatives.map((init, iIdx) => (
+                                                    <div key={iIdx} className="mb-4">
+                                                        <input
+                                                            placeholder="Initiative Title"
+                                                            value={init.title}
+                                                            onChange={e => updateInitiative(oIdx, kIdx, iIdx, 'title', e.target.value)}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex-between mt-4" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem' }}>
+                        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="btn-primary" disabled={loading}>
+                            {loading ? 'Creating...' : 'Create Strategic Objective & Tree'}
+                        </button>
                     </div>
                 </form>
             </div>

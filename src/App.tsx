@@ -80,35 +80,35 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
 
   if (loading) {
     return (
-      <main>
-        <div>Setting up your workspace...</div>
+      <main className="layout-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <div style={{ color: 'var(--text-secondary)' }}>Setting up your workspace...</div>
       </main>
     );
   }
 
   return (
-    <main>
-      <header style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px' }}>
-        <h1 style={{ margin: 0, fontSize: '1.5rem', textAlign: 'left' }}>{org?.name || "Organization"} Dashboard</h1>
-        <button onClick={signOut} style={{ fontSize: '0.9rem', padding: '0.5rem 1rem' }}>Sign Out</button>
+    <main className="layout-container">
+      <header className="dashboard-header">
+        <h1>{org?.name || "Organization"} Dashboard</h1>
+        <button onClick={signOut} className="btn-secondary">Sign Out</button>
       </header>
 
       {org ? (
-        <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
 
           <section>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div className="flex-between mb-4">
               <h2>Strategic Objectives</h2>
-              <button onClick={() => setShowCreateModal(true)}>+ Create New</button>
+              <button onClick={() => setShowCreateModal(true)} className="btn-primary">+ Create New</button>
             </div>
 
             {objectives.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-                <p style={{ fontStyle: 'italic', marginBottom: '1rem' }}>No strategic objectives yet.</p>
-                <button onClick={() => setShowCreateModal(true)}>Create Your First Objective</button>
+              <div className="card" style={{ textAlign: 'center', padding: '4rem' }}>
+                <p className="text-muted" style={{ fontStyle: 'italic', marginBottom: '1.5rem' }}>No strategic objectives yet.</p>
+                <button onClick={() => setShowCreateModal(true)} className="btn-primary">Create Your First Objective</button>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+              <div className="grid-cols-auto">
                 {objectives.map(obj => (
                   <StrategicObjectiveCard key={obj.id} objective={obj} />
                 ))}
@@ -117,31 +117,31 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
           </section>
 
           <section>
-            <h2 style={{ marginBottom: '1rem' }}>Manage</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
+            <h2 className="mb-4">Manage</h2>
+            <div className="grid-cols-auto">
               <div className="card">
                 <h3>Team</h3>
                 <p>View and manage your team members.</p>
-                <button onClick={() => alert("Manage Team - Coming Soon")} style={{ width: '100%', marginTop: '1rem' }}>Manage Team</button>
+                <button onClick={() => alert("Manage Team - Coming Soon")} className="btn-secondary mt-4" style={{ width: '100%' }}>Manage Team</button>
               </div>
 
               <div className="card">
                 <h3>Settings</h3>
                 <p>Update organization settings.</p>
-                <button onClick={() => alert("Settings - Coming Soon")} style={{ width: '100%', marginTop: '1rem' }}>Manage Settings</button>
+                <button onClick={() => alert("Settings - Coming Soon")} className="btn-secondary mt-4" style={{ width: '100%' }}>Manage Settings</button>
               </div>
 
               <div className="card">
                 <h3>Profile</h3>
                 <p>Update your personal profile.</p>
-                <button onClick={() => alert("Profile - Coming Soon")} style={{ width: '100%', marginTop: '1rem' }}>Manage Profile</button>
+                <button onClick={() => alert("Profile - Coming Soon")} className="btn-secondary mt-4" style={{ width: '100%' }}>Manage Profile</button>
               </div>
             </div>
           </section>
 
         </div>
       ) : (
-        <p>No organization found.</p>
+        <p className="text-muted">No organization found.</p>
       )}
 
       {showCreateModal && org && (

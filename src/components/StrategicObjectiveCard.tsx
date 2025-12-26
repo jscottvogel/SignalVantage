@@ -30,25 +30,19 @@ export function StrategicObjectiveCard({ objective }: Props) {
     }, [objective]);
 
     return (
-        <div className="card" style={{
-            display: 'flex',
-            flexDirection: 'column',
-            textAlign: 'left',
-            height: '100%',
-            justifyContent: 'space-between'
-        }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
             <div>
-                <h3 style={{ marginTop: 0, fontSize: '1.25rem' }}>{objective.title}</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineClamp: 3, overflow: 'hidden' }}>
+                <h3>{objective.title}</h3>
+                <p className="mt-4" style={{ lineClamp: 3, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3 }}>
                     {objective.description || "No description provided."}
                 </p>
             </div>
 
-            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <div className="flex-between mt-4" style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
+                <div className="text-small text-muted">
                     {loading ? '...' : `${outcomeCount} Outcomes`}
                 </div>
-                <button style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>View Details</button>
+                <button className="btn-secondary text-small">View Details</button>
             </div>
         </div>
     );

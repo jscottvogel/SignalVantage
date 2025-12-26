@@ -1,102 +1,173 @@
+/* Layout */
 #root {
+  width: 100%;
+}
+
+.layout-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
   width: 100%;
 }
 
-main {
+.dashboard-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  gap: 2rem;
-  width: 100%;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 2rem;
 }
 
-h1 {
-  font-size: 2.5rem;
-  background: var(--accent-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 0.5rem;
-  text-align: center;
-}
-
+/* Cards */
 .card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 2.5rem;
-  box-shadow: var(--shadow-lg);
-  width: 100%;
-  max-width: 600px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-glow);
-  border-color: rgba(99, 102, 241, 0.3);
+  /* Only interactive cards need hover */
+  border-color: var(--border-focus);
 }
 
-.card h2 {
-  font-size: 1.5rem;
+.card h3 {
+  color: var(--text-primary);
   margin-bottom: 0.5rem;
-  color: var(--text-main);
 }
 
 .card p {
-  color: var(--text-muted);
-  font-size: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
+/* Buttons */
 button {
-  border: none;
-  border-radius: var(--radius-md);
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-  background: var(--accent-gradient);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.btn-primary {
+  background-color: var(--color-brand-primary);
   color: white;
-  transition: opacity 0.2s ease, transform 0.1s ease;
-  box-shadow: var(--shadow-md);
+  border-color: var(--color-brand-primary);
 }
 
-button:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
+.btn-primary:hover {
+  background-color: #2563eb;
+  border-color: #2563eb;
 }
 
-button:active {
-  transform: translateY(0);
+.btn-secondary {
+  background-color: transparent;
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
 }
 
-/* Loading State */
-main>div {
-  font-size: 1.2rem;
-  color: var(--text-muted);
+.btn-secondary:hover {
+  background-color: var(--bg-surface-hover);
+  border-color: var(--text-secondary);
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0;
+}
+
+.btn-text:hover {
+  color: var(--color-brand-primary);
+  text-decoration: underline;
+}
+
+/* Inputs */
+input,
+textarea {
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 1px var(--border-focus);
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
   display: flex;
-  align-items: center;
   justify-content: center;
-  min-height: 50vh;
-  animation: pulse 2s infinite;
+  align-items: center;
+  z-index: 50;
+  backdrop-filter: blur(4px);
 }
 
-@keyframes pulse {
-  0% {
-    opacity: 0.6;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0.6;
-  }
+.modal-content {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-overlay);
 }
 
-/* Utility to center the Authenticator if needed */
-[data-amplify-authenticator] {
-  margin-top: 2rem;
+/* Utility */
+.text-muted {
+  color: var(--text-secondary);
+}
+
+.text-small {
+  font-size: 0.875rem;
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+.flex-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.grid-cols-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
 }
