@@ -12,6 +12,9 @@ const schema = a.schema({
       name: a.string().required(),
       members: a.hasMany('Membership', 'organizationId'),
       objectives: a.hasMany('StrategicObjective', 'organizationId'),
+      outcomes: a.hasMany('Outcome', 'organizationId'),
+      keyResults: a.hasMany('KeyResult', 'organizationId'),
+      initiatives: a.hasMany('Initiative', 'organizationId'),
     })
     .authorization((allow) => [allow.authenticated()]),
   UserProfile: a
@@ -30,9 +33,225 @@ const schema = a.schema({
       user: a.belongsTo('UserProfile', 'userProfileId'),
     })
     .authorization((allow) => [allow.authenticated()]),
+
+  Timeframe: a.customType({
+    startDate: a.date(),
+    endDate: a.date(),
+  }),
+
+  ObjectiveOwner: a.customType({
+    userId: a.id(),
+    displayName: a.string(),
+    role: a.string(),
+  }),
+
+  Benefit: a.customType({
+    type: a.string(),
+    statement: a.string(),
+    notes: a.string(),
+  }),
+
+  MetricBaseline: a.customType({
+    value: a.float(),
+    asOf: a.date(),
+  }),
+
+  MetricTarget: a.customType({
+    value: a.float(),
+    by: a.date(),
+  }),
+
+  DataSource: a.customType({
+    type: a.string(),
+    description: a.string(),
+  }),
+
+  Metric: a.customType({
+    name: a.string(),
+    unit: a.string(),
+    direction: a.string(),
+    baseline: a.ref('MetricBaseline'),
+    target: a.ref('MetricTarget'),
+    dataSource: a.ref('DataSource'),
+  }),
+
+  Confidence: a.customType({
+    overall: a.string(),
+    trend: a.string(),
+    asOf: a.datetime(),
+    drivers: a.string().array(),
+    limitations: a.string().array(),
+  }),
+
+  HeartbeatSource: a.customType({
+    type: a.string(),
+    id: a.string(),
+    initiativeId: a.string(),
+    timestamp: a.datetime(),
+  }),
+
+  LatestHeartbeat: a.customType({
+    heartbeatId: a.string(),
+    summary: a.string(),
+    sources: a.ref('HeartbeatSource').array(),
+  }),
+
+  // Initiative Custom Types
+  LinkedEntities: a.customType({
+    strategicObjectiveIds: a.string().array(),
+    outcomeIds: a.string().array(),
+    keyResultIds: a.string().array(),
+  }),
+
+  InitiativeTimeframe: a.customType({
+    startDate: a.date(),
+    targetDate: a.date(),
+  }),
+
+  InitiativeState: a.customType({
+    lifecycle: a.string(),
+    health: a.string(),
+    updatedAt: a.datetime(),
+  }),
+
+  HeartbeatCadence: a.customType({
+    type: a.string(),
+    dueDayOfWeek: a.string(),
+    gracePeriodHours: a.integer(),
+  }),
+
+  Risk: a.customType({
+    id: a.string(),
+    description: a.string(),
+    impact: a.string(),
+    probability: a.string(),
+  }),
+
+  Dependency: a.customType({
+    id: a.string(),
+    description: a.string(),
+    owner: a.string(),
+    status: a.string(),
+  }),
+
+  OwnerInput: a.customType({
+    progressSummary: a.string(),
+    milestoneStatus: a.string(),
+    ownerConfidence: a.string(),
+    confidenceRationale: a.string(),
+    newRisks: a.ref('Risk').array(),
+    dependencies: a.ref('Dependency').array(),
+  }),
+
+  IntegritySignals: a.customType({
+    updateFreshness: a.string(),
+    languageSpecificity: a.string(),
+    signalConsistency: a.string(),
+  }),
+
+  FIR: a.customType({
+    facts: a.string().array(),
+    inferences: a.string().array(),
+    recommendations: a.string().array(),
+  }),
+
+  SystemAssessment: a.customType({
+    systemConfidence: a.string(),
+    confidenceTrend: a.string(),
+    integritySignals: a.ref('IntegritySignals'),
+    uncertaintyFlags: a.string().array(),
+    factsInferencesRecommendations: a.ref('FIR'),
+  }),
+
+  EvidenceLink: a.customType({
+    type: a.string(),
+    sourceId: a.string(),
+    submittedBy: a.string(),
+    submittedAt: a.datetime(),
+  }),
+
+  InitiativeHeartbeat: a.customType({
+    heartbeatId: a.string(),
+    timestamp: a.datetime(),
+    ownerInput: a.ref('OwnerInput'),
+    systemAssessment: a.ref('SystemAssessment'),
+    evidenceLinks: a.ref('EvidenceLink').array(),
+  }),
+
+  Audit: a.customType({
+    createdBy: a.string(),
+    updatedBy: a.string(),
+    version: a.integer(),
+  }),
+
   StrategicObjective: a
     .model({
       title: a.string().required(),
+      description: a.string(),
+      timeframe: a.ref('Timeframe'),
+      owner: a.ref('ObjectiveOwner'),
+      tags: a.string().array(),
+      status: a.enum(['active', 'draft', 'closed', 'archived']),
+
+      organizationId: a.id().required(),
+      organization: a.belongsTo('Organization', 'organizationId'),
+      outcomes: a.hasMany('Outcome', 'strategicObjectiveId'),
+      keyResults: a.hasMany('KeyResult', 'strategicObjectiveId'),
+    })
+    .authorization((allow) => [allow.authenticated()]),
+
+  Outcome: a
+    .model({
+      title: a.string().required(),
+      description: a.string(),
+      benefit: a.ref('Benefit'),
+      timeframe: a.ref('Timeframe'),
+      owner: a.ref('ObjectiveOwner'),
+      tags: a.string().array(),
+      status: a.enum(['active', 'draft', 'closed', 'archived']),
+
+      organizationId: a.id().required(),
+      organization: a.belongsTo('Organization', 'organizationId'),
+
+      strategicObjectiveId: a.id().required(),
+      strategicObjective: a.belongsTo('StrategicObjective', 'strategicObjectiveId'),
+      keyResults: a.hasMany('KeyResult', 'outcomeId'),
+    })
+    .authorization((allow) => [allow.authenticated()]),
+
+  KeyResult: a
+    .model({
+      statement: a.string().required(),
+      metric: a.ref('Metric'),
+      measurementCadence: a.string(),
+      owners: a.ref('ObjectiveOwner').array(),
+      status: a.enum(['active', 'draft', 'closed', 'archived']),
+      confidence: a.ref('Confidence'),
+      latestHeartbeat: a.ref('LatestHeartbeat'),
+
+      organizationId: a.id().required(),
+      organization: a.belongsTo('Organization', 'organizationId'),
+
+      strategicObjectiveId: a.id().required(),
+      strategicObjective: a.belongsTo('StrategicObjective', 'strategicObjectiveId'),
+
+      outcomeId: a.id().required(),
+      outcome: a.belongsTo('Outcome', 'outcomeId'),
+    })
+    .authorization((allow) => [allow.authenticated()]),
+
+  Initiative: a
+    .model({
+      title: a.string().required(),
+      description: a.string(),
+      linkedEntities: a.ref('LinkedEntities'),
+      owner: a.ref('ObjectiveOwner'),
+      timeframe: a.ref('InitiativeTimeframe'),
+      state: a.ref('InitiativeState'),
+      heartbeatCadence: a.ref('HeartbeatCadence'),
+      latestHeartbeat: a.ref('InitiativeHeartbeat'),
+      audit: a.ref('Audit'),
+
       organizationId: a.id().required(),
       organization: a.belongsTo('Organization', 'organizationId'),
     })
