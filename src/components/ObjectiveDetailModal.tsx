@@ -58,6 +58,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         type: 'outcome'
     });
     const [itemText, setItemText] = useState('');
+    const [itemDescription, setItemDescription] = useState('');
+    const [itemStatus, setItemStatus] = useState('active'); // Default status
+    const [itemMetricName, setItemMetricName] = useState('');
     const [selectedOwnerId, setSelectedOwnerId] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -121,12 +124,30 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     ) => {
         let initText = '';
         let initOwner = '';
+        let initDesc = '';
+        let initStatus = 'active';
+        let initMetric = '';
 
         if (mode === 'edit' && item) {
             initText = item.title || item.statement || '';
             // Handle owner: item.owner (single) or item.owners[0] (array)
             const owner = item.owner || (item.owners && item.owners[0]);
             initOwner = owner?.userId || '';
+            initDesc = item.description || '';
+
+            if (type === 'initiative') {
+                initStatus = item.state?.lifecycle || 'planned';
+            } else {
+                initStatus = item.status || 'active';
+            }
+
+            if (type === 'kr') {
+                initMetric = item.metric?.name || '';
+            }
+        } else {
+            // Defaults for create
+            if (type === 'initiative') initStatus = 'planned';
+            else initStatus = 'active';
         }
 
         setDialogState({
@@ -137,6 +158,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             id: item?.id
         });
         setItemText(initText);
+        setItemDescription(initDesc);
+        setItemStatus(initStatus);
+        setItemMetricName(initMetric);
         setSelectedOwnerId(initOwner);
     };
 
@@ -188,7 +212,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         organizationId: SafeOrgId,
                         strategicObjectiveId: objective.id,
                         title: itemText,
-                        status: 'active',
+                        description: itemDescription,
+                        status: itemStatus as any,
                         owner: ownerObj
                     });
                 } else if (dialogState.type === 'kr') {
@@ -197,15 +222,17 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         strategicObjectiveId: objective.id,
                         outcomeId: dialogState.parentId!,
                         statement: itemText,
-                        status: 'active',
-                        owners: ownerObj ? [ownerObj] : []
+                        status: itemStatus as any,
+                        owners: ownerObj ? [ownerObj] : [],
+                        metric: itemMetricName ? { name: itemMetricName } : null
                     });
                 } else if (dialogState.type === 'initiative') {
                     await client.models.Initiative.create({
                         organizationId: SafeOrgId,
                         title: itemText,
-                        description: '',
+                        description: itemDescription,
                         owner: ownerObj,
+                        state: { lifecycle: itemStatus, health: 'on_track', updatedAt: new Date().toISOString() },
                         linkedEntities: {
                             strategicObjectiveIds: [objective.id],
                             keyResultIds: [dialogState.parentId!]
@@ -219,6 +246,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     await client.models.StrategicObjective.update({
                         id,
                         title: itemText,
+                        description: itemDescription,
+                        // status: itemStatus as any, // Only if exposed on Object
                         owner: ownerObj
                     });
                     // Force reload/update for objective title changes visible immediately at top level?
@@ -228,18 +257,24 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     await client.models.Outcome.update({
                         id,
                         title: itemText,
+                        description: itemDescription,
+                        status: itemStatus as any,
                         owner: ownerObj
                     });
                 } else if (dialogState.type === 'kr') {
                     await client.models.KeyResult.update({
                         id,
                         statement: itemText,
-                        owners: ownerObj ? [ownerObj] : []
+                        status: itemStatus as any,
+                        owners: ownerObj ? [ownerObj] : [],
+                        metric: itemMetricName ? { name: itemMetricName } : null
                     });
                 } else if (dialogState.type === 'initiative') {
                     await client.models.Initiative.update({
                         id,
                         title: itemText,
+                        description: itemDescription,
+                        state: { lifecycle: itemStatus, health: 'on_track', updatedAt: new Date().toISOString() },
                         owner: ownerObj
                     });
                 }
@@ -269,6 +304,17 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         );
     };
 
+    const StatusChip = ({ status }: { status: string }) => {
+        if (!status) return null;
+        let color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' = 'default';
+        if (['active', 'on_track'].includes(status.toLowerCase())) color = 'success';
+        if (['draft', 'planned'].includes(status.toLowerCase())) color = 'info';
+        if (['closed', 'completed'].includes(status.toLowerCase())) color = 'default';
+        if (['cancelled', 'off_track'].includes(status.toLowerCase())) color = 'error';
+
+        return <Chip label={status} size="small" color={color} sx={{ height: 20, fontSize: '0.65rem', textTransform: 'uppercase' }} />;
+    };
+
     return (
         <Dialog
             open={true}
@@ -283,7 +329,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     <Stack direction="row" spacing={2} alignItems="center">
                         <Typography variant="h5" fontWeight="bold" color="primary.main">{objective.title}</Typography>
                         {objective.owner && <OwnerChip owner={objective.owner} />}
-                        <Tooltip title="Edit Objective"><IconButton size="small" onClick={() => openDialog('edit', 'objective', '', objective)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                        <Tooltip title="Edit Objective"><IconButton size="small" onClick={() => openDialog('edit', 'objective' as any, '', objective)}><EditIcon fontSize="small" /></IconButton></Tooltip>
                         <Tooltip title="Delete Objective"><IconButton size="small" onClick={() => handleDelete('objective', objective.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
                     </Stack>
                 </Box>
@@ -337,6 +383,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                 <Typography variant="subtitle1" fontWeight={600} color="text.primary">
                                                     {outcome.title}
                                                 </Typography>
+                                                <StatusChip status={outcome.status} />
                                                 <OwnerChip owner={outcome.owner} />
                                             </Stack>
                                             <Stack direction="row" spacing={1}>
@@ -354,6 +401,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                         </Box>
 
                                         <Box p={2}>
+                                            {outcome.description && <Typography variant="body2" color="text.secondary" gutterBottom>{outcome.description}</Typography>}
                                             {outcome.keyResults.length === 0 ? (
                                                 <Typography variant="body2" color="text.secondary" fontStyle="italic" sx={{ py: 1 }}>No Key Results. Add one to measure success.</Typography>
                                             ) : (
@@ -367,6 +415,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                         <Typography variant="subtitle2" color="text.primary">
                                                                             {kr.statement}
                                                                         </Typography>
+                                                                        <StatusChip status={kr.status} />
                                                                         {kr.owners && kr.owners.length > 0 && <OwnerChip owner={kr.owners[0]} />}
                                                                     </Stack>
                                                                     {kr.metric?.name && (
@@ -396,11 +445,13 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                 <Stack direction="row" alignItems="center" spacing={1}>
                                                                                     <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
                                                                                     <Typography variant="body2">{init.title}</Typography>
+                                                                                    <StatusChip status={init.state?.lifecycle} />
                                                                                     <OwnerChip owner={init.owner} />
                                                                                     <Box flexGrow={1} />
                                                                                     <Tooltip title="Edit Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'initiative', '', init)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
                                                                                     <Tooltip title="Delete Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('initiative', init.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
                                                                                 </Stack>
+                                                                                {init.description && <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>{init.description}</Typography>}
                                                                             </Paper>
                                                                         ))}
                                                                     </Stack>
@@ -454,6 +505,53 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                         "e.g. Launch New Mobile App"
                             }
                         />
+                        {/* Description for non-KR */}
+                        {dialogState.type !== 'kr' && (
+                            <TextField
+                                label="Description"
+                                fullWidth
+                                multiline
+                                rows={3}
+                                variant="outlined"
+                                value={itemDescription}
+                                onChange={(e) => setItemDescription(e.target.value)}
+                            />
+                        )}
+                        {/* Status Select */}
+                        <FormControl fullWidth>
+                            <InputLabel id="status-select-label">Status</InputLabel>
+                            <Select
+                                labelId="status-select-label"
+                                value={itemStatus}
+                                label="Status"
+                                onChange={(e) => setItemStatus(e.target.value)}
+                            >
+                                {dialogState.type === 'initiative' ? [
+                                    <MenuItem key="planned" value="planned">Planned</MenuItem>,
+                                    <MenuItem key="active" value="active">Active</MenuItem>,
+                                    <MenuItem key="completed" value="completed">Completed</MenuItem>,
+                                    <MenuItem key="paused" value="paused">Paused</MenuItem>,
+                                    <MenuItem key="cancelled" value="cancelled">Cancelled</MenuItem>
+                                ] : [
+                                    <MenuItem key="active" value="active">Active</MenuItem>,
+                                    <MenuItem key="draft" value="draft">Draft</MenuItem>,
+                                    <MenuItem key="closed" value="closed">Closed</MenuItem>,
+                                    <MenuItem key="archived" value="archived">Archived</MenuItem>
+                                ]}
+                            </Select>
+                        </FormControl>
+                        {/* KR Metric Name */}
+                        {dialogState.type === 'kr' && (
+                            <TextField
+                                label="Metric Name (Optional)"
+                                fullWidth
+                                variant="outlined"
+                                value={itemMetricName}
+                                onChange={(e) => setItemMetricName(e.target.value)}
+                                placeholder="e.g. NPS Score"
+                            />
+                        )}
+
                         <FormControl fullWidth>
                             <InputLabel id="owner-select-label">Owner (Optional)</InputLabel>
                             <Select
