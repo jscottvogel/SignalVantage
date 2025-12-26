@@ -5,8 +5,12 @@ import type { Schema } from "../amplify/data/resource";
 import "@aws-amplify/ui-react/styles.css";
 import { StrategicObjectiveCard } from "./components/StrategicObjectiveCard";
 import { CreateObjectiveForm } from "./components/CreateObjectiveForm";
+import { ObjectiveDetailModal } from "./components/ObjectiveDetailModal";
+import { UserGroupIcon, Cog6ToothIcon, UserCircleIcon, HomeIcon } from "@heroicons/react/24/outline";
 
 const client = generateClient<Schema>();
+
+type ViewState = 'dashboard' | 'team' | 'settings' | 'profile';
 
 // Internal component to handle the authenticated logic
 function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => void) | undefined }) {
@@ -14,6 +18,8 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
   const [loading, setLoading] = useState(true);
   const [objectives, setObjectives] = useState<Schema["StrategicObjective"]["type"][]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [currentView, setCurrentView] = useState<ViewState>('dashboard');
+  const [selectedObjective, setSelectedObjective] = useState<Schema["StrategicObjective"]["type"] | null>(null);
 
   // Function to bootstrap User and Org
   const checkAndBootstrap = async (currentUser: any) => {
@@ -86,16 +92,16 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
     );
   }
 
-  return (
-    <main className="layout-container">
-      <header className="dashboard-header">
-        <h1>{org?.name || "Organization"} Dashboard</h1>
-        <button onClick={signOut} className="btn-secondary">Sign Out</button>
-      </header>
-
-      {org ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
-
+  const renderContent = () => {
+    switch (currentView) {
+      case 'team':
+        return <div className="card"><h2>Manage Team</h2><p>Team management interface coming soon.</p></div>;
+      case 'settings':
+        return <div className="card"><h2>Organization Settings</h2><p>Settings interface coming soon.</p></div>;
+      case 'profile':
+        return <div className="card"><h2>My Profile</h2><p>Profile management interface coming soon.</p></div>;
+      default: // dashboard
+        return (
           <section>
             <div className="flex-between mb-4">
               <h2>Strategic Objectives</h2>
@@ -113,36 +119,66 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
                   <StrategicObjectiveCard
                     key={obj.id}
                     objective={obj}
-                    onClick={() => alert(`Showing details for: ${obj.title}`)}
+                    onClick={() => setSelectedObjective(obj)}
                   />
                 ))}
               </div>
             )}
           </section>
+        );
+    }
+  };
 
-          <section>
-            <h2 className="mb-4">Manage</h2>
-            <div className="grid-cols-auto">
-              <div className="card">
-                <h3>Team</h3>
-                <p>View and manage your team members.</p>
-                <button onClick={() => alert("Manage Team - Coming Soon")} className="btn-secondary mt-4" style={{ width: '100%' }}>Manage Team</button>
-              </div>
+  return (
+    <main className="layout-container">
+      <header className="dashboard-header">
+        <div>
+          <h1 style={{ fontSize: '1.5rem' }}>{org?.name || "Organization"}</h1>
+          <span className="text-small text-muted">Executive Dashboard</span>
+        </div>
 
-              <div className="card">
-                <h3>Settings</h3>
-                <p>Update organization settings.</p>
-                <button onClick={() => alert("Settings - Coming Soon")} className="btn-secondary mt-4" style={{ width: '100%' }}>Manage Settings</button>
-              </div>
+        <div className="flex-row">
+          <nav className="flex-row" style={{ gap: '0.5rem', marginRight: '1rem', borderRight: '1px solid var(--border-subtle)', paddingRight: '1rem' }}>
+            <button
+              onClick={() => setCurrentView('dashboard')}
+              title="Dashboard"
+              className={`btn-text ${currentView === 'dashboard' ? 'text-primary' : ''}`}
+              style={{ padding: '0.5rem' }}
+            >
+              <HomeIcon style={{ width: '24px', height: '24px' }} />
+            </button>
+            <button
+              onClick={() => setCurrentView('team')}
+              title="Manage Team"
+              className={`btn-text ${currentView === 'team' ? 'text-primary' : ''}`}
+              style={{ padding: '0.5rem' }}
+            >
+              <UserGroupIcon style={{ width: '24px', height: '24px' }} />
+            </button>
+            <button
+              onClick={() => setCurrentView('settings')}
+              title="Settings"
+              className={`btn-text ${currentView === 'settings' ? 'text-primary' : ''}`}
+              style={{ padding: '0.5rem' }}
+            >
+              <Cog6ToothIcon style={{ width: '24px', height: '24px' }} />
+            </button>
+            <button
+              onClick={() => setCurrentView('profile')}
+              title="Profile"
+              className={`btn-text ${currentView === 'profile' ? 'text-primary' : ''}`}
+              style={{ padding: '0.5rem' }}
+            >
+              <UserCircleIcon style={{ width: '24px', height: '24px' }} />
+            </button>
+          </nav>
+          <button onClick={signOut} className="btn-secondary text-small">Sign Out</button>
+        </div>
+      </header>
 
-              <div className="card">
-                <h3>Profile</h3>
-                <p>Update your personal profile.</p>
-                <button onClick={() => alert("Profile - Coming Soon")} className="btn-secondary mt-4" style={{ width: '100%' }}>Manage Profile</button>
-              </div>
-            </div>
-          </section>
-
+      {org ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+          {renderContent()}
         </div>
       ) : (
         <p className="text-muted">No organization found.</p>
@@ -153,6 +189,13 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
           organizationId={org.id}
           onClose={() => setShowCreateModal(false)}
           onSuccess={(newObj) => setObjectives([...objectives, newObj])}
+        />
+      )}
+
+      {selectedObjective && (
+        <ObjectiveDetailModal
+          objective={selectedObjective}
+          onClose={() => setSelectedObjective(null)}
         />
       )}
     </main>
