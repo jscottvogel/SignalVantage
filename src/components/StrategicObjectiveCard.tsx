@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
 import type { Schema } from '../../amplify/data/resource';
+import {
+    Card,
+    CardContent,
+    Typography,
+    Box,
+    Chip,
+    Stack,
+    Skeleton
+} from '@mui/material';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 interface Props {
     objective: Schema['StrategicObjective']['type'];
@@ -31,24 +41,57 @@ export function StrategicObjectiveCard({ objective, onClick }: Props) {
     }, [objective]);
 
     return (
-        <div
-            className="card card-interactive"
+        <Card
             onClick={onClick}
-            style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}
+            sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                '&:hover': {
+                    borderColor: 'primary.main',
+                    transform: 'translateY(-2px)',
+                    boxShadow: 4
+                }
+            }}
         >
-            <div>
-                <h3 style={{ textDecoration: 'none' }}>{objective.title}</h3>
-                <p className="mt-4" style={{ lineClamp: 3, overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3 }}>
-                    {objective.description || "No description provided."}
-                </p>
-            </div>
+            <CardContent sx={{ flexGrow: 1 }}>
+                <Typography variant="h6" component="div" gutterBottom sx={{ fontWeight: 600 }}>
+                    {objective.title}
+                </Typography>
 
-            <div className="flex-between mt-4" style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
-                <div className="text-small text-muted" style={{ fontWeight: 500 }}>
-                    {loading ? '...' : `${outcomeCount} Outcomes`}
-                </div>
-                <div style={{ color: 'var(--color-primary)', fontSize: '1.2rem' }}>&rsaquo;</div>
-            </div>
-        </div>
+                <Typography variant="body2" color="text.secondary" sx={{
+                    mb: 2,
+                    display: '-webkit-box',
+                    overflow: 'hidden',
+                    WebkitBoxOrient: 'vertical',
+                    WebkitLineClamp: 3,
+                }}>
+                    {objective.description || "No description provided."}
+                </Typography>
+
+                <Stack direction="row" spacing={1} mt={2}>
+                    {/* Placeholder status chips - logic to be added later */}
+                    <Chip label="On Track" color="success" size="small" variant="filled" />
+                </Stack>
+            </CardContent>
+
+            <Box sx={{
+                p: 2,
+                pt: 1,
+                borderTop: '1px solid',
+                borderColor: 'divider',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                bgcolor: 'grey.50'
+            }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                    {loading ? <Skeleton width={60} /> : `${outcomeCount} Outcomes`}
+                </Typography>
+                <ChevronRightIcon color="action" fontSize="small" />
+            </Box>
+        </Card>
     );
 }

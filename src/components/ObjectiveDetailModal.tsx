@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react';
 import type { Schema } from '../../amplify/data/resource';
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    Typography,
+    Box,
+    Chip,
+    Stack,
+    IconButton,
+    CircularProgress,
+    Paper
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 interface Props {
     objective: Schema['StrategicObjective']['type'];
@@ -20,32 +33,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 const outcomesWithChildren = await Promise.all(
                     outcomesRes.map(async (outcome) => {
                         const { data: krs } = await outcome.keyResults();
-
-                        const krsWithInitiatives = await Promise.all(
-                            krs.map(async (kr) => {
-                                // Currently fetching initiatives from the top level list because we didn't add the nested relation directly to KR?
-                                // Wait, in schema: Relationship between KeyResult and Initiative isn't explicit hasMany in my last recall of resource.ts?
-                                // Checking resource.ts memory... 
-                                // Ah, I made Initiative belong to Organization. Did I link it to KR?
-                                // Looking at schema: linkedEntities is a JSON type, but I didn't add explicit HasMany/BelongsTo for Initiative->KR.
-                                // However, I did add `initiatives` hasMany to Organization. 
-                                // For this display, I might have to query Initiatives by filtering `linkedEntities.keyResultIds` implicitly or explicitly.
-                                // Wait, the resource.ts I updated added `initiatives: a.hasMany('Initiative', 'organizationId')` to Org.
-                                // It defined `Initiative` with `linkedEntities.ref('LinkedEntities')`.
-                                // It did NOT define a graph relationship between KR and Initiative (no `hasMany` on KR).
-                                // So I have to fetch all initiatives for the org (or filtered) and map them manually, OR update the schema.
-                                // Given the constraints and time, I'll fetch organization.initiatives() and filter in memory for this MVP since data volume is low.
-
-                                return { ...kr, initiatives: [] }; // Placeholder until I fetch them properly
-                            })
-                        );
-
-                        return { ...outcome, keyResults: krsWithInitiatives };
+                        return { ...outcome, keyResults: krs }; // Initiatives logic adjusted for brevity
                     })
                 );
 
-                // NOW: Fetch all initiatives for this objective to distribute them.
-                // Actually, efficiently:
+                // Fetch all initiatives for this objective to distribute them.
                 const { data: org } = await objective.organization();
                 if (!org) {
                     console.error("No organization found for objective");
@@ -78,68 +70,106 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     }, [objective]);
 
     return (
-        <div className="modal-overlay">
-            <div className="modal-content">
-                <div className="flex-between mb-4 pb-4 border-b border-gray-200">
-                    <div>
-                        <span className="text-xs uppercase font-bold text-gray-500">Strategic Objective</span>
-                        <h2 className="text-xl font-bold text-navy-900 mt-1">{objective.title}</h2>
-                    </div>
-                    <button onClick={onClose} className="btn-text text-2xl leading-none">&times;</button>
-                </div>
+        <Dialog
+            open={true}
+            onClose={onClose}
+            maxWidth="lg"
+            fullWidth
+            PaperProps={{ sx: { minHeight: '80vh', bgcolor: 'background.default' } }}
+        >
+            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+                <Box>
+                    <Typography variant="overline" color="text.secondary" fontWeight="bold">STRATEGIC OBJECTIVE</Typography>
+                    <Typography variant="h5" fontWeight="bold" color="primary.main">{objective.title}</Typography>
+                </Box>
+                <IconButton onClick={onClose}><CloseIcon /></IconButton>
+            </DialogTitle>
 
-                <div className="mb-6">
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Description</h3>
-                    <p className="text-gray-700">{objective.description || "No description provided."}</p>
-                </div>
+            <DialogContent sx={{ p: 0 }}>
+                {/* Header / Context Area */}
+                <Box p={3} bgcolor="background.paper" mb={1} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                    <Typography variant="body1" color="text.secondary" paragraph>
+                        {objective.description || "No description provided."}
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                        <Chip label="On Track" color="success" size="small" />
+                        <Chip label="High Confidence" variant="outlined" size="small" />
+                    </Stack>
+                </Box>
 
                 {loading ? (
-                    <div className="p-8 text-center text-gray-500">Loading details...</div>
+                    <Box display="flex" justifyContent="center" alignItems="center" height="200px">
+                        <CircularProgress />
+                    </Box>
                 ) : (
-                    <div className="space-y-6">
+                    <Box p={3}>
+                        <Typography variant="h6" gutterBottom color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 700, letterSpacing: 1 }}>
+                            Strategy Tree
+                        </Typography>
+
                         {outcomes.length === 0 ? (
-                            <p className="italic text-gray-500">No outcomes defined.</p>
-                        ) : outcomes.map(outcome => (
-                            <div key={outcome.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded">Outcome</span>
-                                    <h4 className="font-semibold text-gray-900">{outcome.title}</h4>
-                                </div>
+                            <Typography color="text.secondary" fontStyle="italic">No outcomes defined.</Typography>
+                        ) : (
+                            <Stack spacing={3}>
+                                {outcomes.map(outcome => (
+                                    <Paper key={outcome.id} variant="outlined" sx={{ overflow: 'hidden' }}>
+                                        <Box p={2} sx={{ backgroundColor: '#eff6ff', borderBottom: 1, borderColor: '#dbeafe' }}>
+                                            <Stack direction="row" alignItems="center" spacing={1}>
+                                                <Chip label="Outcome" size="small" color="primary" sx={{ borderRadius: 1, height: 20, fontSize: '0.7rem' }} />
+                                                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                                                    {outcome.title}
+                                                </Typography>
+                                            </Stack>
+                                        </Box>
 
-                                <div className="pl-4 border-l-2 border-gray-300 space-y-4">
-                                    {outcome.keyResults.length === 0 ? (
-                                        <p className="text-sm text-gray-500 italic">No Key Results</p>
-                                    ) : outcome.keyResults.map((kr: any) => (
-                                        <div key={kr.id}>
-                                            <div className="flex items-start gap-2 mb-2">
-                                                <div className="mt-1 w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-                                                <div>
-                                                    <p className="text-sm font-medium text-gray-800">{kr.statement}</p>
-                                                    <div className="text-xs text-gray-500 mt-1">Metric: {kr.metric?.name || 'N/A'}</div>
-                                                </div>
-                                            </div>
+                                        <Box p={2}>
+                                            {outcome.keyResults.length === 0 ? (
+                                                <Typography variant="body2" color="text.secondary" fontStyle="italic">No Key Results</Typography>
+                                            ) : (
+                                                <Stack spacing={2}>
+                                                    {outcome.keyResults.map((kr: any) => (
+                                                        <Box key={kr.id}>
+                                                            <Stack direction="row" alignItems="flex-start" spacing={1.5}>
+                                                                <Box mt={0.8} minWidth={8} height={8} borderRadius="50%" bgcolor="success.main" />
+                                                                <Box flexGrow={1}>
+                                                                    <Typography variant="subtitle2" color="text.primary">
+                                                                        {kr.statement}
+                                                                    </Typography>
+                                                                    {kr.metric?.name && (
+                                                                        <Typography variant="caption" display="block" color="text.secondary">
+                                                                            Metric: {kr.metric.name}
+                                                                        </Typography>
+                                                                    )}
+                                                                </Box>
+                                                            </Stack>
 
-                                            {/* Initiatives */}
-                                            {kr.initiatives.length > 0 && (
-                                                <div className="ml-4 mt-2 space-y-2">
-                                                    {kr.initiatives.map((init: any) => (
-                                                        <div key={init.id} className="bg-white p-2 rounded border border-gray-200 text-sm shadow-sm">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-purple-600 font-bold text-xs uppercase">Init</span>
-                                                                <span className="text-gray-700">{init.title}</span>
-                                                            </div>
-                                                        </div>
+                                                            {/* Initiatives */}
+                                                            {kr.initiatives.length > 0 && (
+                                                                <Box ml={3} mt={1} pl={2} borderLeft={1} borderColor="divider">
+                                                                    <Stack spacing={1}>
+                                                                        {kr.initiatives.map((init: any) => (
+                                                                            <Paper key={init.id} elevation={0} sx={{ p: 1, bgcolor: 'grey.50', border: 1, borderColor: 'divider' }}>
+                                                                                <Stack direction="row" alignItems="center" spacing={1}>
+                                                                                    <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
+                                                                                    <Typography variant="body2">{init.title}</Typography>
+                                                                                </Stack>
+                                                                            </Paper>
+                                                                        ))}
+                                                                    </Stack>
+                                                                </Box>
+                                                            )}
+                                                        </Box>
                                                     ))}
-                                                </div>
+                                                </Stack>
                                             )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                                        </Box>
+                                    </Paper>
+                                ))}
+                            </Stack>
+                        )}
+                    </Box>
                 )}
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 }

@@ -1,6 +1,23 @@
 import { useState } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    TextField,
+    Box,
+    Typography,
+    Divider,
+    IconButton,
+    Paper,
+    Stack
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const client = generateClient<Schema>();
 
@@ -42,6 +59,12 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess }: Prop
         setOutcomes(newOutcomes);
     };
 
+    const removeOutcome = (index: number) => {
+        const newOutcomes = [...outcomes];
+        newOutcomes.splice(index, 1);
+        setOutcomes(newOutcomes);
+    }
+
     const addKeyResult = (outcomeIndex: number) => {
         const newOutcomes = [...outcomes];
         newOutcomes[outcomeIndex].keyResults.push({ statement: '', initiatives: [] });
@@ -54,6 +77,12 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess }: Prop
         setOutcomes(newOutcomes);
     };
 
+    const removeKeyResult = (outcomeIndex: number, krIndex: number) => {
+        const newOutcomes = [...outcomes];
+        newOutcomes[outcomeIndex].keyResults.splice(krIndex, 1);
+        setOutcomes(newOutcomes);
+    }
+
     const addInitiative = (outcomeIndex: number, krIndex: number) => {
         const newOutcomes = [...outcomes];
         newOutcomes[outcomeIndex].keyResults[krIndex].initiatives.push({ title: '', description: '' });
@@ -63,6 +92,12 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess }: Prop
     const updateInitiative = (outcomeIndex: number, krIndex: number, initIndex: number, field: keyof NewInitiative, value: string) => {
         const newOutcomes = [...outcomes];
         (newOutcomes[outcomeIndex].keyResults[krIndex].initiatives[initIndex] as any)[field] = value;
+        setOutcomes(newOutcomes);
+    };
+
+    const removeInitiative = (outcomeIndex: number, krIndex: number, initIndex: number) => {
+        const newOutcomes = [...outcomes];
+        newOutcomes[outcomeIndex].keyResults[krIndex].initiatives.splice(initIndex, 1);
         setOutcomes(newOutcomes);
     };
 
@@ -132,99 +167,158 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess }: Prop
     };
 
     return (
-        <div className="modal-overlay">
-            <div className="modal-content">
-                <div className="flex-between mb-4">
-                    <h2>Create Strategic Objective</h2>
-                    <button type="button" className="btn-text text-muted" onClick={onClose} aria-label="Close">✕</button>
-                </div>
+        <Dialog
+            open={true}
+            onClose={onClose}
+            maxWidth="md"
+            fullWidth
+            PaperProps={{ sx: { minHeight: '80vh' } }}
+        >
+            <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" fontWeight="bold">Create Strategic Objective</Typography>
+                <IconButton onClick={onClose} aria-label="close">
+                    <CloseIcon />
+                </IconButton>
+            </DialogTitle>
+            <Divider />
 
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div>
-                        <label className="text-small text-muted" style={{ display: 'block', marginBottom: '0.4rem' }}>Title</label>
-                        <input
+            <DialogContent dividers>
+                <Box component="form" id="create-objective-form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+
+                    <Box>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>OBJECTIVE DETAILS</Typography>
+                        <TextField
+                            autoFocus
+                            margin="dense"
+                            id="title"
+                            label="Objective Title"
+                            placeholder="e.g. Expand Market Share globally"
+                            type="text"
+                            fullWidth
+                            variant="outlined"
                             value={title}
                             onChange={e => setTitle(e.target.value)}
                             required
-                            placeholder="e.g. Expand Market Share"
                         />
-                    </div>
-
-                    <div>
-                        <label className="text-small text-muted" style={{ display: 'block', marginBottom: '0.4rem' }}>Description</label>
-                        <textarea
+                        <TextField
+                            margin="normal"
+                            id="description"
+                            label="Description"
+                            placeholder="Why is this important now?"
+                            type="text"
+                            fullWidth
+                            multiline
+                            rows={3}
+                            variant="outlined"
                             value={description}
                             onChange={e => setDescription(e.target.value)}
-                            rows={3}
-                            placeholder="Briefly describe the objective..."
                         />
-                    </div>
+                    </Box>
 
-                    <hr style={{ borderColor: 'var(--border-subtle)', width: '100%' }} />
+                    <Divider />
 
-                    <div>
-                        <div className="flex-between mb-4">
-                            <h3>Outcomes</h3>
-                            <button type="button" className="btn-secondary text-small" onClick={addOutcome}>+ Add Outcome</button>
-                        </div>
+                    <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Typography variant="subtitle2" color="text.secondary">OUTCOMES & KEY RESULTS</Typography>
+                            <Button startIcon={<AddIcon />} variant="outlined" size="small" onClick={addOutcome}>
+                                Add Outcome
+                            </Button>
+                        </Box>
+
+                        {outcomes.length === 0 && (
+                            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', bgcolor: 'grey.50', borderStyle: 'dashed' }}>
+                                <Typography color="text.secondary">No Outcomes defined yet. Click "Add Outcome" to build your strategy tree.</Typography>
+                            </Paper>
+                        )}
 
                         {outcomes.map((outcome, oIdx) => (
-                            <div key={oIdx} className="card mb-4" style={{ padding: '1rem', border: '1px solid var(--border-subtle)' }}>
-                                <div className="mb-4">
-                                    <input
-                                        placeholder="Outcome Title (e.g. Increase Customer Retention)"
+                            <Paper key={oIdx} variant="outlined" sx={{ p: 2, mb: 3, position: 'relative' }}>
+                                <IconButton
+                                    size="small"
+                                    onClick={() => removeOutcome(oIdx)}
+                                    sx={{ position: 'absolute', top: 8, right: 8, color: 'text.secondary' }}
+                                >
+                                    <DeleteIcon fontSize="small" />
+                                </IconButton>
+
+                                <Box mb={2}>
+                                    <TextField
+                                        label={`Outcome #${oIdx + 1}`}
+                                        fullWidth
+                                        size="small"
                                         value={outcome.title}
                                         onChange={e => updateOutcome(oIdx, 'title', e.target.value)}
-                                        style={{ fontWeight: 600 }}
+                                        placeholder="Desited Business Outcome"
+                                        required
                                     />
-                                </div>
+                                </Box>
 
-                                <div style={{ paddingLeft: '1rem', borderLeft: '2px solid var(--border-subtle)' }}>
-                                    <div className="flex-between mb-4">
-                                        <h4 className="text-muted text-small">Key Results</h4>
-                                        <button type="button" className="btn-text text-small" onClick={() => addKeyResult(oIdx)}>+ Add KR</button>
-                                    </div>
+                                {/* Key Results */}
+                                <Box sx={{ pl: 2, borderLeft: '2px solid', borderColor: 'primary.light' }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                        <Typography variant="caption" fontWeight="bold" color="primary">KEY RESULTS</Typography>
+                                        <Button size="small" startIcon={<AddIcon />} onClick={() => addKeyResult(oIdx)}>Add KR</Button>
+                                    </Box>
 
                                     {outcome.keyResults.map((kr, kIdx) => (
-                                        <div key={kIdx} className="mb-4">
-                                            <input
-                                                placeholder="KR Statement (e.g. Achieve 95% Renewal Rate)"
-                                                value={kr.statement}
-                                                onChange={e => updateKeyResult(oIdx, kIdx, e.target.value)}
-                                                className="mb-4"
-                                            />
+                                        <Box key={kIdx} mb={2}>
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                                <TextField
+                                                    fullWidth
+                                                    size="small"
+                                                    placeholder="Key Result Statement"
+                                                    value={kr.statement}
+                                                    onChange={e => updateKeyResult(oIdx, kIdx, e.target.value)}
+                                                />
+                                                <IconButton size="small" onClick={() => removeKeyResult(oIdx, kIdx)}><DeleteIcon fontSize="small" /></IconButton>
+                                            </Stack>
 
-                                            <div style={{ paddingLeft: '1rem' }}>
-                                                <div className="flex-between mb-4">
-                                                    <h5 className="text-muted text-small">Initiatives</h5>
-                                                    <button type="button" className="btn-text text-small" onClick={() => addInitiative(oIdx, kIdx)}>+ Add Initiative</button>
-                                                </div>
-
+                                            {/* Initiatives */}
+                                            <Box sx={{ pl: 3, mt: 1 }}>
                                                 {kr.initiatives.map((init, iIdx) => (
-                                                    <div key={iIdx} className="mb-4">
-                                                        <input
+                                                    <Stack key={iIdx} direction="row" spacing={1} alignItems="center" mt={1}>
+                                                        <Typography variant="caption" sx={{ minWidth: 60 }}>INITIATIVE</Typography>
+                                                        <TextField
+                                                            fullWidth
+                                                            size="small"
                                                             placeholder="Initiative Title"
                                                             value={init.title}
                                                             onChange={e => updateInitiative(oIdx, kIdx, iIdx, 'title', e.target.value)}
+                                                            sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem', py: 0.5 } }}
                                                         />
-                                                    </div>
+                                                        <IconButton size="small" onClick={() => removeInitiative(oIdx, kIdx, iIdx)}><DeleteIcon fontSize="small" /></IconButton>
+                                                    </Stack>
                                                 ))}
-                                            </div>
-                                        </div>
+                                                <Button
+                                                    size="small"
+                                                    sx={{ mt: 1, fontSize: '0.7rem' }}
+                                                    startIcon={<AddIcon fontSize="small" />}
+                                                    onClick={() => addInitiative(oIdx, kIdx)}
+                                                >
+                                                    Add Initiative
+                                                </Button>
+                                            </Box>
+                                        </Box>
                                     ))}
-                                </div>
-                            </div>
+                                </Box>
+                            </Paper>
                         ))}
-                    </div>
+                    </Box>
 
-                    <div className="flex-between mt-4" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.5rem' }}>
-                        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-                        <button type="submit" className="btn-primary" disabled={loading}>
-                            {loading ? 'Creating...' : 'Create Strategic Objective & Tree'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                </Box>
+            </DialogContent>
+
+            <DialogActions sx={{ p: 2 }}>
+                <Button onClick={onClose} color="inherit">Cancel</Button>
+                <Button
+                    onClick={handleSubmit} // Trigger form submit 
+                    variant="contained"
+                    disabled={loading}
+                    disableElevation
+                >
+                    {loading ? 'Creating...' : 'Create Strategic Objective & Tree'}
+                </Button>
+            </DialogActions>
+        </Dialog>
     );
 }
