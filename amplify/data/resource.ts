@@ -11,6 +11,7 @@ const schema = a.schema({
     .model({
       name: a.string().required(),
       members: a.hasMany('Membership', 'organizationId'),
+      objectives: a.hasMany('StrategicObjective', 'organizationId'),
     })
     .authorization((allow) => [allow.authenticated()]),
   UserProfile: a
@@ -27,6 +28,13 @@ const schema = a.schema({
       userProfileId: a.id().required(),
       organization: a.belongsTo('Organization', 'organizationId'),
       user: a.belongsTo('UserProfile', 'userProfileId'),
+    })
+    .authorization((allow) => [allow.authenticated()]),
+  StrategicObjective: a
+    .model({
+      title: a.string().required(),
+      organizationId: a.id().required(),
+      organization: a.belongsTo('Organization', 'organizationId'),
     })
     .authorization((allow) => [allow.authenticated()]),
 });
