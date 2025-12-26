@@ -74,31 +74,82 @@ const SkeletonDashboard = () => (
   </Box>
 );
 
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  // ... other existing imports
+} from '@mui/material';
+
+// ... other code
+
 const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Invite State
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
+
+  const fetchMembers = async () => {
+    try {
+      const { data: membershipList } = await org.members();
+      const membersWithProfiles = await Promise.all(
+        membershipList.map(async (m) => {
+          const { data: profile } = await m.user();
+          return { ...m, profile };
+        })
+      );
+      setMembers(membersWithProfiles);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
-    const fetchMembers = async () => {
-      try {
-        const { data: membershipList } = await org.members();
-        const membersWithProfiles = await Promise.all(
-          membershipList.map(async (m) => {
-            const { data: profile } = await m.user();
-            return { ...m, profile };
-          })
-        );
-        if (mounted) setMembers(membersWithProfiles);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-    fetchMembers();
+    if (mounted) fetchMembers();
     return () => { mounted = false; };
   }, [org]);
+
+  const handleInvite = async () => {
+    if (!inviteName.trim() || !inviteEmail.trim()) return;
+    setIsInviting(true);
+    try {
+      // 1. Create UserProfile
+      const { data: profile, errors: profileErrors } = await client.models.UserProfile.create({
+        email: inviteEmail,
+        preferredName: inviteName
+      });
+      if (profileErrors) throw new Error(profileErrors[0].message);
+      if (!profile) throw new Error("Failed to create profile");
+
+      // 2. Create Membership
+      const { errors: memberErrors } = await client.models.Membership.create({
+        organizationId: org.id,
+        userProfileId: profile.id,
+        role: 'MEMBER'
+      });
+      if (memberErrors) throw new Error(memberErrors[0].message);
+
+      // 3. Refresh
+      await fetchMembers();
+      setInviteOpen(false);
+      setInviteName('');
+      setInviteEmail('');
+    } catch (e) {
+      console.error("Invitation failed", e);
+      alert("Failed to invite member. See console.");
+    } finally {
+      setIsInviting(false);
+    }
+  };
 
   if (loading) return <Box p={4}><CircularProgress /></Box>;
 
@@ -111,7 +162,7 @@ const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
             Manage members and permissions.
           </Typography>
         </Box>
-        <Button variant="outlined" startIcon={<AddIcon />}>Invite Member</Button>
+        <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setInviteOpen(true)}>Invite Member</Button>
       </Box>
 
       <Paper variant="outlined">
@@ -146,6 +197,35 @@ const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
           ))}
         </List>
       </Paper>
+
+      {/* Invite Dialog */}
+      <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Invite New Member</DialogTitle>
+        <DialogContent>
+          <Box component="div" pt={1} display="flex" flexDirection="column" gap={2}>
+            <TextField
+              label="Full Name"
+              fullWidth
+              value={inviteName}
+              onChange={e => setInviteName(e.target.value)}
+              placeholder="e.g. Jane Doe"
+            />
+            <TextField
+              label="Email Address"
+              fullWidth
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              placeholder="e.g. jane@example.com"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setInviteOpen(false)}>Cancel</Button>
+          <Button onClick={handleInvite} variant="contained" disabled={!inviteName || !inviteEmail || isInviting}>
+            {isInviting ? 'Inviting...' : 'Send Invitation'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

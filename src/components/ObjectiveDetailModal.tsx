@@ -14,10 +14,18 @@ import {
     CircularProgress,
     Paper,
     Button,
-    TextField
+    TextField,
+    Select,
+    MenuItem,
+    FormControl,
+    InputLabel,
+    Tooltip
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
+import PersonIcon from '@mui/icons-material/Person';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const client = generateClient<Schema>();
 
@@ -26,23 +34,32 @@ interface Props {
     onClose: () => void;
 }
 
-type CreateType = 'outcome' | 'kr' | 'initiative';
+type ItemType = 'outcome' | 'kr' | 'initiative';
 
-interface CreateDialogState {
+interface ItemDialogState {
     open: boolean;
-    type: CreateType;
-    parentId: string; // outcomeId or krId
-    contextId?: string; // extra context if needed (e.g. outcomeId for KR)
+    mode: 'create' | 'edit';
+    type: ItemType;
+    parentId?: string; // For create
+    id?: string; // For edit
+    initialText?: string;
+    initialOwner?: string;
 }
 
 export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [outcomes, setOutcomes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [members, setMembers] = useState<any[]>([]);
 
-    // Creation State
-    const [createState, setCreateState] = useState<CreateDialogState>({ open: false, type: 'outcome', parentId: '' });
-    const [newItemText, setNewItemText] = useState('');
-    const [isCreating, setIsCreating] = useState(false);
+    // Dialog State
+    const [dialogState, setDialogState] = useState<ItemDialogState>({
+        open: false,
+        mode: 'create',
+        type: 'outcome'
+    });
+    const [itemText, setItemText] = useState('');
+    const [selectedOwnerId, setSelectedOwnerId] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const refreshTree = useCallback(async () => {
         try {
@@ -57,11 +74,19 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 })
             );
 
-            // Fetch all initiatives for this objective's organization to distribute them
-            // Note: In a real large-scale app, we'd query by secondary index or relationship.
-            // Here we filter client-side for simplicity as per previous pattern.
+            // Fetch organization & members
             const { data: org } = await objective.organization();
             if (!org) return;
+
+            // Fetch Members for picker
+            const { data: membershipList } = await org.members();
+            const membersWithProfiles = await Promise.all(
+                membershipList.map(async (m) => {
+                    const { data: profile } = await m.user();
+                    return { ...m, profile };
+                })
+            );
+            setMembers(membersWithProfiles);
 
             const { data: allInitiatives } = await org.initiatives();
 
@@ -88,65 +113,146 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         refreshTree();
     }, [refreshTree]);
 
-    const openCreate = (type: CreateType, parentId: string = '') => {
-        setCreateState({ open: true, type, parentId });
-        setNewItemText('');
+    const openDialog = (
+        mode: 'create' | 'edit',
+        type: ItemType,
+        parentId: string = '',
+        item?: any
+    ) => {
+        let initText = '';
+        let initOwner = '';
+
+        if (mode === 'edit' && item) {
+            initText = item.title || item.statement || '';
+            // Handle owner: item.owner (single) or item.owners[0] (array)
+            const owner = item.owner || (item.owners && item.owners[0]);
+            initOwner = owner?.userId || '';
+        }
+
+        setDialogState({
+            open: true,
+            mode,
+            type,
+            parentId,
+            id: item?.id
+        });
+        setItemText(initText);
+        setSelectedOwnerId(initOwner);
     };
 
-    const handleCreateSubmit = async () => {
-        if (!newItemText.trim()) return;
-        setIsCreating(true);
+    const handleDelete = async (type: ItemType, id: string) => {
+        if (!window.confirm("Are you sure you want to delete this item?")) return;
         try {
-            // Fetch Org safely:
-            // Note: objective provided by props might strictly be the type, 
-            // but in Gen2 fetch, it usually has the fields. If organizationId is missing, we might need to fetch it.
-            // However, based on schema, StrategicObjective belongsTo Organization, so the ID should be on the record.
+            if (type === 'outcome') {
+                await client.models.Outcome.delete({ id });
+            } else if (type === 'kr') {
+                await client.models.KeyResult.delete({ id });
+            } else if (type === 'initiative') {
+                await client.models.Initiative.delete({ id });
+            }
+            await refreshTree();
+        } catch (e) {
+            console.error("Delete failed", e);
+            alert("Failed to delete item.");
+        }
+    };
 
-            // Fallback if needed, but 'objective' usually has 'organizationId' if fetched. 
-            // If not, we'd need to fetch obj.organization().
-            // Let's assume it's there or use the one from state if we stored it? 
-            // We'll trust amplify puts the FK on the object.
-
-            // Actually, safely:
+    const handleSubmit = async () => {
+        if (!itemText.trim()) return;
+        setIsSubmitting(true);
+        try {
             const { data: org } = await objective.organization();
             const SafeOrgId = org?.id;
             if (!SafeOrgId) throw new Error("Org ID missing");
 
-            if (createState.type === 'outcome') {
-                await client.models.Outcome.create({
-                    organizationId: SafeOrgId,
-                    strategicObjectiveId: objective.id,
-                    title: newItemText,
-                    status: 'active'
-                });
-            } else if (createState.type === 'kr') {
-                await client.models.KeyResult.create({
-                    organizationId: SafeOrgId,
-                    strategicObjectiveId: objective.id,
-                    outcomeId: createState.parentId, // parentId is outcomeId here
-                    statement: newItemText,
-                    status: 'active'
-                });
-            } else if (createState.type === 'initiative') {
-                await client.models.Initiative.create({
-                    organizationId: SafeOrgId,
-                    title: newItemText,
-                    description: '',
-                    linkedEntities: {
-                        strategicObjectiveIds: [objective.id],
-                        keyResultIds: [createState.parentId] // parentId is krId here
-                    }
-                });
+            let ownerObj = null;
+            if (selectedOwnerId) {
+                const member = members.find(m => m.userProfileId === selectedOwnerId);
+                if (member) {
+                    ownerObj = {
+                        userId: member.userProfileId,
+                        displayName: member.profile?.preferredName || 'Unknown',
+                        role: member.role
+                    };
+                }
+            }
+
+            if (dialogState.mode === 'create') {
+                if (dialogState.type === 'outcome') {
+                    await client.models.Outcome.create({
+                        organizationId: SafeOrgId,
+                        strategicObjectiveId: objective.id,
+                        title: itemText,
+                        status: 'active',
+                        owner: ownerObj
+                    });
+                } else if (dialogState.type === 'kr') {
+                    await client.models.KeyResult.create({
+                        organizationId: SafeOrgId,
+                        strategicObjectiveId: objective.id,
+                        outcomeId: dialogState.parentId!,
+                        statement: itemText,
+                        status: 'active',
+                        owners: ownerObj ? [ownerObj] : []
+                    });
+                } else if (dialogState.type === 'initiative') {
+                    await client.models.Initiative.create({
+                        organizationId: SafeOrgId,
+                        title: itemText,
+                        description: '',
+                        owner: ownerObj,
+                        linkedEntities: {
+                            strategicObjectiveIds: [objective.id],
+                            keyResultIds: [dialogState.parentId!]
+                        }
+                    });
+                }
+            } else {
+                // UPDATE MODE
+                const id = dialogState.id!;
+                if (dialogState.type === 'outcome') {
+                    await client.models.Outcome.update({
+                        id,
+                        title: itemText,
+                        owner: ownerObj
+                    });
+                } else if (dialogState.type === 'kr') {
+                    await client.models.KeyResult.update({
+                        id,
+                        statement: itemText,
+                        owners: ownerObj ? [ownerObj] : []
+                    });
+                } else if (dialogState.type === 'initiative') {
+                    await client.models.Initiative.update({
+                        id,
+                        title: itemText,
+                        owner: ownerObj
+                    });
+                }
             }
 
             await refreshTree();
-            setCreateState({ ...createState, open: false });
+            setDialogState({ ...dialogState, open: false });
         } catch (e) {
-            console.error("Creation failed", e);
-            alert("Failed to create item.");
+            console.error("Operation failed", e);
+            alert("Failed to save item.");
         } finally {
-            setIsCreating(false);
+            setIsSubmitting(false);
         }
+    };
+
+    const OwnerChip = ({ owner }: { owner: any }) => {
+        if (!owner) return null;
+        const name = owner.displayName || 'Unassigned';
+        return (
+            <Chip
+                icon={<PersonIcon />}
+                label={name}
+                size="small"
+                variant="outlined"
+                sx={{ height: 24, '.MuiChip-icon': { fontSize: 16 } }}
+            />
+        );
     };
 
     return (
@@ -160,7 +266,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
                 <Box>
                     <Typography variant="overline" color="text.secondary" fontWeight="bold">STRATEGIC OBJECTIVE</Typography>
-                    <Typography variant="h5" fontWeight="bold" color="primary.main">{objective.title}</Typography>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                        <Typography variant="h5" fontWeight="bold" color="primary.main">{objective.title}</Typography>
+                        {objective.owner && <OwnerChip owner={objective.owner} />}
+                    </Stack>
                 </Box>
                 <IconButton onClick={onClose} aria-label="close"><CloseIcon /></IconButton>
             </DialogTitle>
@@ -191,7 +300,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                 startIcon={<AddIcon />}
                                 size="small"
                                 variant="outlined"
-                                onClick={() => openCreate('outcome')}
+                                onClick={() => openDialog('create', 'outcome')}
                             >
                                 Add Outcome
                             </Button>
@@ -200,7 +309,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         {outcomes.length === 0 ? (
                             <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderStyle: 'dashed' }}>
                                 <Typography color="text.secondary" fontStyle="italic" gutterBottom>No outcomes defined yet.</Typography>
-                                <Button variant="text" onClick={() => openCreate('outcome')}>+ Add First Outcome</Button>
+                                <Button variant="text" onClick={() => openDialog('create', 'outcome')}>+ Add First Outcome</Button>
                             </Paper>
                         ) : (
                             <Stack spacing={3}>
@@ -212,15 +321,20 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                 <Typography variant="subtitle1" fontWeight={600} color="text.primary">
                                                     {outcome.title}
                                                 </Typography>
+                                                <OwnerChip owner={outcome.owner} />
                                             </Stack>
-                                            <Button
-                                                size="small"
-                                                startIcon={<AddIcon />}
-                                                sx={{ fontSize: '0.75rem' }}
-                                                onClick={() => openCreate('kr', outcome.id)}
-                                            >
-                                                Add KR
-                                            </Button>
+                                            <Stack direction="row" spacing={1}>
+                                                <Tooltip title="Edit Outcome"><IconButton size="small" onClick={() => openDialog('edit', 'outcome', '', outcome)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                                                <Tooltip title="Delete Outcome"><IconButton size="small" onClick={() => handleDelete('outcome', outcome.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                                                <Button
+                                                    size="small"
+                                                    startIcon={<AddIcon />}
+                                                    sx={{ fontSize: '0.75rem', ml: 1 }}
+                                                    onClick={() => openDialog('create', 'kr', outcome.id)}
+                                                >
+                                                    Add KR
+                                                </Button>
+                                            </Stack>
                                         </Box>
 
                                         <Box p={2}>
@@ -233,9 +347,14 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                             <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ mb: 1 }}>
                                                                 <Box mt={0.8} minWidth={8} height={8} borderRadius="50%" bgcolor="success.main" />
                                                                 <Box flexGrow={1}>
-                                                                    <Typography variant="subtitle2" color="text.primary">
-                                                                        {kr.statement}
-                                                                    </Typography>
+                                                                    <Stack direction="row" spacing={1} alignItems="center">
+                                                                        <Typography variant="subtitle2" color="text.primary">
+                                                                            {kr.statement}
+                                                                        </Typography>
+                                                                        {kr.owners && kr.owners.length > 0 && <OwnerChip owner={kr.owners[0]} />}
+                                                                        <Tooltip title="Edit KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'kr', '', kr)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                        <Tooltip title="Delete KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('kr', kr.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                    </Stack>
                                                                     {kr.metric?.name && (
                                                                         <Typography variant="caption" display="block" color="text.secondary">
                                                                             Metric: {kr.metric.name}
@@ -246,15 +365,14 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                     size="small"
                                                                     color="secondary"
                                                                     startIcon={<AddIcon />}
-                                                                    // sx={{ minWidth: 0, p: 0.5 }}
-                                                                    onClick={() => openCreate('initiative', kr.id)}
+                                                                    onClick={() => openDialog('create', 'initiative', kr.id)}
                                                                 >
-                                                                    Link Initiative
+                                                                    Link Init
                                                                 </Button>
                                                             </Stack>
 
                                                             {/* Initiatives */}
-                                                            {kr.initiatives.length > 0 && (
+                                                            {kr.initiatives && kr.initiatives.length > 0 && (
                                                                 <Box ml={3} pl={2} borderLeft={1} borderColor="divider">
                                                                     <Stack spacing={1}>
                                                                         {kr.initiatives.map((init: any) => (
@@ -262,6 +380,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                 <Stack direction="row" alignItems="center" spacing={1}>
                                                                                     <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
                                                                                     <Typography variant="body2">{init.title}</Typography>
+                                                                                    <OwnerChip owner={init.owner} />
+                                                                                    <Box flexGrow={1} />
+                                                                                    <Tooltip title="Edit Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'initiative', '', init)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                                    <Tooltip title="Delete Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('initiative', init.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
                                                                                 </Stack>
                                                                             </Paper>
                                                                         ))}
@@ -281,36 +403,53 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 )}
             </DialogContent>
 
-            {/* Micro-Creation Dialog */}
+            {/* Item Dialog (Create/Edit) */}
             <Dialog
-                open={createState.open}
-                onClose={() => setCreateState({ ...createState, open: false })}
+                open={dialogState.open}
+                onClose={() => setDialogState({ ...dialogState, open: false })}
                 maxWidth="sm"
                 fullWidth
             >
                 <DialogTitle>
-                    Add {createState.type === 'outcome' ? 'Outcome' : createState.type === 'kr' ? 'Key Result' : 'Initiative'}
+                    {dialogState.mode === 'create' ? 'Add' : 'Edit'} {dialogState.type === 'outcome' ? 'Outcome' : dialogState.type === 'kr' ? 'Key Result' : 'Initiative'}
                 </DialogTitle>
                 <DialogContent>
-                    <TextField
-                        autoFocus
-                        margin="dense"
-                        label={createState.type === 'outcome' ? 'Outcome Title' : createState.type === 'kr' ? 'KR Statement' : 'Initiative Title'}
-                        fullWidth
-                        variant="outlined"
-                        value={newItemText}
-                        onChange={(e) => setNewItemText(e.target.value)}
-                        placeholder={
-                            createState.type === 'outcome' ? "e.g. Increase User Retention" :
-                                createState.type === 'kr' ? "e.g. Achieve NPS of 60" :
-                                    "e.g. Launch New Mobile App"
-                        }
-                    />
+                    <Box display="flex" flexDirection="column" gap={2} pt={1}>
+                        <TextField
+                            autoFocus
+                            label={dialogState.type === 'outcome' ? 'Outcome Title' : dialogState.type === 'kr' ? 'KR Statement' : 'Initiative Title'}
+                            fullWidth
+                            variant="outlined"
+                            value={itemText}
+                            onChange={(e) => setItemText(e.target.value)}
+                            placeholder={
+                                dialogState.type === 'outcome' ? "e.g. Increase User Retention" :
+                                    dialogState.type === 'kr' ? "e.g. Achieve NPS of 60" :
+                                        "e.g. Launch New Mobile App"
+                            }
+                        />
+                        <FormControl fullWidth>
+                            <InputLabel id="owner-select-label">Owner (Optional)</InputLabel>
+                            <Select
+                                labelId="owner-select-label"
+                                value={selectedOwnerId}
+                                label="Owner (Optional)"
+                                onChange={(e) => setSelectedOwnerId(e.target.value)}
+                            >
+                                <MenuItem value=""><em>None</em></MenuItem>
+                                {members.map((m) => (
+                                    <MenuItem key={m.userProfileId} value={m.userProfileId}>
+                                        {m.profile?.preferredName || m.profile?.email || 'Unknown'}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Box>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setCreateState({ ...createState, open: false })}>Cancel</Button>
-                    <Button onClick={handleCreateSubmit} variant="contained" disabled={!newItemText.trim() || isCreating}>
-                        {isCreating ? 'Adding...' : 'Add Item'}
+                    <Button onClick={() => setDialogState({ ...dialogState, open: false })}>Cancel</Button>
+                    <Button onClick={handleSubmit} variant="contained" disabled={!itemText.trim() || isSubmitting}>
+                        {isSubmitting ? 'Saving...' : 'Save'}
                     </Button>
                 </DialogActions>
             </Dialog>
