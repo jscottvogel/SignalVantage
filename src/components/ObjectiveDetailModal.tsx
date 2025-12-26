@@ -34,7 +34,7 @@ interface Props {
     onClose: () => void;
 }
 
-type ItemType = 'outcome' | 'kr' | 'initiative';
+type ItemType = 'outcome' | 'kr' | 'initiative' | 'objective';
 
 interface ItemDialogState {
     open: boolean;
@@ -143,7 +143,12 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const handleDelete = async (type: ItemType, id: string) => {
         if (!window.confirm("Are you sure you want to delete this item?")) return;
         try {
-            if (type === 'outcome') {
+            if (type === 'objective') {
+                await client.models.StrategicObjective.delete({ id });
+                onClose(); // Close modal after deleting the main object
+                // Ideally trigger refresh on parent, but page reload or polling works for now
+                window.location.reload();
+            } else if (type === 'outcome') {
                 await client.models.Outcome.delete({ id });
             } else if (type === 'kr') {
                 await client.models.KeyResult.delete({ id });
@@ -210,7 +215,16 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             } else {
                 // UPDATE MODE
                 const id = dialogState.id!;
-                if (dialogState.type === 'outcome') {
+                if (dialogState.type === 'objective') {
+                    await client.models.StrategicObjective.update({
+                        id,
+                        title: itemText,
+                        owner: ownerObj
+                    });
+                    // Force reload/update for objective title changes visible immediately at top level?
+                    // objective prop is stale. We might need to refetch it or just reload page.
+                    window.location.reload();
+                } else if (dialogState.type === 'outcome') {
                     await client.models.Outcome.update({
                         id,
                         title: itemText,
@@ -269,6 +283,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     <Stack direction="row" spacing={2} alignItems="center">
                         <Typography variant="h5" fontWeight="bold" color="primary.main">{objective.title}</Typography>
                         {objective.owner && <OwnerChip owner={objective.owner} />}
+                        <Tooltip title="Edit Objective"><IconButton size="small" onClick={() => openDialog('edit', 'objective', '', objective)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                        <Tooltip title="Delete Objective"><IconButton size="small" onClick={() => handleDelete('objective', objective.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
                     </Stack>
                 </Box>
                 <IconButton onClick={onClose} aria-label="close"><CloseIcon /></IconButton>
@@ -294,7 +310,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     <Box p={3}>
                         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                             <Typography variant="h6" color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 700, letterSpacing: 1 }}>
-                                Strategy Tree
+                                Outcomes
                             </Typography>
                             <Button
                                 startIcon={<AddIcon />}
@@ -352,8 +368,6 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                             {kr.statement}
                                                                         </Typography>
                                                                         {kr.owners && kr.owners.length > 0 && <OwnerChip owner={kr.owners[0]} />}
-                                                                        <Tooltip title="Edit KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'kr', '', kr)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
-                                                                        <Tooltip title="Delete KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('kr', kr.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
                                                                     </Stack>
                                                                     {kr.metric?.name && (
                                                                         <Typography variant="caption" display="block" color="text.secondary">
@@ -361,6 +375,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                         </Typography>
                                                                     )}
                                                                 </Box>
+                                                                <Tooltip title="Edit KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'kr', '', kr)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                <Tooltip title="Delete KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('kr', kr.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
                                                                 <Button
                                                                     size="small"
                                                                     color="secondary"
@@ -411,13 +427,23 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 fullWidth
             >
                 <DialogTitle>
-                    {dialogState.mode === 'create' ? 'Add' : 'Edit'} {dialogState.type === 'outcome' ? 'Outcome' : dialogState.type === 'kr' ? 'Key Result' : 'Initiative'}
+                    {dialogState.mode === 'create' ? 'Add' : 'Edit'} {
+                        dialogState.type === 'outcome' ? 'Outcome' :
+                            dialogState.type === 'kr' ? 'Key Result' :
+                                dialogState.type === 'initiative' ? 'Initiative' :
+                                    'Strategic Objective'
+                    }
                 </DialogTitle>
                 <DialogContent>
                     <Box display="flex" flexDirection="column" gap={2} pt={1}>
                         <TextField
                             autoFocus
-                            label={dialogState.type === 'outcome' ? 'Outcome Title' : dialogState.type === 'kr' ? 'KR Statement' : 'Initiative Title'}
+                            label={
+                                dialogState.type === 'outcome' ? 'Outcome Title' :
+                                    dialogState.type === 'kr' ? 'KR Statement' :
+                                        dialogState.type === 'initiative' ? 'Initiative Title' :
+                                            'Objective Title'
+                            }
                             fullWidth
                             variant="outlined"
                             value={itemText}
