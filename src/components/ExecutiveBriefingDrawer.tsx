@@ -61,7 +61,8 @@ export function ExecutiveBriefingDrawer({ open, onClose, objectives }: Props) {
                             startIcon={<ContentCopyIcon />}
                             size="small"
                             onClick={handleCopy}
-                            variant="outlined"
+                            variant="contained"
+                            color="primary"
                         >
                             Copy
                         </Button>
