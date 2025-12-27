@@ -47,6 +47,9 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
+import { ExecutiveBriefingDrawer } from './components/ExecutiveBriefingDrawer';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+
 const client = generateClient<Schema>();
 
 const drawerWidth = 260; // Slightly wider for better breathing room
@@ -244,6 +247,7 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [selectedObjective, setSelectedObjective] = useState<Schema["StrategicObjective"]["type"] | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showBriefing, setShowBriefing] = useState(false);
 
   // Feedback Handling
   const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' | 'info' }>({
@@ -396,28 +400,34 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
       case 'profile':
         return <Paper sx={{ p: 6, textAlign: 'center' }}><Typography color="text.secondary">User profile management coming soon.</Typography></Paper>;
       default:
+        const stats = { action: 0, watch: 0, stable: 0 };
+        objectives.forEach(obj => {
+          const level = calculateAttentionLevel(obj);
+          if (level === 'ACTION') stats.action++;
+          else if (level === 'WATCH') stats.watch++;
+          else stats.stable++;
+        });
+
         return (
           <>
-            const stats = {action: 0, watch: 0, stable: 0 };
-            objectives.forEach(obj => {
-               const level = calculateAttentionLevel(obj);
-            if(level === 'ACTION') stats.action++;
-            else if(level === 'WATCH') stats.watch++;
-            else stats.stable++;
-            });
-
-            return (
-            <>
-              <Box mb={4}>
-                <Box display="flex" justifyContent="space-between" alignItems="flex-end" mb={2}>
-                  <Box>
-                    <Typography variant="h2" gutterBottom>
-                      Strategic Objectives
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary">
-                      Executive Overview & Risk Monitoring
-                    </Typography>
-                  </Box>
+            <Box mb={4}>
+              <Box display="flex" justifyContent="space-between" alignItems="flex-end" mb={2}>
+                <Box>
+                  <Typography variant="h2" gutterBottom>
+                    Strategic Objectives
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    Executive Overview & Risk Monitoring
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<SmartToyIcon />}
+                    onClick={() => setShowBriefing(true)}
+                  >
+                    Executive Briefing
+                  </Button>
                   <Button
                     variant="contained"
                     startIcon={<AddIcon />}
@@ -426,221 +436,228 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
                   >
                     New Objective
                   </Button>
-                </Box>
-
-                {/* Executive Summary Chips */}
-                {!loading && objectives.length > 0 && (
-                  <Stack direction="row" spacing={2} mt={2}>
-                    <Chip
-                      icon={<ErrorOutlineIcon />}
-                      label={`${stats.action} Action Needed`}
-                      color={stats.action > 0 ? "error" : "default"}
-                      variant={stats.action > 0 ? "filled" : "outlined"}
-                      sx={{ fontWeight: 'bold' }}
-                    />
-                    <Chip
-                      icon={<WarningAmberIcon />}
-                      label={`${stats.watch} Watch`}
-                      color={stats.watch > 0 ? "warning" : "default"}
-                      variant={stats.watch > 0 ? "filled" : "outlined"}
-                      sx={{ fontWeight: 'bold' }}
-                    />
-                    <Chip
-                      icon={<CheckCircleOutlineIcon />}
-                      label={`${stats.stable} Stable`}
-                      color="success"
-                      variant="outlined"
-                    />
-                  </Stack>
-                )}
+                </Stack>
               </Box>
 
-
-              {loading ? (
-                <SkeletonDashboard />
-              ) : objectives.length === 0 ? (
-                <Paper
-                  variant="outlined"
-                  sx={{
-                    p: 8,
-                    textAlign: 'center',
-                    borderStyle: 'dashed',
-                    borderColor: 'divider',
-                    bgcolor: 'background.default'
-                  }}
-                >
-                  <Stack spacing={2} alignItems="center">
-                    <SignalCellularAltIcon sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5 }} />
-                    <Typography variant="h5" color="text.primary" fontWeight={600}>No Strategic Objectives Yet</Typography>
-                    <Typography color="text.secondary" maxWidth="sm">
-                      Objectives are the highest level of your strategy. They define what your organization ultimately wants to achieve. Start by creating your first one.
-                    </Typography>
-                    <Box pt={2}>
-                      <Button variant="contained" onClick={() => setShowCreateModal(true)}>Create Objective</Button>
-                    </Box>
-                  </Stack>
-                </Paper>
-              ) : (
-                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 3 }}>
-                  {objectives.map(obj => (
-                    <Box key={obj.id}>
-                      <StrategicObjectiveCard
-                        objective={obj}
-                        onClick={() => setSelectedObjective(obj)}
-                      />
-                    </Box>
-                  ))}
-                </Box>
+              {/* Executive Summary Chips */}
+              {!loading && objectives.length > 0 && (
+                <Stack direction="row" spacing={2} mt={2}>
+                  <Chip
+                    icon={<ErrorOutlineIcon />}
+                    label={`${stats.action} Action Needed`}
+                    color={stats.action > 0 ? "error" : "default"}
+                    variant={stats.action > 0 ? "filled" : "outlined"}
+                    sx={{ fontWeight: 'bold' }}
+                  />
+                  <Chip
+                    icon={<WarningAmberIcon />}
+                    label={`${stats.watch} Watch`}
+                    color={stats.watch > 0 ? "warning" : "default"}
+                    variant={stats.watch > 0 ? "filled" : "outlined"}
+                    sx={{ fontWeight: 'bold' }}
+                  />
+                  <Chip
+                    icon={<CheckCircleOutlineIcon />}
+                    label={`${stats.stable} Stable`}
+                    color="success"
+                    variant="outlined"
+                  />
+                </Stack>
               )}
-            </>
-            );
-    }
-  };
-
-            if (!org && !loading) return (
-            <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
-              <Typography color="text.secondary">Unable to access workspace. Please contact support.</Typography>
             </Box>
-            );
 
-            return (
-            <Box sx={{ display: 'flex' }}>
-              <CssBaseline />
 
-              {/* Top Bar (Mobile Only for Title, Desktop has header in sidebar usually, but here we keep app bar for breadcrumbs/user mostly on mobile) */}
-              <AppBar
-                position="fixed"
+            {loading ? (
+              <SkeletonDashboard />
+            ) : objectives.length === 0 ? (
+              <Paper
+                variant="outlined"
                 sx={{
-                  width: { sm: `calc(100% - ${drawerWidth}px)` },
-                  ml: { sm: `${drawerWidth}px` },
-                  bgcolor: 'background.default', // Blend with background
-                  color: 'text.primary',
-                  borderBottom: 1,
+                  p: 8,
+                  textAlign: 'center',
+                  borderStyle: 'dashed',
                   borderColor: 'divider',
-                  boxShadow: 'none',
-                  backdropFilter: 'blur(8px)',
-                  backgroundColor: 'rgba(248, 250, 252, 0.8)' // Semi-transparent
-                }}
-                elevation={0}
-              >
-                <Toolbar>
-                  <IconButton
-                    color="inherit"
-                    edge="start"
-                    onClick={handleDrawerToggle}
-                    sx={{ mr: 2, display: { sm: 'none' } }}
-                  >
-                    <MenuIcon />
-                  </IconButton>
-
-                  {/* Breadcrumb-ish title for context */}
-                  <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
-                    {/* Dynamic Title based on View */}
-                    {org?.name}
-                  </Typography>
-
-                  <Box display="flex" alignItems="center" gap={2}>
-                    <Button color="inherit" size="small" sx={{ display: { xs: 'none', sm: 'block' } }}>Help</Button>
-                    <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.875rem' }}>
-                      {user?.signInDetails?.loginId?.[0]?.toUpperCase() || 'U'}
-                    </Avatar>
-                  </Box>
-                </Toolbar>
-              </AppBar>
-
-              {/* Navigation Drawer */}
-              <Box
-                component="nav"
-                sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-              >
-                {/* Mobile Temporary Drawer */}
-                <Drawer
-                  variant="temporary"
-                  open={mobileOpen}
-                  onClose={handleDrawerToggle}
-                  ModalProps={{ keepMounted: true }}
-                  sx={{
-                    display: { xs: 'block', sm: 'none' },
-                    '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-                  }}
-                >
-                  {drawer}
-                </Drawer>
-                {/* Desktop Permanent Drawer */}
-                <Drawer
-                  variant="permanent"
-                  sx={{
-                    display: { xs: 'none', sm: 'block' },
-                    '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-                  }}
-                  open
-                >
-                  {drawer}
-                </Drawer>
-              </Box>
-
-              {/* Main Content Area */}
-              <Box
-                component="main"
-                sx={{
-                  flexGrow: 1,
-                  p: 3,
-                  width: { sm: `calc(100% - ${drawerWidth}px)` },
-                  minHeight: '100vh',
                   bgcolor: 'background.default'
                 }}
               >
-                <Toolbar /> {/* Spacer for AppBar */}
-                <Container maxWidth="xl" sx={{ py: 2 }}>
-                  {loading && !org ? (
-                    <Box display="flex" justifyContent="center" alignItems="center" height="60vh">
-                      <CircularProgress />
-                    </Box>
-                  ) : (
-                    renderContent()
-                  )}
-                </Container>
-              </Box>
+                <Stack spacing={2} alignItems="center">
+                  <SignalCellularAltIcon sx={{ fontSize: 48, color: 'text.secondary', opacity: 0.5 }} />
+                  <Typography variant="h5" color="text.primary" fontWeight={600}>No Strategic Objectives Yet</Typography>
+                  <Typography color="text.secondary" maxWidth="sm">
+                    Objectives are the highest level of your strategy. They define what your organization ultimately wants to achieve. Start by creating your first one.
+                  </Typography>
+                  <Box pt={2}>
+                    <Button variant="contained" onClick={() => setShowCreateModal(true)}>Create Objective</Button>
+                  </Box>
+                </Stack>
+              </Paper>
+            ) : (
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 3 }}>
+                {objectives.map(obj => (
+                  <Box key={obj.id}>
+                    <StrategicObjectiveCard
+                      objective={obj}
+                      onClick={() => setSelectedObjective(obj)}
+                    />
+                  </Box>
+                ))}
+                </Box>
 
-              {/* Global Snackbar */}
-              <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
-                <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
-                  {snackbar.message}
-                </Alert>
-              </Snackbar>
-
-              {/* Dialogs */}
-              {showCreateModal && org && (
-                <CreateObjectiveForm
-                  organizationId={org.id}
-                  onClose={() => setShowCreateModal(false)}
-                  onSuccess={(newObj) => {
-                    setObjectives([...objectives, newObj]);
-                    showSuccess('Objective created successfully');
-                  }}
+                <ExecutiveBriefingDrawer
+                    open={showBriefing}
+                    onClose={() => setShowBriefing(false)}
+                    objectives={objectives}
                 />
-              )}
+              </>
+        );
+    }
+  };
 
-              {selectedObjective && (
-                <ObjectiveDetailModal
-                  objective={selectedObjective}
-                  onClose={() => setSelectedObjective(null)}
-                />
-              )}
-            </Box>
-            );
-}
+  if (!org && !loading) return (
+    // ...
+    <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+      <Typography color="text.secondary">Unable to access workspace. Please contact support.</Typography>
+    </Box>
+  );
 
-            function App() {
   return (
-            <ThemeProvider theme={theme}>
-              <Authenticator>
-                {({ signOut, user }) => (
-                  <Dashboard user={user} signOut={signOut} />
-                )}
-              </Authenticator>
-            </ThemeProvider>
-            );
+    <Box sx={{ display: 'flex' }}>
+      <CssBaseline />
+
+      {/* Top Bar (Mobile Only for Title, Desktop has header in sidebar usually, but here we keep app bar for breadcrumbs/user mostly on mobile) */}
+      <AppBar
+        position="fixed"
+        sx={{
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          ml: { sm: `${drawerWidth}px` },
+          bgcolor: 'background.default', // Blend with background
+          color: 'text.primary',
+          borderBottom: 1,
+          borderColor: 'divider',
+          boxShadow: 'none',
+          backdropFilter: 'blur(8px)',
+          backgroundColor: 'rgba(248, 250, 252, 0.8)' // Semi-transparent
+        }}
+        elevation={0}
+      >
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 2, display: { sm: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+
+          {/* Breadcrumb-ish title for context */}
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
+            {/* Dynamic Title based on View */}
+            {org?.name}
+          </Typography>
+
+          <Box display="flex" alignItems="center" gap={2}>
+            <Button color="inherit" size="small" sx={{ display: { xs: 'none', sm: 'block' } }}>Help</Button>
+            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.875rem' }}>
+              {user?.signInDetails?.loginId?.[0]?.toUpperCase() || 'U'}
+            </Avatar>
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      {/* Navigation Drawer */}
+      <Box
+        component="nav"
+        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+      >
+        {/* Mobile Temporary Drawer */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            display: { xs: 'block', sm: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+          }}
+        >
+          {drawer}
+        </Drawer>
+        {/* Desktop Permanent Drawer */}
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+          }}
+          open
+        >
+          {drawer}
+        </Drawer>
+      </Box>
+
+      {/* Main Content Area */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          minHeight: '100vh',
+          bgcolor: 'background.default'
+        }}
+      >
+        <Toolbar /> {/* Spacer for AppBar */}
+        <Container maxWidth="xl" sx={{ py: 2 }}>
+          {loading && !org ? (
+            <Box display="flex" justifyContent="center" alignItems="center" height="60vh">
+              <CircularProgress />
+            </Box>
+          ) : (
+            renderContent()
+          )}
+        </Container>
+      </Box>
+
+      {/* Global Snackbar */}
+      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
+      {/* Dialogs */}
+      {showCreateModal && org && (
+        <CreateObjectiveForm
+          organizationId={org.id}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={(newObj) => {
+            setObjectives([...objectives, newObj]);
+            showSuccess('Objective created successfully');
+          }}
+        />
+      )}
+
+      {selectedObjective && (
+        <ObjectiveDetailModal
+          objective={selectedObjective}
+          onClose={() => setSelectedObjective(null)}
+        />
+      )}
+    </Box>
+  );
 }
 
-            export default App;
+function App() {
+  return (
+    <ThemeProvider theme={theme}>
+      <Authenticator>
+        {({ signOut, user }) => (
+          <Dashboard user={user} signOut={signOut} />
+        )}
+      </Authenticator>
+    </ThemeProvider>
+  );
+}
+
+export default App;
