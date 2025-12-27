@@ -106,17 +106,27 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             );
             setMembers(membersWithProfiles);
 
-            const { data: allInitiatives } = await org.initiatives();
+            // Fetch initiatives directly to ensure we get them all
+            const { data: allInitiatives } = await client.models.Initiative.list({
+                filter: { organizationId: { eq: org.id } },
+                limit: 1000 // Ensure we get enough
+            });
+            console.log("Debug: All Initiatives Fetched:", allInitiatives);
 
             // Map initiatives to KRs
             const outcomesFinal = outcomesWithChildren.map(outcome => ({
                 ...outcome,
-                keyResults: outcome.keyResults.map((kr: any) => ({
-                    ...kr,
-                    initiatives: allInitiatives.filter(init =>
-                        init.linkedEntities?.keyResultIds?.includes(kr.id)
-                    )
-                }))
+                keyResults: outcome.keyResults.map((kr: any) => {
+                    const linked = allInitiatives.filter(init => {
+                        const ids = init.linkedEntities?.keyResultIds || [];
+                        return ids.includes(kr.id);
+                    });
+                    console.log(`Debug: KR ${kr.id} linked initiatives:`, linked);
+                    return {
+                        ...kr,
+                        initiatives: linked
+                    };
+                })
             }));
 
             setOutcomes(outcomesFinal);
@@ -263,8 +273,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         description: itemDescription,
                         status: itemStatus as any,
                         owner: ownerObj,
-                        heartbeatCadence: cadenceObj,
-                        nextHeartbeatDue: nextDue
+                        heartbeatCadence: cadenceObj || undefined,
+                        nextHeartbeatDue: nextDue || undefined
                     });
                 } else if (dialogState.type === 'kr') {
                     await client.models.KeyResult.create({
@@ -275,8 +285,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         status: itemStatus as any,
                         owners: ownerObj ? [ownerObj] : [],
                         metric: itemMetricName ? { name: itemMetricName } : null,
-                        heartbeatCadence: cadenceObj,
-                        nextHeartbeatDue: nextDue
+                        heartbeatCadence: cadenceObj || undefined,
+                        nextHeartbeatDue: nextDue || undefined
                     });
                 } else if (dialogState.type === 'initiative') {
                     await client.models.Initiative.create({
@@ -289,8 +299,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                             strategicObjectiveIds: [objective.id],
                             keyResultIds: [dialogState.parentId!]
                         },
-                        heartbeatCadence: cadenceObj,
-                        nextHeartbeatDue: nextDue
+                        heartbeatCadence: cadenceObj || undefined,
+                        nextHeartbeatDue: nextDue || undefined
                     });
                 }
             } else {

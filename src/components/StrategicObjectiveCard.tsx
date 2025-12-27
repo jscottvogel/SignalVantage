@@ -9,6 +9,22 @@ interface Props {
 }
 
 export function StrategicObjectiveCard({ objective, onClick }: Props) {
+    const HeartbeatStatus = ({ due }: { due?: string | null }) => {
+        if (!due) return null;
+        const isLate = new Date(due) < new Date();
+        return (
+            <Chip
+                label={isLate ? "Heartbeat Late" : `Due: ${new Date(due).toLocaleDateString()}`}
+                size="small"
+                color={isLate ? "error" : "default"}
+                variant={isLate ? "filled" : "outlined"}
+                sx={{ fontSize: '0.7rem', height: 20 }}
+            />
+        );
+    };
+
+    const ownerName = objective.owner?.displayName || 'Unassigned';
+
     return (
         <Card
             onClick={onClick}
@@ -28,17 +44,19 @@ export function StrategicObjectiveCard({ objective, onClick }: Props) {
             <CardContent sx={{ flexGrow: 1, p: 3 }}>
                 <Stack spacing={2}>
                     <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                        <Chip
-                            label="On Track"
-                            size="small"
-                            color="success"
-                            sx={{
-                                bgcolor: '#dcfce7',
-                                color: '#166534',
-                                fontWeight: 600,
-                                fontSize: '0.75rem'
-                            }}
-                        />
+                        <Stack direction="row" spacing={1}>
+                            {objective.latestHeartbeat?.ownerInput?.ownerConfidence ? (
+                                <Chip
+                                    label={objective.latestHeartbeat.ownerInput.ownerConfidence}
+                                    size="small"
+                                    color={['HIGH', 'active'].includes(objective.latestHeartbeat.ownerInput.ownerConfidence) ? 'success' : 'default'} // Simplified color mapping
+                                    sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+                                />
+                            ) : (
+                                <Chip label="Active" size="small" variant="outlined" />
+                            )}
+                            <HeartbeatStatus due={objective.nextHeartbeatDue} />
+                        </Stack>
                         <ChevronRightIcon color="action" />
                     </Box>
 
@@ -64,18 +82,11 @@ export function StrategicObjectiveCard({ objective, onClick }: Props) {
                     <Box>
                         <Typography variant="caption" color="text.secondary" fontWeight="bold">OWNER</Typography>
                         <Box display="flex" alignItems="center" gap={1} mt={0.5}>
-                            <Box width={24} height={24} borderRadius="50%" bgcolor="#cbd5e1" />
-                            <Typography variant="caption" color="text.primary">Unassigned</Typography>
-                        </Box>
-                    </Box>
-                    <Box>
-                        <Typography variant="caption" color="text.secondary" fontWeight="bold">PROGRESS</Typography>
-                        <Stack direction="row" alignItems="center" spacing={1} mt={0.5}>
-                            <Box width="60px" height="6px" borderRadius={1} bgcolor="#e2e8f0" overflow="hidden">
-                                <Box width="45%" height="100%" bgcolor="primary.main" />
+                            <Box width={24} height={24} borderRadius="50%" bgcolor="#cbd5e1" display="flex" alignItems="center" justifyContent="center">
+                                <Typography variant="caption" color="text.secondary">{ownerName[0]}</Typography>
                             </Box>
-                            <Typography variant="caption" fontWeight="bold">45%</Typography>
-                        </Stack>
+                            <Typography variant="caption" color="text.primary">{ownerName}</Typography>
+                        </Box>
                     </Box>
                 </Stack>
             </Box>
