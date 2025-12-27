@@ -96,6 +96,7 @@ const schema = a.schema({
     timestamp: a.datetime(),
     systemAssessment: a.ref('SystemAssessment'),
     sources: a.ref('HeartbeatSource').array(),
+    ownerInput: a.ref('OwnerInput'),
   }),
 
   // Initiative Custom Types
@@ -174,6 +175,7 @@ const schema = a.schema({
 
   InitiativeHeartbeat: a.customType({
     heartbeatId: a.string(),
+    summary: a.string(),
     timestamp: a.datetime(),
     ownerInput: a.ref('OwnerInput'),
     systemAssessment: a.ref('SystemAssessment'),

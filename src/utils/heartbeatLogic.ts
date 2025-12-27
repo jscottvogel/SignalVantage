@@ -1,9 +1,8 @@
 
-import { Schema } from '../../amplify/data/resource';
+import type { Schema } from '../../amplify/data/resource';
 
 type SystemAssessment = Schema['SystemAssessment']['type'];
 type OwnerInput = Schema['OwnerInput']['type'];
-type IntegritySignals = Schema['IntegritySignals']['type'];
 
 export const calculateFreshness = (nextHeartbeatDue: string | null | undefined): string => {
     if (!nextHeartbeatDue) return 'ON_TIME';
@@ -69,7 +68,7 @@ const calculateSpecificity = (input: OwnerInput): string => {
     return 'SPECIFIC';
 };
 
-const checkConsistency = (current: OwnerInput, previous: any): string => {
+const checkConsistency = (_current: OwnerInput, previous: any): string => {
     if (!previous) return 'ALIGNED';
     // Example logic: specific checks could go here.
     return 'ALIGNED';
