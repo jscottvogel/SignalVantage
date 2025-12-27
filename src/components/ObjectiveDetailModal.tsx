@@ -67,9 +67,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Heartbeat Wizard State
-    const [heartbeatState, setHeartbeatState] = useState<{ open: boolean, initiative: any | null }>({
+    const [heartbeatState, setHeartbeatState] = useState<{ open: boolean, item: any | null, type: 'initiative' | 'outcome' | 'objective' }>({
         open: false,
-        initiative: null
+        item: null,
+        type: 'initiative'
     });
 
     const refreshTree = useCallback(async () => {
@@ -172,8 +173,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         setSelectedOwnerId(initOwner);
     };
 
-    const openHeartbeatWizard = (initiative: any) => {
-        setHeartbeatState({ open: true, initiative });
+    const openHeartbeatWizard = (type: 'initiative' | 'outcome' | 'objective', item: any) => {
+        setHeartbeatState({ open: true, item, type });
     };
 
     const handleDelete = async (type: ItemType, id: string) => {
@@ -344,6 +345,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         <Stack direction="row" spacing={2} alignItems="center">
                             <Typography variant="h5" fontWeight="bold" color="primary.main">{objective.title}</Typography>
                             {objective.owner && <OwnerChip owner={objective.owner} />}
+                            <Tooltip title="Log Heartbeat">
+                                <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('objective', objective)}>
+                                    <MonitorHeartIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
                             <Tooltip title="Edit Objective"><IconButton size="small" onClick={() => openDialog('edit', 'objective' as any, '', objective)}><EditIcon fontSize="small" /></IconButton></Tooltip>
                             <Tooltip title="Delete Objective"><IconButton size="small" onClick={() => handleDelete('objective', objective.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
                         </Stack>
@@ -395,13 +401,26 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                             <Box p={2} sx={{ backgroundColor: '#eff6ff', borderBottom: 1, borderColor: '#dbeafe', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <Stack direction="row" alignItems="center" spacing={1}>
                                                     <Chip label="Outcome" size="small" color="primary" sx={{ borderRadius: 1, height: 20, fontSize: '0.7rem' }} />
-                                                    <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                                                    <Typography variant="subtitle1" fontWeight="600" color="text.primary">
                                                         {outcome.title}
                                                     </Typography>
+                                                    {outcome.latestHeartbeat?.ownerInput?.ownerConfidence && (
+                                                        <Tooltip title="Latest Confidence">
+                                                            <Box>
+                                                                <StatusChip status={outcome.latestHeartbeat.ownerInput.ownerConfidence} />
+                                                            </Box>
+                                                        </Tooltip>
+                                                    )}
                                                     <StatusChip status={outcome.status} />
                                                     <OwnerChip owner={outcome.owner} />
                                                 </Stack>
                                                 <Stack direction="row" spacing={1}>
+                                                    <Tooltip title="Log Heartbeat">
+                                                        <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('outcome', outcome)}>
+                                                            <MonitorHeartIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+
                                                     <Tooltip title="Edit Outcome"><IconButton size="small" onClick={() => openDialog('edit', 'outcome', '', outcome)}><EditIcon fontSize="small" /></IconButton></Tooltip>
                                                     <Tooltip title="Delete Outcome"><IconButton size="small" onClick={() => handleDelete('outcome', outcome.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
                                                     <Button
@@ -472,7 +491,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                         <Box flexGrow={1} />
 
                                                                                         <Tooltip title="Log Heartbeat">
-                                                                                            <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard(init)}>
+                                                                                            <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('initiative', init)}>
                                                                                                 <MonitorHeartIcon fontSize="small" />
                                                                                             </IconButton>
                                                                                         </Tooltip>
@@ -608,11 +627,12 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 </DialogActions>
             </Dialog>
 
-            {heartbeatState.initiative && (
+            {heartbeatState.item && (
                 <HeartbeatWizard
                     open={heartbeatState.open}
                     onClose={() => setHeartbeatState({ ...heartbeatState, open: false })}
-                    initiative={heartbeatState.initiative}
+                    item={heartbeatState.item}
+                    itemType={heartbeatState.type}
                     onComplete={refreshTree}
                 />
             )}

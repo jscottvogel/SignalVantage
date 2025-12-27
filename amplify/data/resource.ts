@@ -200,6 +200,12 @@ const schema = a.schema({
 
       keyResultId: a.id(),
       keyResult: a.belongsTo('KeyResult', 'keyResultId'),
+
+      strategicObjectiveId: a.id(),
+      strategicObjective: a.belongsTo('StrategicObjective', 'strategicObjectiveId'),
+
+      outcomeId: a.id(),
+      outcome: a.belongsTo('Outcome', 'outcomeId'),
     })
     .authorization((allow) => [allow.authenticated()]),
 
@@ -211,6 +217,8 @@ const schema = a.schema({
       owner: a.ref('ObjectiveOwner'),
       tags: a.string().array(),
       status: a.enum(['active', 'draft', 'closed', 'archived']),
+      latestHeartbeat: a.ref('InitiativeHeartbeat'), // Using the richer heartbeat type
+      heartbeats: a.hasMany('Heartbeat', 'strategicObjectiveId'),
 
       organizationId: a.id().required(),
       organization: a.belongsTo('Organization', 'organizationId'),
@@ -228,6 +236,8 @@ const schema = a.schema({
       owner: a.ref('ObjectiveOwner'),
       tags: a.string().array(),
       status: a.enum(['active', 'draft', 'closed', 'archived']),
+      latestHeartbeat: a.ref('InitiativeHeartbeat'),
+      heartbeats: a.hasMany('Heartbeat', 'outcomeId'),
 
       organizationId: a.id().required(),
       organization: a.belongsTo('Organization', 'organizationId'),

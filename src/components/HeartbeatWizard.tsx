@@ -15,13 +15,14 @@ const client = generateClient<Schema>();
 interface HeartbeatWizardProps {
     open: boolean;
     onClose: () => void;
-    initiative: any; // Using any for now to avoid strict typing issues with generated schema immediately
+    item: any;
+    itemType: 'initiative' | 'outcome' | 'objective';
     onComplete: () => void;
 }
 
 const steps = ['Context', 'Progress', 'Risks & Dependencies', 'Confidence', 'Review'];
 
-export default function HeartbeatWizard({ open, onClose, initiative, onComplete }: HeartbeatWizardProps) {
+export default function HeartbeatWizard({ open, onClose, item, itemType, onComplete }: HeartbeatWizardProps) {
     const [activeStep, setActiveStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -86,39 +87,53 @@ export default function HeartbeatWizard({ open, onClose, initiative, onComplete 
             };
 
             // 1. Create Heartbeat Record
-            await client.models.Heartbeat.create({
-                type: 'SCHEDULED', // Defaulting to scheduled for manual entry
+            const heartbeatPayload: any = {
+                type: 'SCHEDULED',
                 status: 'COMPLETED',
                 timestamp: now,
-                initiativeId: initiative.id,
                 ownerInput: ownerInput,
-                // In a real system, systemAssessment would be calculated here or via trigger
                 systemAssessment: {
-                    systemConfidence: ownerConfidence || 'MEDIUM', // Fallback for now
+                    systemConfidence: ownerConfidence || 'MEDIUM',
                     confidenceTrend: 'FLAT',
                     uncertaintyFlags: [],
-                    // integritySignals: ... 
-                } as any // avoiding strict type check on nested custom types for speed
-            });
+                }
+            };
 
-            // 2. Update Initiative Latest Heartbeat
-            // We need to construct the InitiativeHeartbeat structure
+            if (itemType === 'initiative') heartbeatPayload.initiativeId = item.id;
+            else if (itemType === 'outcome') heartbeatPayload.outcomeId = item.id;
+            else if (itemType === 'objective') heartbeatPayload.strategicObjectiveId = item.id;
+
+            await client.models.Heartbeat.create(heartbeatPayload);
+
+            // 2. Update Parent Latest Heartbeat
             const latestHeartbeat = {
-                heartbeatId: crypto.randomUUID(), // Ideally the ID of the created heartbeat, but create returns promise
+                heartbeatId: crypto.randomUUID(),
                 timestamp: now,
                 ownerInput: ownerInput,
                 // systemAssessment...
             };
 
-            await client.models.Initiative.update({
-                id: initiative.id,
-                latestHeartbeat: latestHeartbeat as any, // Update custom type
-                state: {
-                    ...initiative.state,
-                    updatedAt: now,
-                    health: ownerConfidence === 'LOW' ? 'off_track' : 'on_track' // Simple logic
-                }
-            });
+            if (itemType === 'initiative') {
+                await client.models.Initiative.update({
+                    id: item.id,
+                    latestHeartbeat: latestHeartbeat as any,
+                    state: {
+                        ...item.state,
+                        updatedAt: now,
+                        health: ownerConfidence === 'LOW' ? 'off_track' : 'on_track'
+                    }
+                });
+            } else if (itemType === 'outcome') {
+                await client.models.Outcome.update({
+                    id: item.id,
+                    latestHeartbeat: latestHeartbeat as any,
+                });
+            } else if (itemType === 'objective') {
+                await client.models.StrategicObjective.update({
+                    id: item.id,
+                    latestHeartbeat: latestHeartbeat as any,
+                });
+            }
 
             onComplete();
             onClose();
@@ -135,13 +150,13 @@ export default function HeartbeatWizard({ open, onClose, initiative, onComplete 
             case 0: // Context
                 return (
                     <Box pt={2}>
-                        <Typography variant="h6" gutterBottom>{initiative.title}</Typography>
+                        <Typography variant="h6" gutterBottom>{item.title}</Typography>
                         <Typography variant="body2" color="text.secondary" paragraph>
                             Please provide an update for the current cycle. Your honest assessment drives the system's confidence.
                         </Typography>
                         <Box bgcolor="grey.100" p={2} borderRadius={1}>
-                            <Typography variant="subtitle2">Last Confidence: {initiative.latestHeartbeat?.ownerInput?.ownerConfidence || 'None'}</Typography>
-                            <Typography variant="caption" display="block">Last Update: {initiative.state?.updatedAt ? new Date(initiative.state.updatedAt).toLocaleDateString() : 'Never'}</Typography>
+                            <Typography variant="subtitle2">Last Confidence: {item.latestHeartbeat?.ownerInput?.ownerConfidence || 'None'}</Typography>
+                            <Typography variant="caption" display="block">Last Update: {item.latestHeartbeat?.timestamp ? new Date(item.latestHeartbeat.timestamp).toLocaleDateString() : 'Never'}</Typography>
                         </Box>
                     </Box>
                 );
