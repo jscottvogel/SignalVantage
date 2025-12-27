@@ -492,23 +492,26 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
                 </Stack>
               </Paper>
             ) : (
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 3 }}>
-                {objectives.map(obj => (
-                  <Box key={obj.id}>
-                    <StrategicObjectiveCard
-                      objective={obj}
-                      onClick={() => setSelectedObjective(obj)}
-                    />
-                  </Box>
-                ))}
+              <>
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 3 }}>
+                  {objectives.map(obj => (
+                    <Box key={obj.id}>
+                      <StrategicObjectiveCard
+                        objective={obj}
+                        onClick={() => setSelectedObjective(obj)}
+                      />
+                    </Box>
+                  ))}
                 </Box>
 
                 <ExecutiveBriefingDrawer
-                    open={showBriefing}
-                    onClose={() => setShowBriefing(false)}
-                    objectives={objectives}
+                  open={showBriefing}
+                  onClose={() => setShowBriefing(false)}
+                  objectives={objectives}
                 />
               </>
+            )}
+          </>
         );
     }
   };
