@@ -113,10 +113,37 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 // systemAssessment...
             };
 
+            // Calculate Next Due Date
+            let nextHeartbeatDue = null;
+            if (item.heartbeatCadence) {
+                const { frequency, hour = 9 } = item.heartbeatCadence;
+                const date = new Date(); // Start from now
+
+                // Set hour
+                date.setHours(hour, 0, 0, 0);
+
+                if (frequency === 'DAILY') {
+                    date.setDate(date.getDate() + 1);
+                } else if (frequency === 'WEEKLY') {
+                    date.setDate(date.getDate() + 7);
+                } else if (frequency === 'BIWEEKLY') {
+                    date.setDate(date.getDate() + 14);
+                } else if (frequency === 'MONTHLY') {
+                    date.setMonth(date.getMonth() + 1);
+                }
+
+                // Basic day logic adjustment could be added here if strictly adhering to specific day, 
+                // but adding frequency to current date is standard behavior for "next due".
+                // If we want to align to specific day of week, we need more logic.
+                // For MVP, simplest "due in X days" is fine.
+                nextHeartbeatDue = date.toISOString();
+            }
+
             if (itemType === 'initiative') {
                 await client.models.Initiative.update({
                     id: item.id,
                     latestHeartbeat: latestHeartbeat as any,
+                    nextHeartbeatDue: nextHeartbeatDue || undefined,
                     state: {
                         ...item.state,
                         updatedAt: now,
@@ -127,11 +154,13 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 await client.models.Outcome.update({
                     id: item.id,
                     latestHeartbeat: latestHeartbeat as any,
+                    nextHeartbeatDue: nextHeartbeatDue || undefined,
                 });
             } else if (itemType === 'objective') {
                 await client.models.StrategicObjective.update({
                     id: item.id,
                     latestHeartbeat: latestHeartbeat as any,
+                    nextHeartbeatDue: nextHeartbeatDue || undefined,
                 });
             }
 

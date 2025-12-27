@@ -115,9 +115,9 @@ const schema = a.schema({
   }),
 
   HeartbeatCadence: a.customType({
-    type: a.string(),
-    dueDayOfWeek: a.string(),
-    gracePeriodHours: a.integer(),
+    frequency: a.enum(['DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY']),
+    dayOfWeek: a.enum(['MON', 'TUES', 'WED', 'THU', 'FRI', 'SAT', 'SUN']),
+    hour: a.integer(), // 0-23
   }),
 
   Risk: a.customType({
@@ -178,6 +178,8 @@ const schema = a.schema({
     evidenceLinks: a.ref('EvidenceLink').array(),
   }),
 
+
+
   Audit: a.customType({
     createdBy: a.string(),
     updatedBy: a.string(),
@@ -219,6 +221,8 @@ const schema = a.schema({
       status: a.enum(['active', 'draft', 'closed', 'archived']),
       latestHeartbeat: a.ref('InitiativeHeartbeat'), // Using the richer heartbeat type
       heartbeats: a.hasMany('Heartbeat', 'strategicObjectiveId'),
+      heartbeatCadence: a.ref('HeartbeatCadence'),
+      nextHeartbeatDue: a.datetime(),
 
       organizationId: a.id().required(),
       organization: a.belongsTo('Organization', 'organizationId'),
@@ -238,6 +242,8 @@ const schema = a.schema({
       status: a.enum(['active', 'draft', 'closed', 'archived']),
       latestHeartbeat: a.ref('InitiativeHeartbeat'),
       heartbeats: a.hasMany('Heartbeat', 'outcomeId'),
+      heartbeatCadence: a.ref('HeartbeatCadence'),
+      nextHeartbeatDue: a.datetime(),
 
       organizationId: a.id().required(),
       organization: a.belongsTo('Organization', 'organizationId'),
@@ -258,6 +264,8 @@ const schema = a.schema({
       confidence: a.ref('Confidence'),
       latestHeartbeat: a.ref('LatestHeartbeat'),
       heartbeats: a.hasMany('Heartbeat', 'keyResultId'),
+      heartbeatCadence: a.ref('HeartbeatCadence'),
+      nextHeartbeatDue: a.datetime(),
 
       organizationId: a.id().required(),
       organization: a.belongsTo('Organization', 'organizationId'),
@@ -279,6 +287,7 @@ const schema = a.schema({
       timeframe: a.ref('InitiativeTimeframe'),
       state: a.ref('InitiativeState'),
       heartbeatCadence: a.ref('HeartbeatCadence'),
+      nextHeartbeatDue: a.datetime(),
       latestHeartbeat: a.ref('InitiativeHeartbeat'),
       heartbeats: a.hasMany('Heartbeat', 'initiativeId'),
       audit: a.ref('Audit'),

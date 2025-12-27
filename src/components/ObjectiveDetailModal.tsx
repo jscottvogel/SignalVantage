@@ -64,6 +64,12 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [itemStatus, setItemStatus] = useState('active'); // Default status
     const [itemMetricName, setItemMetricName] = useState('');
     const [selectedOwnerId, setSelectedOwnerId] = useState('');
+
+    // Cadence State
+    const [itemCadenceFreq, setItemCadenceFreq] = useState('');
+    const [itemCadenceDay, setItemCadenceDay] = useState('FRI');
+    const [itemCadenceHour, setItemCadenceHour] = useState(9); // 9 AM default
+
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Heartbeat Wizard State
@@ -136,6 +142,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         let initDesc = '';
         let initStatus = 'active';
         let initMetric = '';
+        let initFreq = '';
+        let initDay = 'FRI';
+        let initHour = 9;
 
         if (mode === 'edit' && item) {
             initText = item.title || item.statement || '';
@@ -152,6 +161,12 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
 
             if (type === 'kr') {
                 initMetric = item.metric?.name || '';
+            }
+
+            if (item.heartbeatCadence) {
+                initFreq = item.heartbeatCadence.frequency || '';
+                initDay = item.heartbeatCadence.dayOfWeek || 'FRI';
+                initHour = item.heartbeatCadence.hour ?? 9;
             }
         } else {
             // Defaults for create
@@ -171,6 +186,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         setItemStatus(initStatus);
         setItemMetricName(initMetric);
         setSelectedOwnerId(initOwner);
+        setItemCadenceFreq(initFreq);
+        setItemCadenceDay(initDay);
+        setItemCadenceHour(initHour);
     };
 
     const openHeartbeatWizard = (type: 'initiative' | 'outcome' | 'objective', item: any) => {
@@ -219,6 +237,23 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 }
             }
 
+            const cadenceObj = itemCadenceFreq ? {
+                frequency: itemCadenceFreq as any,
+                dayOfWeek: (itemCadenceFreq !== 'DAILY' ? itemCadenceDay : null) as any,
+                hour: itemCadenceHour
+            } : null;
+
+            let nextDue = null;
+            if (cadenceObj) {
+                const date = new Date();
+                date.setHours(cadenceObj.hour || 9, 0, 0, 0);
+                if (cadenceObj.frequency === 'DAILY') date.setDate(date.getDate() + 1);
+                else if (cadenceObj.frequency === 'WEEKLY') date.setDate(date.getDate() + 7);
+                else if (cadenceObj.frequency === 'BIWEEKLY') date.setDate(date.getDate() + 14);
+                else if (cadenceObj.frequency === 'MONTHLY') date.setMonth(date.getMonth() + 1);
+                nextDue = date.toISOString();
+            }
+
             if (dialogState.mode === 'create') {
                 if (dialogState.type === 'outcome') {
                     await client.models.Outcome.create({
@@ -227,7 +262,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         title: itemText,
                         description: itemDescription,
                         status: itemStatus as any,
-                        owner: ownerObj
+                        owner: ownerObj,
+                        heartbeatCadence: cadenceObj,
+                        nextHeartbeatDue: nextDue
                     });
                 } else if (dialogState.type === 'kr') {
                     await client.models.KeyResult.create({
@@ -237,7 +274,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         statement: itemText,
                         status: itemStatus as any,
                         owners: ownerObj ? [ownerObj] : [],
-                        metric: itemMetricName ? { name: itemMetricName } : null
+                        metric: itemMetricName ? { name: itemMetricName } : null,
+                        heartbeatCadence: cadenceObj,
+                        nextHeartbeatDue: nextDue
                     });
                 } else if (dialogState.type === 'initiative') {
                     await client.models.Initiative.create({
@@ -249,7 +288,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         linkedEntities: {
                             strategicObjectiveIds: [objective.id],
                             keyResultIds: [dialogState.parentId!]
-                        }
+                        },
+                        heartbeatCadence: cadenceObj,
+                        nextHeartbeatDue: nextDue
                     });
                 }
             } else {
@@ -261,7 +302,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         title: itemText,
                         description: itemDescription,
                         // status: itemStatus as any, // Only if exposed on Object
-                        owner: ownerObj
+                        owner: ownerObj,
+                        heartbeatCadence: cadenceObj,
+                        nextHeartbeatDue: nextDue || undefined
                     });
                     // Force reload/update for objective title changes visible immediately at top level?
                     // objective prop is stale. We might need to refetch it or just reload page.
@@ -272,7 +315,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         title: itemText,
                         description: itemDescription,
                         status: itemStatus as any,
-                        owner: ownerObj
+                        owner: ownerObj,
+                        heartbeatCadence: cadenceObj,
+                        nextHeartbeatDue: nextDue || undefined
                     });
                 } else if (dialogState.type === 'kr') {
                     await client.models.KeyResult.update({
@@ -280,7 +325,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         statement: itemText,
                         status: itemStatus as any,
                         owners: ownerObj ? [ownerObj] : [],
-                        metric: itemMetricName ? { name: itemMetricName } : null
+                        metric: itemMetricName ? { name: itemMetricName } : null,
+                        heartbeatCadence: cadenceObj,
+                        nextHeartbeatDue: nextDue || undefined
                     });
                 } else if (dialogState.type === 'initiative') {
                     await client.models.Initiative.update({
@@ -288,7 +335,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         title: itemText,
                         description: itemDescription,
                         state: { lifecycle: itemStatus, health: 'on_track', updatedAt: new Date().toISOString() },
-                        owner: ownerObj
+                        owner: ownerObj,
+                        heartbeatCadence: cadenceObj,
+                        nextHeartbeatDue: nextDue || undefined
                     });
                 }
             }
@@ -330,6 +379,20 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         return <Chip label={status} size="small" color={color} sx={{ height: 20, fontSize: '0.65rem', textTransform: 'uppercase' }} />;
     };
 
+    const HeartbeatStatus = ({ due }: { due?: string | null }) => {
+        if (!due) return null;
+        const isLate = new Date(due) < new Date();
+        return (
+            <Chip
+                label={isLate ? "Heartbeat Late" : `Next Due: ${new Date(due).toLocaleDateString()}`}
+                color={isLate ? "error" : "default"}
+                size="small"
+                variant={isLate ? "filled" : "outlined"}
+                sx={{ height: 20, fontSize: '0.65rem' }}
+            />
+        );
+    };
+
     return (
         <>
             <Dialog
@@ -364,6 +427,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                             {objective.description || "No description provided."}
                         </Typography>
                         <Stack direction="row" spacing={1}>
+                            <HeartbeatStatus due={objective.nextHeartbeatDue} />
                             <Chip label="On Track" color="success" size="small" />
                             <Chip label="High Confidence" variant="outlined" size="small" />
                         </Stack>
@@ -411,6 +475,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                             </Box>
                                                         </Tooltip>
                                                     )}
+                                                    <HeartbeatStatus due={outcome.nextHeartbeatDue} />
                                                     <StatusChip status={outcome.status} />
                                                     <OwnerChip owner={outcome.owner} />
                                                 </Stack>
@@ -486,6 +551,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                                 </Box>
                                                                                             </Tooltip>
                                                                                         )}
+                                                                                        <HeartbeatStatus due={init.nextHeartbeatDue} />
                                                                                         <StatusChip status={init.state?.lifecycle} />
                                                                                         <OwnerChip owner={init.owner} />
                                                                                         <Box flexGrow={1} />
@@ -589,6 +655,59 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                 ]}
                             </Select>
                         </FormControl>
+
+                        {/* Heartbeat Cadence */}
+                        <Box border={1} borderColor="divider" borderRadius={1} p={2}>
+                            <Typography variant="subtitle2" gutterBottom>Heartbeat Cadence</Typography>
+                            <Stack direction="row" spacing={2}>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>Frequency</InputLabel>
+                                    <Select
+                                        value={itemCadenceFreq}
+                                        label="Frequency"
+                                        onChange={(e) => setItemCadenceFreq(e.target.value)}
+                                    >
+                                        <MenuItem value=""><em>None</em></MenuItem>
+                                        <MenuItem value="DAILY">Daily</MenuItem>
+                                        <MenuItem value="WEEKLY">Weekly</MenuItem>
+                                        <MenuItem value="BIWEEKLY">Bi-Weekly</MenuItem>
+                                        <MenuItem value="MONTHLY">Monthly</MenuItem>
+                                    </Select>
+                                </FormControl>
+                                {itemCadenceFreq && itemCadenceFreq !== 'DAILY' && (
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel>Day</InputLabel>
+                                        <Select
+                                            value={itemCadenceDay}
+                                            label="Day"
+                                            onChange={(e) => setItemCadenceDay(e.target.value)}
+                                        >
+                                            <MenuItem value="MON">Mon</MenuItem>
+                                            <MenuItem value="TUES">Tue</MenuItem>
+                                            <MenuItem value="WED">Wed</MenuItem>
+                                            <MenuItem value="THU">Thu</MenuItem>
+                                            <MenuItem value="FRI">Fri</MenuItem>
+                                            <MenuItem value="SAT">Sat</MenuItem>
+                                            <MenuItem value="SUN">Sun</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                )}
+                                {itemCadenceFreq && (
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel>Hour (0-23)</InputLabel>
+                                        <Select
+                                            value={itemCadenceHour}
+                                            label="Hour (0-23)"
+                                            onChange={(e) => setItemCadenceHour(Number(e.target.value))}
+                                        >
+                                            {[...Array(24)].map((_, i) => (
+                                                <MenuItem key={i} value={i}>{i}:00</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                )}
+                            </Stack>
+                        </Box>
                         {/* KR Metric Name */}
                         {dialogState.type === 'kr' && (
                             <TextField
