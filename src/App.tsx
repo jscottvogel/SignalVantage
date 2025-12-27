@@ -48,7 +48,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 import { ExecutiveBriefingDrawer } from './components/ExecutiveBriefingDrawer';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
+
 
 const client = generateClient<Schema>();
 
