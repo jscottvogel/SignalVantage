@@ -389,6 +389,15 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         return <Chip label={status} size="small" color={color} sx={{ height: 20, fontSize: '0.65rem', textTransform: 'uppercase' }} />;
     };
 
+    const TrendIcon = ({ trend }: { trend?: string }) => {
+        if (!trend) return null;
+        let icon = "→";
+        let color = "text.secondary";
+        if (trend === 'IMPROVING') { icon = "↑"; color = "success.main"; }
+        if (trend === 'DECLINING') { icon = "↓"; color = "error.main"; }
+        return <Typography component="span" fontWeight="bold" color={color} sx={{ ml: 0.5 }}>{icon}</Typography>;
+    };
+
     const HeartbeatStatus = ({ due }: { due?: string | null }) => {
         if (!due) return null;
         const isLate = new Date(due) < new Date();
@@ -479,9 +488,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                         {outcome.title}
                                                     </Typography>
                                                     {outcome.latestHeartbeat?.ownerInput?.ownerConfidence && (
-                                                        <Tooltip title="Latest Confidence">
-                                                            <Box>
+                                                        <Tooltip title="Latest Confidence & Trend">
+                                                            <Box display="flex" alignItems="center">
                                                                 <StatusChip status={outcome.latestHeartbeat.ownerInput.ownerConfidence} />
+                                                                <TrendIcon trend={outcome.latestHeartbeat.systemAssessment?.confidenceTrend} />
                                                             </Box>
                                                         </Tooltip>
                                                     )}
@@ -525,9 +535,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                 {kr.statement}
                                                                             </Typography>
                                                                             {kr.latestHeartbeat?.ownerInput?.ownerConfidence && (
-                                                                                <Tooltip title="Latest Confidence">
-                                                                                    <Box>
+                                                                                <Tooltip title="Latest Confidence & Trend">
+                                                                                    <Box display="flex" alignItems="center">
                                                                                         <StatusChip status={kr.latestHeartbeat.ownerInput.ownerConfidence} />
+                                                                                        <TrendIcon trend={kr.latestHeartbeat.systemAssessment?.confidenceTrend} />
                                                                                     </Box>
                                                                                 </Tooltip>
                                                                             )}
@@ -563,9 +574,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                         <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
                                                                                         <Typography variant="body2">{init.title}</Typography>
                                                                                         {init.latestHeartbeat?.ownerInput?.ownerConfidence && (
-                                                                                            <Tooltip title="Latest Confidence">
-                                                                                                <Box>
+                                                                                            <Tooltip title="Latest Confidence & Trend">
+                                                                                                <Box display="flex" alignItems="center">
                                                                                                     <StatusChip status={init.latestHeartbeat.ownerInput.ownerConfidence} />
+                                                                                                    <TrendIcon trend={init.latestHeartbeat.systemAssessment?.confidenceTrend} />
                                                                                                 </Box>
                                                                                             </Tooltip>
                                                                                         )}

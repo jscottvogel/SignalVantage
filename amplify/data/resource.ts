@@ -93,6 +93,8 @@ const schema = a.schema({
   LatestHeartbeat: a.customType({
     heartbeatId: a.string(),
     summary: a.string(),
+    timestamp: a.datetime(),
+    systemAssessment: a.ref('SystemAssessment'),
     sources: a.ref('HeartbeatSource').array(),
   }),
 

@@ -11,6 +11,7 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
 
 const client = generateClient<Schema>();
+import { assessHeartbeat, generateKeyResultRollup } from '../utils/heartbeatLogic';
 
 interface HeartbeatWizardProps {
     open: boolean;
@@ -26,6 +27,9 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     const [activeStep, setActiveStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Derived State for KR
+    const [derivedKR, setDerivedKR] = useState<any>(null);
+
     // Form State
     const [progressSummary, setProgressSummary] = useState('');
     const [risks, setRisks] = useState<{ description: string, impact: string }[]>([]);
@@ -36,8 +40,20 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     const [ownerConfidence, setOwnerConfidence] = useState<string | null>(null);
     const [confidenceRationale, setConfidenceRationale] = useState('');
 
+
+    // Calculate KR Rollup on mount
+    useState(() => {
+        if (itemType === 'kr' && item.initiatives) {
+            const initiatives = item.initiatives.map((i: any) => ({
+                confidence: i.latestHeartbeat?.systemAssessment?.systemConfidence || i.latestHeartbeat?.ownerInput?.ownerConfidence || 'MEDIUM',
+                title: i.title
+            }));
+            setDerivedKR(generateKeyResultRollup(initiatives));
+        }
+    });
+
     const handleNext = () => {
-        if (activeStep === steps.length - 1) {
+        if (itemType === 'kr' || activeStep === steps.length - 1) {
             handleSubmit();
         } else {
             setActiveStep((prev) => prev + 1);
@@ -47,6 +63,18 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     const handleBack = () => {
         setActiveStep((prev) => prev - 1);
     };
+
+
+    // Calculate KR Rollup on mount
+    useState(() => {
+        if (itemType === 'kr' && item.initiatives) {
+            const initiatives = item.initiatives.map((i: any) => ({
+                confidence: i.latestHeartbeat?.systemAssessment?.systemConfidence || i.latestHeartbeat?.ownerInput?.ownerConfidence || 'MEDIUM',
+                title: i.title
+            }));
+            setDerivedKR(generateKeyResultRollup(initiatives));
+        }
+    });
 
     const addRisk = () => {
         if (!newRiskDesc.trim()) return;
@@ -60,83 +88,118 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
         setNewDepDesc('');
     };
 
+
     const handleSubmit = async () => {
         setIsSubmitting(true);
         try {
-            // Create History Record
             const now = new Date().toISOString();
+            let heartbeatPayload: any = {};
+            let systemAssessment: any = {};
+            let ownerInput: any = {};
 
-            // Construct OwnerInput object
-            const ownerInput = {
-                progressSummary,
-                ownerConfidence: ownerConfidence || 'MEDIUM',
-                confidenceRationale,
-                newRisks: risks.map(r => ({
-                    id: crypto.randomUUID(),
-                    description: r.description,
-                    impact: r.impact,
-                    probability: 'Medium'
-                })),
-                dependencies: dependencies.map(d => ({
-                    id: crypto.randomUUID(),
-                    description: d.description,
-                    status: d.status,
-                    owner: 'External'
-                })),
-                milestoneStatus: 'On Track' // Default for now
-            };
+            if (itemType === 'kr') {
+                // KR Derived Heartbeat
+                if (!derivedKR) throw new Error("Rollup calculation failed");
 
-            // 1. Create Heartbeat Record
-            const heartbeatPayload: any = {
-                type: 'SCHEDULED',
-                status: 'COMPLETED',
-                timestamp: now,
-                ownerInput: ownerInput,
-                systemAssessment: {
-                    systemConfidence: ownerConfidence || 'MEDIUM',
-                    confidenceTrend: 'FLAT',
+                systemAssessment = {
+                    systemConfidence: derivedKR.confidence,
+                    confidenceTrend: derivedKR.trend,
+                    integritySignals: {
+                        updateFreshness: 'ON_TIME', // Assumed for rollup
+                        languageSpecificity: 'SPECIFIC',
+                        signalConsistency: 'ALIGNED'
+                    },
                     uncertaintyFlags: [],
-                }
-            };
+                    factsInferencesRecommendations: {
+                        facts: [`Rolled up from ${item.initiatives?.length || 0} initiatives.`],
+                        inferences: [],
+                        recommendations: []
+                    }
+                };
 
-            if (itemType === 'initiative') heartbeatPayload.initiativeId = item.id;
-            else if (itemType === 'outcome') heartbeatPayload.outcomeId = item.id;
-            else if (itemType === 'objective') heartbeatPayload.strategicObjectiveId = item.id;
-            else if (itemType === 'kr') heartbeatPayload.keyResultId = item.id;
+                heartbeatPayload = {
+                    type: 'SCHEDULED', // Event triggered?
+                    status: 'COMPLETED',
+                    timestamp: now,
+                    keyResultId: item.id,
+                    systemAssessment: systemAssessment,
+                    // No purely human OwnerInput for KR, but we can store the summary
+                    ownerInput: {
+                        progressSummary: derivedKR.summary,
+                        ownerConfidence: derivedKR.confidence,
+                        confidenceRationale: "System Derived Rollup",
+                    }
+                };
 
-            await client.models.Heartbeat.create(heartbeatPayload);
+            } else {
+                // Standard Initiative/Outcome Heartbeat Logic
+                ownerInput = {
+                    progressSummary,
+                    ownerConfidence: ownerConfidence || 'MEDIUM',
+                    confidenceRationale,
+                    newRisks: risks.map(r => ({
+                        id: crypto.randomUUID(),
+                        description: r.description,
+                        impact: r.impact,
+                        probability: 'Medium'
+                    })),
+                    dependencies: dependencies.map(d => ({
+                        id: crypto.randomUUID(),
+                        description: d.description,
+                        status: d.status,
+                        owner: 'External'
+                    })),
+                    milestoneStatus: 'On Track'
+                };
+
+                // Calculate System Assessment
+                systemAssessment = assessHeartbeat(
+                    ownerInput as any,
+                    item.latestHeartbeat,
+                    item.nextHeartbeatDue
+                );
+
+                heartbeatPayload = {
+                    type: 'SCHEDULED',
+                    status: 'COMPLETED',
+                    timestamp: now,
+                    ownerInput: ownerInput,
+                    systemAssessment: systemAssessment
+                };
+
+                if (itemType === 'initiative') heartbeatPayload.initiativeId = item.id;
+                else if (itemType === 'outcome') heartbeatPayload.outcomeId = item.id;
+                else if (itemType === 'objective') heartbeatPayload.strategicObjectiveId = item.id;
+            }
+
+            const newHeartbeat = await client.models.Heartbeat.create(heartbeatPayload);
 
             // 2. Update Parent Latest Heartbeat
             const latestHeartbeat = {
-                heartbeatId: crypto.randomUUID(),
+                heartbeatId: newHeartbeat.data?.id || crypto.randomUUID(),
                 timestamp: now,
-                ownerInput: ownerInput,
-                // systemAssessment...
+                ownerInput: itemType === 'kr' ? heartbeatPayload.ownerInput : ownerInput,
+                systemAssessment: systemAssessment,
+                summary: itemType === 'kr' ? derivedKR.summary : ownerInput.progressSummary,
             };
+
+            // ... (Next Due Date logic remains common)
+
 
             // Calculate Next Due Date
             let nextHeartbeatDue = null;
             if (item.heartbeatCadence) {
                 const { frequency, hour = 9 } = item.heartbeatCadence;
-                const date = new Date(); // Start from now
-
-                // Set hour
+                const date = new Date();
                 date.setHours(hour, 0, 0, 0);
 
-                if (frequency === 'DAILY') {
-                    date.setDate(date.getDate() + 1);
-                } else if (frequency === 'WEEKLY') {
-                    date.setDate(date.getDate() + 7);
-                } else if (frequency === 'BIWEEKLY') {
-                    date.setDate(date.getDate() + 14);
-                } else if (frequency === 'MONTHLY') {
-                    date.setMonth(date.getMonth() + 1);
-                }
+                // If currently "LATE", we still schedule from *now* or from *scheduled*? 
+                // Normally next due is calc from now for rhythm.
+                if (frequency === 'DAILY') date.setDate(date.getDate() + 1);
+                else if (frequency === 'WEEKLY') date.setDate(date.getDate() + 7);
+                else if (frequency === 'BIWEEKLY') date.setDate(date.getDate() + 14);
+                else if (frequency === 'MONTHLY') date.setMonth(date.getMonth() + 1);
 
-                // Basic day logic adjustment could be added here if strictly adhering to specific day, 
-                // but adding frequency to current date is standard behavior for "next due".
-                // If we want to align to specific day of week, we need more logic.
-                // For MVP, simplest "due in X days" is fine.
                 nextHeartbeatDue = date.toISOString();
             }
 
@@ -182,6 +245,40 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     };
 
     const renderStepContent = (step: number) => {
+        if (itemType === 'kr') {
+            if (!derivedKR) return <Typography>Calculating Rollup...</Typography>;
+            return (
+                <Box pt={2}>
+                    <Typography variant="h6" gutterBottom>Derived Key Result Heartbeat</Typography>
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                        This heartbeat is automatically derived from {item.initiatives?.length || 0} linked initiatives.
+                    </Typography>
+
+                    <Box bgcolor="grey.50" p={2} borderRadius={1} mb={2} border={1} borderColor="divider">
+                        <Typography variant="subtitle2" color="text.secondary">System Calculated Confidence</Typography>
+                        <Stack direction="row" spacing={1} alignItems="center" mt={1}>
+                            <Chip
+                                label={derivedKR.confidence}
+                                color={derivedKR.confidence === 'HIGH' ? 'success' : derivedKR.confidence === 'MEDIUM' ? 'warning' : 'error'}
+                            />
+                            <Typography variant="body2">Trend: {derivedKR.trend}</Typography>
+                        </Stack>
+                    </Box>
+
+                    <Box>
+                        <Typography variant="subtitle2" gutterBottom>Summary</Typography>
+                        <Typography variant="body1">{derivedKR.summary}</Typography>
+                    </Box>
+
+                    <Box mt={4}>
+                        <Typography variant="caption" color="text.secondary">
+                            Note: Submitting this will update the Key Result status based on the aggregated data.
+                        </Typography>
+                    </Box>
+                </Box>
+            );
+        }
+
         switch (step) {
             case 0: // Context
                 return (
