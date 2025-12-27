@@ -120,3 +120,31 @@ export const generateKeyResultRollup = (
         summary: `Confidence driven by status of: ${drivers}. Calculated based on ${initiatives.length} initiatives.`
     };
 };
+
+export const calculateAttentionLevel = (objective: any): 'STABLE' | 'WATCH' | 'ACTION' => {
+    const latestHeartbeat = objective.latestHeartbeat;
+    // Handle partial objects or missing heartbeats
+    const confidence = latestHeartbeat?.systemAssessment?.systemConfidence ||
+        latestHeartbeat?.ownerInput?.ownerConfidence ||
+        'MEDIUM';
+    const trend = latestHeartbeat?.systemAssessment?.confidenceTrend || 'STABLE';
+
+    let level: 'STABLE' | 'WATCH' | 'ACTION' = 'STABLE';
+
+    if (confidence === 'LOW') level = 'ACTION';
+    else if (confidence === 'MEDIUM' && trend === 'DECLINING') level = 'ACTION';
+    else if (confidence === 'MEDIUM' && trend === 'STABLE') level = 'WATCH';
+    else if (confidence === 'HIGH' && trend === 'DECLINING') level = 'WATCH';
+
+    // Late Heartbeat Check
+    if (objective.nextHeartbeatDue) {
+        const dueDate = new Date(objective.nextHeartbeatDue);
+        if (dueDate < new Date()) {
+            // Escalate if stable
+            if (level === 'STABLE') level = 'WATCH';
+            // Could escalate WATCH to ACTION if very late? For now, WATCH is appropriate for lateness alone.
+        }
+    }
+
+    return level;
+};
