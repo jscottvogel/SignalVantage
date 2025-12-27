@@ -1,27 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, Typography, Box, Chip, Stack, CircularProgress, Collapse, Button, Tooltip } from '@mui/material';
+import { Card, CardContent, Typography, Box, Chip, Stack, CircularProgress, Button, Tooltip } from '@mui/material';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { theme } from '../theme';
 import type { Schema } from '../../amplify/data/resource';
-import { generateClient } from 'aws-amplify/data';
 
 interface Props {
     objective: Schema['StrategicObjective']['type'];
     onClick: () => void;
 }
 
-const client = generateClient<Schema>();
-
 import { calculateAttentionLevel } from '../utils/heartbeatLogic';
 
 export function StrategicObjectiveCard({ objective, onClick }: Props) {
     const [krStats, setKrStats] = useState<{ stable: number; atRisk: number; total: number } | null>(null);
     const [loadingKRs, setLoadingKRs] = useState(true);
-    const [expanded, setExpanded] = useState(false);
 
     const latestHeartbeat = objective.latestHeartbeat;
     const systemAssessment = latestHeartbeat?.systemAssessment;

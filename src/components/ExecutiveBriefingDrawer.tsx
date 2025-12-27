@@ -2,7 +2,7 @@
 import React from 'react';
 import {
     Drawer, Box, Typography, IconButton, Stack, Divider, Button,
-    Chip, Paper
+    Paper
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
