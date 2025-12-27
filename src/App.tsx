@@ -56,13 +56,6 @@ const drawerWidth = 260; // Slightly wider for better breathing room
 
 const SkeletonDashboard = () => (
   <Box>
-    <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-      <Box>
-        <Skeleton variant="text" width={200} height={40} />
-        <Skeleton variant="text" width={300} height={20} />
-      </Box>
-      <Skeleton variant="rectangular" width={140} height={40} sx={{ borderRadius: 1 }} />
-    </Box>
     <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 3 }}>
       {[1, 2, 3].map((i) => (
         <Paper key={i} variant="outlined" sx={{ p: 3, height: 200 }}>
@@ -422,7 +415,8 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
                 </Box>
                 <Stack direction="row" spacing={2}>
                   <Button
-                    variant="outlined"
+                    variant="contained"
+                    color="secondary"
                     startIcon={<SmartToyIcon />}
                     onClick={() => setShowBriefing(true)}
                   >
@@ -503,14 +497,14 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
                     </Box>
                   ))}
                 </Box>
-
-                <ExecutiveBriefingDrawer
-                  open={showBriefing}
-                  onClose={() => setShowBriefing(false)}
-                  objectives={objectives}
-                />
               </>
             )}
+
+            <ExecutiveBriefingDrawer
+              open={showBriefing}
+              onClose={() => setShowBriefing(false)}
+              objectives={objectives}
+            />
           </>
         );
     }
