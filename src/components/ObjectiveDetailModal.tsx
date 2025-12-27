@@ -73,7 +73,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Heartbeat Wizard State
-    const [heartbeatState, setHeartbeatState] = useState<{ open: boolean, item: any | null, type: 'initiative' | 'outcome' | 'objective' }>({
+    const [heartbeatState, setHeartbeatState] = useState<{ open: boolean, item: any | null, type: 'initiative' | 'outcome' | 'objective' | 'kr' }>({
         open: false,
         item: null,
         type: 'initiative'
@@ -201,7 +201,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         setItemCadenceHour(initHour);
     };
 
-    const openHeartbeatWizard = (type: 'initiative' | 'outcome' | 'objective', item: any) => {
+    const openHeartbeatWizard = (type: 'initiative' | 'outcome' | 'objective' | 'kr', item: any) => {
         setHeartbeatState({ open: true, item, type });
     };
 
@@ -524,6 +524,14 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                             <Typography variant="subtitle2" color="text.primary">
                                                                                 {kr.statement}
                                                                             </Typography>
+                                                                            {kr.latestHeartbeat?.ownerInput?.ownerConfidence && (
+                                                                                <Tooltip title="Latest Confidence">
+                                                                                    <Box>
+                                                                                        <StatusChip status={kr.latestHeartbeat.ownerInput.ownerConfidence} />
+                                                                                    </Box>
+                                                                                </Tooltip>
+                                                                            )}
+                                                                            <HeartbeatStatus due={kr.nextHeartbeatDue} />
                                                                             <StatusChip status={kr.status} />
                                                                             {kr.owners && kr.owners.length > 0 && <OwnerChip owner={kr.owners[0]} />}
                                                                         </Stack>

@@ -16,7 +16,7 @@ interface HeartbeatWizardProps {
     open: boolean;
     onClose: () => void;
     item: any;
-    itemType: 'initiative' | 'outcome' | 'objective';
+    itemType: 'initiative' | 'outcome' | 'objective' | 'kr';
     onComplete: () => void;
 }
 
@@ -102,6 +102,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             if (itemType === 'initiative') heartbeatPayload.initiativeId = item.id;
             else if (itemType === 'outcome') heartbeatPayload.outcomeId = item.id;
             else if (itemType === 'objective') heartbeatPayload.strategicObjectiveId = item.id;
+            else if (itemType === 'kr') heartbeatPayload.keyResultId = item.id;
 
             await client.models.Heartbeat.create(heartbeatPayload);
 
@@ -158,6 +159,12 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 });
             } else if (itemType === 'objective') {
                 await client.models.StrategicObjective.update({
+                    id: item.id,
+                    latestHeartbeat: latestHeartbeat as any,
+                    nextHeartbeatDue: nextHeartbeatDue || undefined,
+                });
+            } else if (itemType === 'kr') {
+                await client.models.KeyResult.update({
                     id: item.id,
                     latestHeartbeat: latestHeartbeat as any,
                     nextHeartbeatDue: nextHeartbeatDue || undefined,
