@@ -606,12 +606,14 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 </DialogActions>
             </Dialog>
 
-            <HeartbeatWizard
-                open={heartbeatState.open}
-                onClose={() => setHeartbeatState({ ...heartbeatState, open: false })}
-                initiative={heartbeatState.initiative}
-                onComplete={refreshTree}
-            />
+            {heartbeatState.initiative && (
+                <HeartbeatWizard
+                    open={heartbeatState.open}
+                    onClose={() => setHeartbeatState({ ...heartbeatState, open: false })}
+                    initiative={heartbeatState.initiative}
+                    onComplete={refreshTree}
+                />
+            )}
         </Dialog>
     );
 }
