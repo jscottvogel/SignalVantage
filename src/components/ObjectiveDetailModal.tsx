@@ -330,173 +330,175 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     };
 
     return (
-        <Dialog
-            open={true}
-            onClose={onClose}
-            maxWidth="lg"
-            fullWidth
-            PaperProps={{ sx: { minHeight: '80vh', bgcolor: 'background.default' } }}
-        >
-            <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
-                <Box>
-                    <Typography variant="overline" color="text.secondary" fontWeight="bold">STRATEGIC OBJECTIVE</Typography>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                        <Typography variant="h5" fontWeight="bold" color="primary.main">{objective.title}</Typography>
-                        {objective.owner && <OwnerChip owner={objective.owner} />}
-                        <Tooltip title="Edit Objective"><IconButton size="small" onClick={() => openDialog('edit', 'objective' as any, '', objective)}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                        <Tooltip title="Delete Objective"><IconButton size="small" onClick={() => handleDelete('objective', objective.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
-                    </Stack>
-                </Box>
-                <IconButton onClick={onClose} aria-label="close"><CloseIcon /></IconButton>
-            </DialogTitle>
-
-            <DialogContent sx={{ p: 0 }}>
-                {/* Header / Context Area */}
-                <Box p={3} bgcolor="background.paper" mb={1} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                    <Typography variant="body1" color="text.secondary" paragraph>
-                        {objective.description || "No description provided."}
-                    </Typography>
-                    <Stack direction="row" spacing={1}>
-                        <Chip label="On Track" color="success" size="small" />
-                        <Chip label="High Confidence" variant="outlined" size="small" />
-                    </Stack>
-                </Box>
-
-                {loading ? (
-                    <Box display="flex" justifyContent="center" alignItems="center" height="200px">
-                        <CircularProgress />
+        <>
+            <Dialog
+                open={true}
+                onClose={onClose}
+                maxWidth="lg"
+                fullWidth
+                PaperProps={{ sx: { minHeight: '80vh', bgcolor: 'background.default' } }}
+            >
+                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+                    <Box>
+                        <Typography variant="overline" color="text.secondary" fontWeight="bold">STRATEGIC OBJECTIVE</Typography>
+                        <Stack direction="row" spacing={2} alignItems="center">
+                            <Typography variant="h5" fontWeight="bold" color="primary.main">{objective.title}</Typography>
+                            {objective.owner && <OwnerChip owner={objective.owner} />}
+                            <Tooltip title="Edit Objective"><IconButton size="small" onClick={() => openDialog('edit', 'objective' as any, '', objective)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                            <Tooltip title="Delete Objective"><IconButton size="small" onClick={() => handleDelete('objective', objective.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                        </Stack>
                     </Box>
-                ) : (
-                    <Box p={3}>
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                            <Typography variant="h6" color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 700, letterSpacing: 1 }}>
-                                Outcomes
-                            </Typography>
-                            <Button
-                                startIcon={<AddIcon />}
-                                size="small"
-                                variant="outlined"
-                                onClick={() => openDialog('create', 'outcome')}
-                            >
-                                Add Outcome
-                            </Button>
+                    <IconButton onClick={onClose} aria-label="close"><CloseIcon /></IconButton>
+                </DialogTitle>
+
+                <DialogContent sx={{ p: 0 }}>
+                    {/* Header / Context Area */}
+                    <Box p={3} bgcolor="background.paper" mb={1} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                        <Typography variant="body1" color="text.secondary" paragraph>
+                            {objective.description || "No description provided."}
+                        </Typography>
+                        <Stack direction="row" spacing={1}>
+                            <Chip label="On Track" color="success" size="small" />
+                            <Chip label="High Confidence" variant="outlined" size="small" />
+                        </Stack>
+                    </Box>
+
+                    {loading ? (
+                        <Box display="flex" justifyContent="center" alignItems="center" height="200px">
+                            <CircularProgress />
                         </Box>
+                    ) : (
+                        <Box p={3}>
+                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                                <Typography variant="h6" color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 700, letterSpacing: 1 }}>
+                                    Outcomes
+                                </Typography>
+                                <Button
+                                    startIcon={<AddIcon />}
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() => openDialog('create', 'outcome')}
+                                >
+                                    Add Outcome
+                                </Button>
+                            </Box>
 
-                        {outcomes.length === 0 ? (
-                            <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderStyle: 'dashed' }}>
-                                <Typography color="text.secondary" fontStyle="italic" gutterBottom>No outcomes defined yet.</Typography>
-                                <Button variant="text" onClick={() => openDialog('create', 'outcome')}>+ Add First Outcome</Button>
-                            </Paper>
-                        ) : (
-                            <Stack spacing={3}>
-                                {outcomes.map(outcome => (
-                                    <Paper key={outcome.id} variant="outlined" sx={{ overflow: 'hidden' }}>
-                                        <Box p={2} sx={{ backgroundColor: '#eff6ff', borderBottom: 1, borderColor: '#dbeafe', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Stack direction="row" alignItems="center" spacing={1}>
-                                                <Chip label="Outcome" size="small" color="primary" sx={{ borderRadius: 1, height: 20, fontSize: '0.7rem' }} />
-                                                <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                                                    {outcome.title}
-                                                </Typography>
-                                                <StatusChip status={outcome.status} />
-                                                <OwnerChip owner={outcome.owner} />
-                                            </Stack>
-                                            <Stack direction="row" spacing={1}>
-                                                <Tooltip title="Edit Outcome"><IconButton size="small" onClick={() => openDialog('edit', 'outcome', '', outcome)}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                                                <Tooltip title="Delete Outcome"><IconButton size="small" onClick={() => handleDelete('outcome', outcome.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
-                                                <Button
-                                                    size="small"
-                                                    startIcon={<AddIcon />}
-                                                    sx={{ fontSize: '0.75rem', ml: 1 }}
-                                                    onClick={() => openDialog('create', 'kr', outcome.id)}
-                                                >
-                                                    Add KR
-                                                </Button>
-                                            </Stack>
-                                        </Box>
-
-                                        <Box p={2}>
-                                            {outcome.description && <Typography variant="body2" color="text.secondary" gutterBottom>{outcome.description}</Typography>}
-                                            {outcome.keyResults.length === 0 ? (
-                                                <Typography variant="body2" color="text.secondary" fontStyle="italic" sx={{ py: 1 }}>No Key Results. Add one to measure success.</Typography>
-                                            ) : (
-                                                <Stack spacing={2}>
-                                                    {outcome.keyResults.map((kr: any) => (
-                                                        <Box key={kr.id}>
-                                                            <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ mb: 1 }}>
-                                                                <Box mt={0.8} minWidth={8} height={8} borderRadius="50%" bgcolor="success.main" />
-                                                                <Box flexGrow={1}>
-                                                                    <Stack direction="row" spacing={1} alignItems="center">
-                                                                        <Typography variant="subtitle2" color="text.primary">
-                                                                            {kr.statement}
-                                                                        </Typography>
-                                                                        <StatusChip status={kr.status} />
-                                                                        {kr.owners && kr.owners.length > 0 && <OwnerChip owner={kr.owners[0]} />}
-                                                                    </Stack>
-                                                                    {kr.metric?.name && (
-                                                                        <Typography variant="caption" display="block" color="text.secondary">
-                                                                            Metric: {kr.metric.name}
-                                                                        </Typography>
-                                                                    )}
-                                                                </Box>
-                                                                <Tooltip title="Edit KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'kr', '', kr)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
-                                                                <Tooltip title="Delete KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('kr', kr.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
-                                                                <Button
-                                                                    size="small"
-                                                                    color="secondary"
-                                                                    startIcon={<AddIcon />}
-                                                                    onClick={() => openDialog('create', 'initiative', kr.id)}
-                                                                >
-                                                                    Link Init
-                                                                </Button>
-                                                            </Stack>
-
-                                                            {/* Initiatives */}
-                                                            {kr.initiatives && kr.initiatives.length > 0 && (
-                                                                <Box ml={3} pl={2} borderLeft={1} borderColor="divider">
-                                                                    <Stack spacing={1}>
-                                                                        {kr.initiatives.map((init: any) => (
-                                                                            <Paper key={init.id} elevation={0} sx={{ p: 1, bgcolor: 'grey.50', border: 1, borderColor: 'divider' }}>
-                                                                                <Stack direction="row" alignItems="center" spacing={1}>
-                                                                                    <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
-                                                                                    <Typography variant="body2">{init.title}</Typography>
-                                                                                    {init.latestHeartbeat?.ownerInput?.ownerConfidence && (
-                                                                                        <Tooltip title="Latest Confidence">
-                                                                                            <Box>
-                                                                                                <StatusChip status={init.latestHeartbeat.ownerInput.ownerConfidence} />
-                                                                                            </Box>
-                                                                                        </Tooltip>
-                                                                                    )}
-                                                                                    <StatusChip status={init.state?.lifecycle} />
-                                                                                    <OwnerChip owner={init.owner} />
-                                                                                    <Box flexGrow={1} />
-
-                                                                                    <Tooltip title="Log Heartbeat">
-                                                                                        <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard(init)}>
-                                                                                            <MonitorHeartIcon fontSize="small" />
-                                                                                        </IconButton>
-                                                                                    </Tooltip>
-
-                                                                                    <Tooltip title="Edit Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'initiative', '', init)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
-                                                                                    <Tooltip title="Delete Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('initiative', init.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
-                                                                                </Stack>
-                                                                                {init.description && <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>{init.description}</Typography>}
-                                                                            </Paper>
-                                                                        ))}
-                                                                    </Stack>
-                                                                </Box>
-                                                            )}
-                                                        </Box>
-                                                    ))}
+                            {outcomes.length === 0 ? (
+                                <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderStyle: 'dashed' }}>
+                                    <Typography color="text.secondary" fontStyle="italic" gutterBottom>No outcomes defined yet.</Typography>
+                                    <Button variant="text" onClick={() => openDialog('create', 'outcome')}>+ Add First Outcome</Button>
+                                </Paper>
+                            ) : (
+                                <Stack spacing={3}>
+                                    {outcomes.map(outcome => (
+                                        <Paper key={outcome.id} variant="outlined" sx={{ overflow: 'hidden' }}>
+                                            <Box p={2} sx={{ backgroundColor: '#eff6ff', borderBottom: 1, borderColor: '#dbeafe', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Stack direction="row" alignItems="center" spacing={1}>
+                                                    <Chip label="Outcome" size="small" color="primary" sx={{ borderRadius: 1, height: 20, fontSize: '0.7rem' }} />
+                                                    <Typography variant="subtitle1" fontWeight={600} color="text.primary">
+                                                        {outcome.title}
+                                                    </Typography>
+                                                    <StatusChip status={outcome.status} />
+                                                    <OwnerChip owner={outcome.owner} />
                                                 </Stack>
-                                            )}
-                                        </Box>
-                                    </Paper>
-                                ))}
-                            </Stack>
-                        )}
-                    </Box>
-                )}
-            </DialogContent>
+                                                <Stack direction="row" spacing={1}>
+                                                    <Tooltip title="Edit Outcome"><IconButton size="small" onClick={() => openDialog('edit', 'outcome', '', outcome)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                                                    <Tooltip title="Delete Outcome"><IconButton size="small" onClick={() => handleDelete('outcome', outcome.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                                                    <Button
+                                                        size="small"
+                                                        startIcon={<AddIcon />}
+                                                        sx={{ fontSize: '0.75rem', ml: 1 }}
+                                                        onClick={() => openDialog('create', 'kr', outcome.id)}
+                                                    >
+                                                        Add KR
+                                                    </Button>
+                                                </Stack>
+                                            </Box>
+
+                                            <Box p={2}>
+                                                {outcome.description && <Typography variant="body2" color="text.secondary" gutterBottom>{outcome.description}</Typography>}
+                                                {outcome.keyResults.length === 0 ? (
+                                                    <Typography variant="body2" color="text.secondary" fontStyle="italic" sx={{ py: 1 }}>No Key Results. Add one to measure success.</Typography>
+                                                ) : (
+                                                    <Stack spacing={2}>
+                                                        {outcome.keyResults.map((kr: any) => (
+                                                            <Box key={kr.id}>
+                                                                <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ mb: 1 }}>
+                                                                    <Box mt={0.8} minWidth={8} height={8} borderRadius="50%" bgcolor="success.main" />
+                                                                    <Box flexGrow={1}>
+                                                                        <Stack direction="row" spacing={1} alignItems="center">
+                                                                            <Typography variant="subtitle2" color="text.primary">
+                                                                                {kr.statement}
+                                                                            </Typography>
+                                                                            <StatusChip status={kr.status} />
+                                                                            {kr.owners && kr.owners.length > 0 && <OwnerChip owner={kr.owners[0]} />}
+                                                                        </Stack>
+                                                                        {kr.metric?.name && (
+                                                                            <Typography variant="caption" display="block" color="text.secondary">
+                                                                                Metric: {kr.metric.name}
+                                                                            </Typography>
+                                                                        )}
+                                                                    </Box>
+                                                                    <Tooltip title="Edit KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'kr', '', kr)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                    <Tooltip title="Delete KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('kr', kr.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                    <Button
+                                                                        size="small"
+                                                                        color="secondary"
+                                                                        startIcon={<AddIcon />}
+                                                                        onClick={() => openDialog('create', 'initiative', kr.id)}
+                                                                    >
+                                                                        Link Init
+                                                                    </Button>
+                                                                </Stack>
+
+                                                                {/* Initiatives */}
+                                                                {kr.initiatives && kr.initiatives.length > 0 && (
+                                                                    <Box ml={3} pl={2} borderLeft={1} borderColor="divider">
+                                                                        <Stack spacing={1}>
+                                                                            {kr.initiatives.map((init: any) => (
+                                                                                <Paper key={init.id} elevation={0} sx={{ p: 1, bgcolor: 'grey.50', border: 1, borderColor: 'divider' }}>
+                                                                                    <Stack direction="row" alignItems="center" spacing={1}>
+                                                                                        <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
+                                                                                        <Typography variant="body2">{init.title}</Typography>
+                                                                                        {init.latestHeartbeat?.ownerInput?.ownerConfidence && (
+                                                                                            <Tooltip title="Latest Confidence">
+                                                                                                <Box>
+                                                                                                    <StatusChip status={init.latestHeartbeat.ownerInput.ownerConfidence} />
+                                                                                                </Box>
+                                                                                            </Tooltip>
+                                                                                        )}
+                                                                                        <StatusChip status={init.state?.lifecycle} />
+                                                                                        <OwnerChip owner={init.owner} />
+                                                                                        <Box flexGrow={1} />
+
+                                                                                        <Tooltip title="Log Heartbeat">
+                                                                                            <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard(init)}>
+                                                                                                <MonitorHeartIcon fontSize="small" />
+                                                                                            </IconButton>
+                                                                                        </Tooltip>
+
+                                                                                        <Tooltip title="Edit Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'initiative', '', init)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                                        <Tooltip title="Delete Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('initiative', init.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                                    </Stack>
+                                                                                    {init.description && <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>{init.description}</Typography>}
+                                                                                </Paper>
+                                                                            ))}
+                                                                        </Stack>
+                                                                    </Box>
+                                                                )}
+                                                            </Box>
+                                                        ))}
+                                                    </Stack>
+                                                )}
+                                            </Box>
+                                        </Paper>
+                                    ))}
+                                </Stack>
+                            )}
+                        </Box>
+                    )}
+                </DialogContent>
+            </Dialog>
 
             {/* Item Dialog (Create/Edit) */}
             <Dialog
@@ -614,6 +616,6 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     onComplete={refreshTree}
                 />
             )}
-        </Dialog>
+        </>
     );
 }
