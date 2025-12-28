@@ -44,8 +44,7 @@ export const generateExecutiveBriefing = (objectives: Objective[]): BriefingSect
         sections.push({
             title: "🛑 Critical Attention Needed",
             items: attentionItems.map(obj => ({
-                headline: obj.title,
-                body: `Confidence is ${obj.latestHeartbeat?.ownerInput?.ownerConfidence || 'LOW'} and ${obj.latestHeartbeat?.systemAssessment?.confidenceTrend || 'STABLE'}. Risks: ${obj.latestHeartbeat?.ownerInput?.newRisks?.map(r => r?.description).join(', ') || 'No explicit risks listed'}.`,
+                body: `Confidence is ${obj.latestHeartbeat?.ownerInput?.ownerConfidence ?? 'Unknown'}% and ${obj.latestHeartbeat?.systemAssessment?.confidenceTrend || 'STABLE'}. Risks: ${obj.latestHeartbeat?.ownerInput?.newRisks?.map(r => r?.description).join(', ') || 'No explicit risks listed'}.`,
                 severity: 'critical',
                 id: obj.id
             }))
@@ -58,7 +57,7 @@ export const generateExecutiveBriefing = (objectives: Objective[]): BriefingSect
             title: "⚠️ Watch List",
             items: watchItems.map(obj => ({
                 headline: obj.title,
-                body: `Monitor for potential degradation. Current Status: ${obj.latestHeartbeat?.ownerInput?.ownerConfidence || 'MEDIUM'}.`,
+                body: `Monitor for potential degradation. Current Status: ${obj.latestHeartbeat?.ownerInput?.ownerConfidence ?? 'Unknown'}%.`,
                 severity: 'warning',
                 id: obj.id
             }))

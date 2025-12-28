@@ -27,7 +27,9 @@ import PersonIcon from '@mui/icons-material/Person';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import HistoryIcon from '@mui/icons-material/History';
 import HeartbeatWizard from './HeartbeatWizard';
+import HeartbeatHistoryDialog from './HeartbeatHistoryDialog';
 
 const client = generateClient<Schema>();
 
@@ -74,6 +76,12 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
 
     // Heartbeat Wizard State
     const [heartbeatState, setHeartbeatState] = useState<{ open: boolean, item: any | null, type: 'initiative' | 'outcome' | 'objective' | 'kr' }>({
+        open: false,
+        item: null,
+        type: 'initiative'
+    });
+
+    const [historyState, setHistoryState] = useState<{ open: boolean, item: any | null, type: 'initiative' | 'outcome' | 'objective' | 'kr' }>({
         open: false,
         item: null,
         type: 'initiative'
@@ -266,6 +274,16 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
 
             if (dialogState.mode === 'create') {
                 if (dialogState.type === 'outcome') {
+                    // Balancing Logic for Outcome
+                    const siblings = outcomes; // Already loaded
+                    const newCount = siblings.length + 1;
+                    const newWeight = Math.floor(100 / newCount);
+
+                    // Update siblings
+                    await Promise.all(siblings.map(s =>
+                        client.models.Outcome.update({ id: s.id, weight: newWeight })
+                    ));
+
                     await client.models.Outcome.create({
                         organizationId: SafeOrgId,
                         strategicObjectiveId: objective.id,
@@ -274,9 +292,20 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         status: itemStatus as any,
                         owner: ownerObj,
                         heartbeatCadence: cadenceObj || undefined,
-                        nextHeartbeatDue: nextDue || undefined
+                        nextHeartbeatDue: nextDue || undefined,
+                        weight: newWeight
                     });
                 } else if (dialogState.type === 'kr') {
+                    // Balancing Logic for KR
+                    const parentOutcome = outcomes.find(o => o.id === dialogState.parentId);
+                    const siblings = parentOutcome?.keyResults || [];
+                    const newCount = siblings.length + 1;
+                    const newWeight = Math.floor(100 / newCount);
+
+                    await Promise.all(siblings.map((s: any) =>
+                        client.models.KeyResult.update({ id: s.id, weight: newWeight })
+                    ));
+
                     await client.models.KeyResult.create({
                         organizationId: SafeOrgId,
                         strategicObjectiveId: objective.id,
@@ -286,9 +315,30 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         owners: ownerObj ? [ownerObj] : [],
                         metric: itemMetricName ? { name: itemMetricName } : null,
                         heartbeatCadence: cadenceObj || undefined,
-                        nextHeartbeatDue: nextDue || undefined
+                        nextHeartbeatDue: nextDue || undefined,
+                        weight: newWeight
                     });
                 } else if (dialogState.type === 'initiative') {
+                    // Balancing Logic for Initiative
+                    // Need to find siblings.
+                    // Flatten KRs to find parent KR
+                    let siblings: any[] = [];
+                    for (const o of outcomes) {
+                        for (const k of o.keyResults) {
+                            if (k.id === dialogState.parentId) {
+                                siblings = k.initiatives || [];
+                                break;
+                            }
+                        }
+                    }
+
+                    const newCount = siblings.length + 1;
+                    const newWeight = Math.floor(100 / newCount);
+
+                    await Promise.all(siblings.map((s: any) =>
+                        client.models.Initiative.update({ id: s.id, weight: newWeight })
+                    ));
+
                     await client.models.Initiative.create({
                         organizationId: SafeOrgId,
                         title: itemText,
@@ -300,7 +350,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                             keyResultIds: [dialogState.parentId!]
                         },
                         heartbeatCadence: cadenceObj || undefined,
-                        nextHeartbeatDue: nextDue || undefined
+                        nextHeartbeatDue: nextDue || undefined,
+                        weight: newWeight
                     });
                 }
             } else {
@@ -427,9 +478,14 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         <Stack direction="row" spacing={2} alignItems="center">
                             <Typography variant="h5" fontWeight="bold" color="primary.main">{objective.title}</Typography>
                             {objective.owner && <OwnerChip owner={objective.owner} />}
-                            <Tooltip title="Log Heartbeat">
+                            <Tooltip title="Start Heartbeat">
                                 <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('objective', objective)}>
                                     <MonitorHeartIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="View History">
+                                <IconButton size="small" onClick={() => setHistoryState({ open: true, item: objective, type: 'objective' })}>
+                                    <HistoryIcon fontSize="small" />
                                 </IconButton>
                             </Tooltip>
                             <Tooltip title="Edit Objective"><IconButton size="small" onClick={() => openDialog('edit', 'objective' as any, '', objective)}><EditIcon fontSize="small" /></IconButton></Tooltip>
@@ -487,6 +543,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                     <Typography variant="subtitle1" fontWeight="600" color="text.primary">
                                                         {outcome.title}
                                                     </Typography>
+                                                    <Chip label={`${outcome.weight || 0}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
                                                     {outcome.latestHeartbeat?.ownerInput?.ownerConfidence && (
                                                         <Tooltip title="Latest Confidence & Trend">
                                                             <Box display="flex" alignItems="center">
@@ -503,6 +560,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                     <Tooltip title="Log Heartbeat">
                                                         <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('outcome', outcome)}>
                                                             <MonitorHeartIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="View History">
+                                                        <IconButton size="small" onClick={() => setHistoryState({ open: true, item: outcome, type: 'outcome' })}>
+                                                            <HistoryIcon fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
 
@@ -534,6 +596,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                             <Typography variant="subtitle2" color="text.primary">
                                                                                 {kr.statement}
                                                                             </Typography>
+                                                                            <Chip label={`${kr.weight || 0}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
                                                                             {kr.latestHeartbeat?.ownerInput?.ownerConfidence && (
                                                                                 <Tooltip title="Latest Confidence & Trend">
                                                                                     <Box display="flex" alignItems="center">
@@ -552,6 +615,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                             </Typography>
                                                                         )}
                                                                     </Box>
+                                                                    <Tooltip title="View History">
+                                                                        <IconButton size="small" sx={{ p: 0.5 }} onClick={() => setHistoryState({ open: true, item: kr, type: 'kr' })}>
+                                                                            <HistoryIcon sx={{ fontSize: 14 }} />
+                                                                        </IconButton>
+                                                                    </Tooltip>
                                                                     <Tooltip title="Edit KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'kr', '', kr)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
                                                                     <Tooltip title="Delete KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('kr', kr.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
                                                                     <Button
@@ -573,6 +641,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                     <Stack direction="row" alignItems="center" spacing={1}>
                                                                                         <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
                                                                                         <Typography variant="body2">{init.title}</Typography>
+                                                                                        <Chip label={`${init.weight || 0}%`} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
                                                                                         {init.latestHeartbeat?.ownerInput?.ownerConfidence && (
                                                                                             <Tooltip title="Latest Confidence & Trend">
                                                                                                 <Box display="flex" alignItems="center">
@@ -589,6 +658,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                         <Tooltip title="Log Heartbeat">
                                                                                             <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('initiative', init)}>
                                                                                                 <MonitorHeartIcon fontSize="small" />
+                                                                                            </IconButton>
+                                                                                        </Tooltip>
+                                                                                        <Tooltip title="View History">
+                                                                                            <IconButton size="small" onClick={() => setHistoryState({ open: true, item: init, type: 'initiative' })}>
+                                                                                                <HistoryIcon fontSize="small" />
                                                                                             </IconButton>
                                                                                         </Tooltip>
 
@@ -783,6 +857,15 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     item={heartbeatState.item}
                     itemType={heartbeatState.type}
                     onComplete={refreshTree}
+                />
+            )}
+
+            {historyState.item && (
+                <HeartbeatHistoryDialog
+                    open={historyState.open}
+                    onClose={() => setHistoryState({ ...historyState, open: false })}
+                    item={historyState.item}
+                    itemType={historyState.type}
                 />
             )}
         </>

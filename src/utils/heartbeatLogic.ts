@@ -40,11 +40,13 @@ export const assessHeartbeat = (
     }
 
     const recommendations: string[] = [];
-    if (ownerInput.ownerConfidence === 'LOW') recommendations.push("Review risks and consider escalating blockers.");
+    const confVal = typeof ownerInput.ownerConfidence === 'number' ? ownerInput.ownerConfidence : (ownerInput.ownerConfidence === 'HIGH' ? 100 : ownerInput.ownerConfidence === 'MEDIUM' ? 70 : 30);
+
+    if (confVal < 40) recommendations.push("Review risks and consider escalating blockers.");
     if (specificity === 'VAGUE') recommendations.push("Provide more detailed progress metrics in next update.");
 
     return {
-        systemConfidence: ownerInput.ownerConfidence || 'MEDIUM', // "System must never invent certainty" - generally aligns with owner unless conflict
+        systemConfidence: ownerInput.ownerConfidence || 50, // Default to 50 if missing
         confidenceTrend,
         integritySignals: {
             updateFreshness: freshness,
@@ -74,47 +76,60 @@ const checkConsistency = (_current: OwnerInput, previous: any): string => {
     return 'ALIGNED';
 };
 
-const calculateTrend = (currentConf?: string | null, prevConf?: string | null): string => {
-    const map: Record<string, number> = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
-    const currVal = map[currentConf || 'MEDIUM'];
-    const prevVal = map[prevConf || 'MEDIUM'];
+const calculateTrend = (currentConf?: number | null, prevConf?: number | null): string => {
+    // If we receive strings (legacy data), perform quick mapping or treat as 50
+    const parse = (c: any) => {
+        if (typeof c === 'number') return c;
+        if (c === 'HIGH') return 90;
+        if (c === 'MEDIUM') return 70;
+        if (c === 'LOW') return 30;
+        return 50;
+    };
 
-    if (currVal > prevVal) return 'IMPROVING';
-    if (currVal < prevVal) return 'DECLINING';
+    const currVal = parse(currentConf);
+    const prevVal = parse(prevConf);
+
+    if (currVal > prevVal + 5) return 'IMPROVING'; // 5 point buffer
+    if (currVal < prevVal - 5) return 'DECLINING';
     return 'STABLE';
 };
 
 // Key Result Rollup Logic
+// Key Result Rollup Logic
 export const generateKeyResultRollup = (
-    initiatives: { confidence: string, title: string, relevance?: string }[]
-): { confidence: string, trend: string, summary: string } => {
+    initiatives: { confidence: number | string, title: string, relevance?: string }[]
+): { confidence: number, trend: string, summary: string } => {
 
     if (initiatives.length === 0) {
-        return { confidence: 'MEDIUM', trend: 'STABLE', summary: 'No linked initiatives.' };
+        return { confidence: 50, trend: 'STABLE', summary: 'No linked initiatives.' };
     }
 
-    const map: Record<string, number> = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
     let totalScore = 0;
-
-    // "Weight initiatives by relevance (primary vs supporting)" - assuming we had this data.
-    // Spec says: "Primary initiative drivers". 
-    // For now simple average, but pulling down if any is LOW is a good safe heuristic.
-
     let hasLow = false;
+
     initiatives.forEach(i => {
-        if (i.confidence === 'LOW') hasLow = true;
-        totalScore += map[i.confidence || 'MEDIUM'];
+        let val = 50;
+        if (typeof i.confidence === 'number') val = i.confidence;
+        else {
+            if (i.confidence === 'HIGH') val = 90;
+            else if (i.confidence === 'MEDIUM') val = 70;
+            else if (i.confidence === 'LOW') val = 30;
+        }
+
+        if (val < 40) hasLow = true;
+        totalScore += val;
     });
 
-    const avg = totalScore / initiatives.length;
-    let confidence = 'MEDIUM';
-    if (avg >= 2.5) confidence = 'HIGH';
-    if (hasLow) confidence = 'LOW'; // Conservative rollup rule: "Conflicting signals must reduce confidence"
+    let avg = totalScore / initiatives.length;
+
+    // Conservative rollup rule: "Conflicting signals must reduce confidence"
+    // If any initiative is critically low (<40), cap the rollup at 60 (Watch/Warning)
+    if (hasLow && avg > 60) avg = 60;
 
     const drivers = initiatives.slice(0, 3).map(i => i.title).join(', ');
 
     return {
-        confidence,
+        confidence: Math.round(avg),
         trend: 'STABLE', // Needs history to calculate trend, simplified for now
         summary: `Confidence driven by status of: ${drivers}. Calculated based on ${initiatives.length} initiatives.`
     };
@@ -123,17 +138,23 @@ export const generateKeyResultRollup = (
 export const calculateAttentionLevel = (objective: any): 'STABLE' | 'WATCH' | 'ACTION' => {
     const latestHeartbeat = objective.latestHeartbeat;
     // Handle partial objects or missing heartbeats
-    const confidence = latestHeartbeat?.systemAssessment?.systemConfidence ||
-        latestHeartbeat?.ownerInput?.ownerConfidence ||
-        'MEDIUM';
+    const rawConf = latestHeartbeat?.systemAssessment?.systemConfidence || latestHeartbeat?.ownerInput?.ownerConfidence;
+
+    let confidence = 50;
+    if (typeof rawConf === 'number') confidence = rawConf;
+    else if (rawConf === 'HIGH') confidence = 90;
+    else if (rawConf === 'LOW') confidence = 30;
+    else confidence = 70; // Medium or undefined
+
     const trend = latestHeartbeat?.systemAssessment?.confidenceTrend || 'STABLE';
 
     let level: 'STABLE' | 'WATCH' | 'ACTION' = 'STABLE';
 
-    if (confidence === 'LOW') level = 'ACTION';
-    else if (confidence === 'MEDIUM' && trend === 'DECLINING') level = 'ACTION';
-    else if (confidence === 'MEDIUM' && trend === 'STABLE') level = 'WATCH';
-    else if (confidence === 'HIGH' && trend === 'DECLINING') level = 'WATCH';
+    if (confidence < 50) level = 'ACTION';
+    else if (confidence < 75 && trend === 'DECLINING') level = 'ACTION';
+    else if (confidence < 75) level = 'WATCH';
+    else if (confidence >= 75 && trend === 'DECLINING') level = 'WATCH';
+    // Else Stable (>75 and Stable/Improving)
 
     // Late Heartbeat Check
     if (objective.nextHeartbeatDue) {

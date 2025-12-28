@@ -3,7 +3,8 @@ import {
     Dialog, DialogTitle, DialogContent, DialogActions,
     Button, Typography, Box, TextField, Stack,
     ToggleButton, ToggleButtonGroup, IconButton,
-    List, ListItem, ListItemText, Chip, Step, Stepper, StepLabel
+    List, ListItem, ListItemText, Chip, Step, Stepper, StepLabel,
+    Slider, Select, MenuItem, FormControl, InputLabel
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -19,11 +20,13 @@ interface HeartbeatWizardProps {
     item: any;
     itemType: 'initiative' | 'outcome' | 'objective' | 'kr';
     onComplete: () => void;
+    editHeartbeatId?: string;
+    initialData?: any; // For edit mode
 }
 
 const steps = ['Context', 'Progress', 'Risks & Dependencies', 'Confidence', 'Review'];
 
-export default function HeartbeatWizard({ open, onClose, item, itemType, onComplete }: HeartbeatWizardProps) {
+export default function HeartbeatWizard({ open, onClose, item, itemType, onComplete, editHeartbeatId, initialData }: HeartbeatWizardProps) {
     const [activeStep, setActiveStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,14 +34,44 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     const [derivedKR, setDerivedKR] = useState<any>(null);
 
     // Form State
+    // Form State
     const [progressSummary, setProgressSummary] = useState('');
-    const [risks, setRisks] = useState<{ description: string, impact: string }[]>([]);
+    const [risks, setRisks] = useState<{ description: string, impact: string, probability: number }[]>([]);
     const [newRiskDesc, setNewRiskDesc] = useState('');
+    const [newRiskImpact, setNewRiskImpact] = useState('Medium');
+    const [newRiskProb, setNewRiskProb] = useState<number>(50);
+
     const [dependencies, setDependencies] = useState<{ description: string, status: string }[]>([]);
     const [newDepDesc, setNewDepDesc] = useState('');
 
-    const [ownerConfidence, setOwnerConfidence] = useState<string | null>(null);
+    const [ownerConfidence, setOwnerConfidence] = useState<number>(50);
     const [confidenceRationale, setConfidenceRationale] = useState('');
+
+    // Pre-populate for Edit Mode
+    useState(() => {
+        if (editHeartbeatId && initialData) {
+            const input = initialData.ownerInput;
+            if (input) {
+                setProgressSummary(input.progressSummary || '');
+                setConfidenceRationale(input.confidenceRationale || '');
+                setOwnerConfidence(input.ownerConfidence !== undefined ? input.ownerConfidence : 50);
+
+                if (input.newRisks) {
+                    setRisks(input.newRisks.map((r: any) => ({
+                        description: r.description,
+                        impact: r.impact,
+                        probability: r.probability || 50
+                    })));
+                }
+                if (input.dependencies) {
+                    setDependencies(input.dependencies.map((d: any) => ({
+                        description: d.description,
+                        status: d.status
+                    })));
+                }
+            }
+        }
+    });
 
 
     // Calculate KR Rollup on mount
@@ -78,8 +111,10 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
 
     const addRisk = () => {
         if (!newRiskDesc.trim()) return;
-        setRisks([...risks, { description: newRiskDesc, impact: 'Medium' }]); // Default impact
+        setRisks([...risks, { description: newRiskDesc, impact: newRiskImpact, probability: newRiskProb }]);
         setNewRiskDesc('');
+        setNewRiskImpact('Medium');
+        setNewRiskProb(50);
     };
 
     const addDependency = () => {
@@ -141,7 +176,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                         id: crypto.randomUUID(),
                         description: r.description,
                         impact: r.impact,
-                        probability: 'Medium'
+                        probability: r.probability
                     })),
                     dependencies: dependencies.map(d => ({
                         id: crypto.randomUUID(),
@@ -158,6 +193,20 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                     item.latestHeartbeat,
                     item.nextHeartbeatDue
                 );
+
+                if (editHeartbeatId) {
+                    // UPDATE Logic
+                    await client.models.Heartbeat.update({
+                        id: editHeartbeatId,
+                        ownerInput: ownerInput,
+                        systemAssessment: systemAssessment
+                    });
+                    // Skip Next Due Date logic on edit for now or handle complexity?
+                    // Usually edit is just content fix.
+                    onComplete();
+                    onClose();
+                    return;
+                }
 
                 heartbeatPayload = {
                     type: 'SCHEDULED',
@@ -312,7 +361,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 return (
                     <Box pt={2}>
                         <Typography variant="subtitle1">New Risks</Typography>
-                        <Box display="flex" gap={1} mb={2}>
+                        <Stack spacing={2} mb={2} p={2} bgcolor="grey.50" borderRadius={1} border={1} borderColor="divider">
                             <TextField
                                 size="small"
                                 fullWidth
@@ -320,12 +369,41 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                                 value={newRiskDesc}
                                 onChange={(e) => setNewRiskDesc(e.target.value)}
                             />
-                            <Button variant="outlined" onClick={addRisk}>Add</Button>
-                        </Box>
+                            <Stack direction="row" spacing={2} alignItems="center">
+                                <FormControl size="small" sx={{ minWidth: 120 }}>
+                                    <InputLabel>Impact</InputLabel>
+                                    <Select
+                                        value={newRiskImpact}
+                                        label="Impact"
+                                        onChange={(e) => setNewRiskImpact(e.target.value)}
+                                    >
+                                        <MenuItem value="Low">Low</MenuItem>
+                                        <MenuItem value="Medium">Medium</MenuItem>
+                                        <MenuItem value="High">High</MenuItem>
+                                        <MenuItem value="Critical">Critical</MenuItem>
+                                    </Select>
+                                </FormControl>
+                                <Box flexGrow={1} px={1}>
+                                    <Typography variant="caption" color="text.secondary">Probability: {newRiskProb}%</Typography>
+                                    <Slider
+                                        value={newRiskProb}
+                                        onChange={(_, val) => setNewRiskProb(val as number)}
+                                        valueLabelDisplay="auto"
+                                        step={5}
+                                        min={0}
+                                        max={100}
+                                    />
+                                </Box>
+                                <Button variant="contained" onClick={addRisk} disabled={!newRiskDesc.trim()}>Add</Button>
+                            </Stack>
+                        </Stack>
                         <List dense>
                             {risks.map((r, i) => (
                                 <ListItem key={i} secondaryAction={<IconButton edge="end" size="small" onClick={() => setRisks(risks.filter((_, idx) => idx !== i))}><DeleteIcon /></IconButton>}>
-                                    <ListItemText primary={r.description} secondary={`Impact: ${r.impact} `} />
+                                    <ListItemText
+                                        primary={r.description}
+                                        secondary={<Typography variant="caption">Impact: {r.impact} | Prob: {r.probability}%</Typography>}
+                                    />
                                 </ListItem>
                             ))}
                         </List>
@@ -354,36 +432,39 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 return (
                     <Box pt={2} display="flex" flexDirection="column" gap={3}>
                         <Box>
-                            <Typography variant="subtitle1" gutterBottom>Your Confidence Level</Typography>
-                            <ToggleButtonGroup
+                            <Typography variant="subtitle1" gutterBottom>Your Confidence Level: {ownerConfidence}%</Typography>
+                            <Slider
                                 value={ownerConfidence}
-                                exclusive
-                                onChange={(_, val) => setOwnerConfidence(val)}
-                                fullWidth
-                                color="primary"
-                            >
-                                <ToggleButton value="HIGH" color="success">HIGH</ToggleButton>
-                                <ToggleButton value="MEDIUM" color="warning">MEDIUM</ToggleButton>
-                                <ToggleButton value="LOW" color="error">LOW</ToggleButton>
-                            </ToggleButtonGroup>
+                                onChange={(_, val) => setOwnerConfidence(val as number)}
+                                step={5}
+                                marks={[
+                                    { value: 0, label: 'Low' },
+                                    { value: 50, label: 'Medium' },
+                                    { value: 100, label: 'High' }
+                                ]}
+                                min={0}
+                                max={100}
+                                valueLabelDisplay="auto"
+                                sx={{
+                                    color: ownerConfidence < 50 ? 'error.main' : ownerConfidence < 80 ? 'warning.main' : 'success.main'
+                                }}
+                            />
                         </Box>
-                        {ownerConfidence && (
-                            <Box>
-                                <Typography variant="subtitle1" gutterBottom>Rationale (Required)</Typography>
-                                <Typography variant="caption" color="text.secondary" paragraph>Why is your confidence {ownerConfidence}?</Typography>
-                                <TextField
-                                    multiline
-                                    rows={4}
-                                    fullWidth
-                                    required
-                                    placeholder="Explain your confidence assessment..."
-                                    value={confidenceRationale}
-                                    onChange={(e) => setConfidenceRationale(e.target.value)}
-                                    error={!confidenceRationale && !!ownerConfidence}
-                                    helperText={!confidenceRationale && !!ownerConfidence ? "Rationale is required" : ""}
-                                />
-                            </Box>
-                        )}
+                        <Box>
+                            <Typography variant="subtitle1" gutterBottom>Rationale (Required)</Typography>
+                            <Typography variant="caption" color="text.secondary" paragraph>Why is your confidence {ownerConfidence}?</Typography>
+                            <TextField
+                                multiline
+                                rows={4}
+                                fullWidth
+                                required
+                                placeholder="Explain your confidence assessment..."
+                                value={confidenceRationale}
+                                onChange={(e) => setConfidenceRationale(e.target.value)}
+                                error={!confidenceRationale}
+                                helperText={!confidenceRationale ? "Rationale is required" : ""}
+                            />
+                        </Box>
                     </Box>
                 );
             case 4: // Review
@@ -397,7 +478,11 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                             </Box>
                             <Box>
                                 <Typography variant="caption" color="text.secondary">Confidence</Typography>
-                                <Chip label={ownerConfidence || 'Not set'} color={ownerConfidence === 'HIGH' ? 'success' : ownerConfidence === 'MEDIUM' ? 'warning' : 'error'} size="small" />
+                                <Chip
+                                    label={`${ownerConfidence}%`}
+                                    color={ownerConfidence >= 80 ? 'success' : ownerConfidence >= 50 ? 'warning' : 'error'}
+                                    size="small"
+                                />
                             </Box>
                             <Box>
                                 <Typography variant="caption" color="text.secondary">Rationale</Typography>
@@ -437,7 +522,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                     variant="contained"
                     onClick={handleNext}
                     disabled={
-                        (activeStep === 3 && (!ownerConfidence || !confidenceRationale)) ||
+                        (activeStep === 3 && !confidenceRationale) ||
                         (activeStep === 1 && !progressSummary) ||
                         isSubmitting
                     }

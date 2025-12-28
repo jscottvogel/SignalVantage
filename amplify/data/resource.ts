@@ -127,7 +127,7 @@ const schema = a.schema({
     id: a.string(),
     description: a.string(),
     impact: a.string(),
-    probability: a.string(),
+    probability: a.integer(),
   }),
 
   Dependency: a.customType({
@@ -140,7 +140,7 @@ const schema = a.schema({
   OwnerInput: a.customType({
     progressSummary: a.string(),
     milestoneStatus: a.string(),
-    ownerConfidence: a.string(),
+    ownerConfidence: a.integer(),
     confidenceRationale: a.string(),
     newRisks: a.ref('Risk').array(),
     dependencies: a.ref('Dependency').array(),
@@ -159,7 +159,7 @@ const schema = a.schema({
   }),
 
   SystemAssessment: a.customType({
-    systemConfidence: a.string(),
+    systemConfidence: a.integer(),
     confidenceTrend: a.string(),
     integritySignals: a.ref('IntegritySignals'),
     uncertaintyFlags: a.string().array(),
@@ -249,6 +249,8 @@ const schema = a.schema({
       heartbeatCadence: a.ref('HeartbeatCadence'),
       nextHeartbeatDue: a.datetime(),
 
+      weight: a.integer(),
+
       organizationId: a.id().required(),
       organization: a.belongsTo('Organization', 'organizationId'),
 
@@ -270,6 +272,8 @@ const schema = a.schema({
       heartbeats: a.hasMany('Heartbeat', 'keyResultId'),
       heartbeatCadence: a.ref('HeartbeatCadence'),
       nextHeartbeatDue: a.datetime(),
+
+      weight: a.integer(),
 
       organizationId: a.id().required(),
       organization: a.belongsTo('Organization', 'organizationId'),
@@ -295,6 +299,8 @@ const schema = a.schema({
       latestHeartbeat: a.ref('InitiativeHeartbeat'),
       heartbeats: a.hasMany('Heartbeat', 'initiativeId'),
       audit: a.ref('Audit'),
+
+      weight: a.integer(),
 
       organizationId: a.id().required(),
       organization: a.belongsTo('Organization', 'organizationId'),

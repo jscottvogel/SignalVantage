@@ -23,7 +23,8 @@ export function StrategicObjectiveCard({ objective, onClick }: Props) {
     const ownerInput = latestHeartbeat?.ownerInput;
 
     // derived signals
-    const confidence = systemAssessment?.systemConfidence || ownerInput?.ownerConfidence || 'MEDIUM'; // Default to medium if missing
+    const rawConf = systemAssessment?.systemConfidence || ownerInput?.ownerConfidence;
+    const confidence = typeof rawConf === 'number' ? rawConf : (rawConf === 'HIGH' ? 90 : rawConf === 'MEDIUM' ? 70 : rawConf === 'LOW' ? 30 : 50);
     const trend = systemAssessment?.confidenceTrend || 'STABLE';
 
     // Calculate Attention Level
@@ -119,10 +120,10 @@ export function StrategicObjectiveCard({ objective, onClick }: Props) {
                 <Box display="flex" alignItems="center" gap={1}>
                     <Typography variant="caption" color="text.secondary" fontWeight="bold" textTransform="uppercase">Confidence</Typography>
                     <Chip
-                        label={confidence}
+                        label={`${confidence}%`}
                         size="small"
-                        color={confidence === 'HIGH' ? 'success' : confidence === 'MEDIUM' ? 'warning' : 'error'}
-                        variant={confidence === 'HIGH' ? 'outlined' : 'filled'}
+                        color={confidence >= 80 ? 'success' : confidence >= 50 ? 'warning' : 'error'}
+                        variant={confidence >= 80 ? 'outlined' : 'filled'}
                     />
                     <Box display="flex" alignItems="center" bgcolor="grey.100" px={1} py={0.5} borderRadius={1} gap={0.5}>
                         <Typography variant="caption" fontWeight="bold" color="text.secondary">TREND</Typography>
