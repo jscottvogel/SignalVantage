@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
     Button, Typography, Box, TextField, Stack,
-    ToggleButton, ToggleButtonGroup, IconButton,
+    IconButton,
     List, ListItem, ListItemText, Chip, Step, Stepper, StepLabel,
     Slider, Select, MenuItem, FormControl, InputLabel
 } from '@mui/material';
@@ -260,7 +260,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                     state: {
                         ...item.state,
                         updatedAt: now,
-                        health: ownerConfidence === 'LOW' ? 'off_track' : 'on_track'
+                        health: (ownerConfidence || 50) < 50 ? 'off_track' : 'on_track'
                     }
                 });
             } else if (itemType === 'outcome') {

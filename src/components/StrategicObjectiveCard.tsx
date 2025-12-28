@@ -23,7 +23,7 @@ export function StrategicObjectiveCard({ objective, onClick }: Props) {
     const ownerInput = latestHeartbeat?.ownerInput;
 
     // derived signals
-    const rawConf = systemAssessment?.systemConfidence || ownerInput?.ownerConfidence;
+    const rawConf: any = systemAssessment?.systemConfidence || ownerInput?.ownerConfidence;
     const confidence = typeof rawConf === 'number' ? rawConf : (rawConf === 'HIGH' ? 90 : rawConf === 'MEDIUM' ? 70 : rawConf === 'LOW' ? 30 : 50);
     const trend = systemAssessment?.confidenceTrend || 'STABLE';
 
@@ -44,11 +44,13 @@ export function StrategicObjectiveCard({ objective, onClick }: Props) {
                 let atRisk = 0;
 
                 krs.forEach(kr => {
-                    const resultConf = kr.latestHeartbeat?.systemAssessment?.systemConfidence ||
-                        kr.latestHeartbeat?.ownerInput?.ownerConfidence || 'MEDIUM';
+                    const resultConf: any = kr.latestHeartbeat?.systemAssessment?.systemConfidence ||
+                        kr.latestHeartbeat?.ownerInput?.ownerConfidence || 50;
                     const resultTrend = kr.latestHeartbeat?.systemAssessment?.confidenceTrend;
 
-                    if (resultConf === 'LOW' || resultTrend === 'DECLINING') atRisk++;
+                    const numConf = typeof resultConf === 'number' ? resultConf : (resultConf === 'LOW' ? 30 : resultConf === 'MEDIUM' ? 70 : 90);
+
+                    if (numConf < 50 || resultTrend === 'DECLINING') atRisk++;
                     else stable++;
                 });
 

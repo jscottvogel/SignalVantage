@@ -44,6 +44,7 @@ export const generateExecutiveBriefing = (objectives: Objective[]): BriefingSect
         sections.push({
             title: "🛑 Critical Attention Needed",
             items: attentionItems.map(obj => ({
+                headline: obj.title,
                 body: `Confidence is ${obj.latestHeartbeat?.ownerInput?.ownerConfidence ?? 'Unknown'}% and ${obj.latestHeartbeat?.systemAssessment?.confidenceTrend || 'STABLE'}. Risks: ${obj.latestHeartbeat?.ownerInput?.newRisks?.map(r => r?.description).join(', ') || 'No explicit risks listed'}.`,
                 severity: 'critical',
                 id: obj.id

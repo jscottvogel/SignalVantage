@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
     Dialog, DialogTitle, DialogContent,
-    Typography, Box, IconButton, Stack,
-    Button, Chip, Table, TableBody, TableCell,
+    Typography, IconButton,
+    Chip, Table, TableBody, TableCell,
     TableHead, TableRow, TableContainer, Paper
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';

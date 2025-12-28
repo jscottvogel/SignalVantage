@@ -40,7 +40,8 @@ export const assessHeartbeat = (
     }
 
     const recommendations: string[] = [];
-    const confVal = typeof ownerInput.ownerConfidence === 'number' ? ownerInput.ownerConfidence : (ownerInput.ownerConfidence === 'HIGH' ? 100 : ownerInput.ownerConfidence === 'MEDIUM' ? 70 : 30);
+    const rawConf: any = ownerInput.ownerConfidence;
+    const confVal = typeof rawConf === 'number' ? rawConf : (rawConf === 'HIGH' ? 100 : rawConf === 'MEDIUM' ? 70 : 30);
 
     if (confVal < 40) recommendations.push("Review risks and consider escalating blockers.");
     if (specificity === 'VAGUE') recommendations.push("Provide more detailed progress metrics in next update.");
