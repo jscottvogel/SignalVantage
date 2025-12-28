@@ -152,6 +152,14 @@ const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
   };
 
   const handleRemove = async (member: any) => {
+    if (member.role === 'OWNER') {
+      const ownerCount = members.filter(m => m.role === 'OWNER').length;
+      if (ownerCount <= 1) {
+        alert("The last Organization Owner cannot be removed.");
+        return;
+      }
+    }
+
     if (!window.confirm(`Are you sure you want to remove ${member.profile?.preferredName || member.inviteEmail}? Objects owned by them will be reassigned to the Organization Owner.`)) return;
 
     try {
@@ -220,7 +228,7 @@ const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
               <ListItem
                 sx={{ py: 2, px: 3 }}
                 secondaryAction={
-                  <IconButton edge="end" aria-label="delete" onClick={() => handleRemove(m)} disabled={m.role === 'OWNER'}>
+                  <IconButton edge="end" aria-label="delete" onClick={() => handleRemove(m)}>
                     <DeleteIcon />
                   </IconButton>
                 }
