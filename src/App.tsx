@@ -415,7 +415,8 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
                 </Box>
                 <Stack direction="row" spacing={2}>
                   <Button
-                    variant="outlined"
+                    variant="contained"
+                    color="secondary"
                     onClick={() => setShowBriefing(true)}
                   >
                     Executive Briefing
