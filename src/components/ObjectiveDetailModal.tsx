@@ -28,8 +28,11 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import HistoryIcon from '@mui/icons-material/History';
+import HistoryIcon from '@mui/icons-material/History';
+import BalanceIcon from '@mui/icons-material/Balance';
 import HeartbeatWizard from './HeartbeatWizard';
 import HeartbeatHistoryDialog from './HeartbeatHistoryDialog';
+import WeightDistributionModal from './WeightDistributionModal';
 
 const client = generateClient<Schema>();
 
@@ -85,6 +88,20 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         open: false,
         item: null,
         type: 'initiative'
+    });
+
+    const [weightModalState, setWeightModalState] = useState<{
+        open: boolean;
+        items: any[];
+        parentTitle: string;
+        childType: 'Outcome' | 'Key Result' | 'Initiative';
+        onSave: (updates: { id: string, weight: number }[]) => Promise<void>;
+    }>({
+        open: false,
+        items: [],
+        parentTitle: '',
+        childType: 'Outcome',
+        onSave: async () => { }
     });
 
     const refreshTree = useCallback(async () => {
@@ -412,6 +429,23 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             setIsSubmitting(false);
         }
     };
+    const openWeightModal = (
+        items: any[],
+        parentTitle: string,
+        childType: 'Outcome' | 'Key Result' | 'Initiative',
+        modelClient: any
+    ) => {
+        setWeightModalState({
+            open: true,
+            items: items.map(i => ({ id: i.id, title: i.title || i.statement, weight: i.weight })),
+            parentTitle,
+            childType,
+            onSave: async (updates) => {
+                await Promise.all(updates.map(u => modelClient.update({ id: u.id, weight: u.weight })));
+                await refreshTree();
+            }
+        });
+    };
 
     const OwnerChip = ({ owner }: { owner: any }) => {
         if (!owner) return null;
@@ -483,6 +517,13 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                     <MonitorHeartIcon fontSize="small" />
                                 </IconButton>
                             </Tooltip>
+                            {outcomes.length > 0 && (
+                                <Tooltip title="Adjust Outcome Weights">
+                                    <IconButton size="small" onClick={() => openWeightModal(outcomes, objective.title, 'Outcome', client.models.Outcome)}>
+                                        <BalanceIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
                             <Tooltip title="View History">
                                 <IconButton size="small" onClick={() => setHistoryState({ open: true, item: objective, type: 'objective' })}>
                                     <HistoryIcon fontSize="small" />
@@ -578,6 +619,13 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                     >
                                                         Add KR
                                                     </Button>
+                                                    {outcome.keyResults?.length > 0 && (
+                                                        <Tooltip title="Adjust KR Weights">
+                                                            <IconButton size="small" onClick={() => openWeightModal(outcome.keyResults, outcome.title, 'Key Result', client.models.KeyResult)}>
+                                                                <BalanceIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
                                                 </Stack>
                                             </Box>
 
@@ -628,8 +676,15 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                         startIcon={<AddIcon />}
                                                                         onClick={() => openDialog('create', 'initiative', kr.id)}
                                                                     >
-                                                                        Link Init
+                                                                        Add Init
                                                                     </Button>
+                                                                    {kr.initiatives?.length > 0 && (
+                                                                        <Tooltip title="Adjust Initiative Weights">
+                                                                            <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openWeightModal(kr.initiatives, kr.statement, 'Initiative', client.models.Initiative)}>
+                                                                                <BalanceIcon sx={{ fontSize: 14 }} />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                    )}
                                                                 </Stack>
 
                                                                 {/* Initiatives */}
@@ -868,6 +923,15 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     itemType={historyState.type}
                 />
             )}
+
+            <WeightDistributionModal
+                open={weightModalState.open}
+                onClose={() => setWeightModalState(prev => ({ ...prev, open: false }))}
+                items={weightModalState.items}
+                parentTitle={weightModalState.parentTitle}
+                childType={weightModalState.childType}
+                onSave={weightModalState.onSave}
+            />
         </>
     );
 }
