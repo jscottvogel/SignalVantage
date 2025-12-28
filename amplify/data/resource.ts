@@ -28,7 +28,9 @@ const schema = a.schema({
     .model({
       role: a.enum(['OWNER', 'MEMBER']),
       organizationId: a.id().required(),
-      userProfileId: a.id().required(),
+      userProfileId: a.id(), // Optional for invites
+      inviteEmail: a.string(),
+      status: a.enum(['INVITED', 'ACTIVE']),
       organization: a.belongsTo('Organization', 'organizationId'),
       user: a.belongsTo('UserProfile', 'userProfileId'),
     })

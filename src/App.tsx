@@ -37,6 +37,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import MenuIcon from '@mui/icons-material/Menu';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
+import DeleteIcon from '@mui/icons-material/Delete';
 import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
 
 import { StrategicObjectiveCard } from "./components/StrategicObjectiveCard";
@@ -91,7 +92,6 @@ const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
 
   // Invite State
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [isInviting, setIsInviting] = useState(false);
 
@@ -100,8 +100,18 @@ const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
       const { data: membershipList } = await org.members();
       const membersWithProfiles = await Promise.all(
         membershipList.map(async (m) => {
-          const { data: profile } = await m.user();
-          return { ...m, profile };
+          let profile = null;
+          if (m.userProfileId) {
+            try {
+              const { data } = await m.user();
+              profile = data;
+            } catch (e) {
+              console.warn("Failed to fetch user profile", e);
+            }
+          }
+          // specific status inference for legacy records
+          const effectiveStatus = m.status || (m.userProfileId ? 'ACTIVE' : 'INVITED');
+          return { ...m, profile, status: effectiveStatus };
         })
       );
       setMembers(membersWithProfiles);
@@ -119,35 +129,73 @@ const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
   }, [org]);
 
   const handleInvite = async () => {
-    if (!inviteName.trim() || !inviteEmail.trim()) return;
+    if (!inviteEmail.trim()) return;
     setIsInviting(true);
     try {
-      // 1. Create UserProfile
-      const { data: profile, errors: profileErrors } = await client.models.UserProfile.create({
-        email: inviteEmail,
-        preferredName: inviteName
-      });
-      if (profileErrors) throw new Error(profileErrors[0].message);
-      if (!profile) throw new Error("Failed to create profile");
-
-      // 2. Create Membership
-      const { errors: memberErrors } = await client.models.Membership.create({
+      const { errors } = await client.models.Membership.create({
         organizationId: org.id,
-        userProfileId: profile.id,
+        inviteEmail: inviteEmail,
+        status: 'INVITED',
         role: 'MEMBER'
       });
-      if (memberErrors) throw new Error(memberErrors[0].message);
+      if (errors) throw new Error(errors[0].message);
 
-      // 3. Refresh
       await fetchMembers();
       setInviteOpen(false);
-      setInviteName('');
       setInviteEmail('');
     } catch (e) {
       console.error("Invitation failed", e);
-      alert("Failed to invite member. See console.");
+      alert("Failed to invite member.");
     } finally {
       setIsInviting(false);
+    }
+  };
+
+  const handleRemove = async (member: any) => {
+    if (!window.confirm(`Are you sure you want to remove ${member.profile?.preferredName || member.inviteEmail}? Objects owned by them will be reassigned to the Organization Owner.`)) return;
+
+    try {
+      if (member.userProfileId && member.profile) {
+        // Find Owner
+        const ownerMember = members.find(m => m.role === 'OWNER');
+        if (ownerMember && ownerMember.profile) {
+          const ownerId = ownerMember.profile.id;
+          const ownerName = ownerMember.profile.preferredName || 'Organization Owner';
+          const targetOwner = { userId: ownerId, displayName: ownerName, role: 'OWNER' };
+          const removedUserId = member.userProfileId;
+
+          const { data: objs } = await org.objectives();
+          const { data: outcomes } = await org.outcomes();
+          const { data: krs } = await org.keyResults();
+          const { data: inits } = await org.initiatives();
+
+          const updates: Promise<any>[] = [];
+
+          objs.forEach(o => {
+            if (o.owner?.userId === removedUserId) updates.push(client.models.StrategicObjective.update({ id: o.id, owner: targetOwner }));
+          });
+          outcomes.forEach(o => {
+            if (o.owner?.userId === removedUserId) updates.push(client.models.Outcome.update({ id: o.id, owner: targetOwner }));
+          });
+          krs.forEach(k => {
+            if (k.owners?.some((ow: any) => ow?.userId === removedUserId)) {
+              const newOwners = k.owners.map((ow: any) => ow.userId === removedUserId ? targetOwner : ow);
+              updates.push(client.models.KeyResult.update({ id: k.id, owners: newOwners }));
+            }
+          });
+          inits.forEach(i => {
+            if (i.owner?.userId === removedUserId) updates.push(client.models.Initiative.update({ id: i.id, owner: targetOwner }));
+          });
+
+          await Promise.all(updates);
+        }
+      }
+
+      await client.models.Membership.delete({ id: member.id });
+      fetchMembers();
+    } catch (e) {
+      console.error("Remove failed", e);
+      alert("Failed to remove member.");
     }
   };
 
@@ -169,28 +217,37 @@ const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
         <List disablePadding>
           {members.map((m, idx) => (
             <Box key={m.id}>
-              <ListItem sx={{ py: 2, px: 3 }}>
-                <ListItemButton sx={{ borderRadius: 2 }}>
-                  <ListItemIcon>
-                    <Avatar sx={{ bgcolor: 'secondary.main' }}>
-                      {m.profile?.preferredName?.[0]?.toUpperCase() || 'U'}
-                    </Avatar>
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
+              <ListItem
+                sx={{ py: 2, px: 3 }}
+                secondaryAction={
+                  <IconButton edge="end" aria-label="delete" onClick={() => handleRemove(m)} disabled={m.role === 'OWNER'}>
+                    <DeleteIcon />
+                  </IconButton>
+                }
+              >
+                <ListItemIcon>
+                  <Avatar sx={{ bgcolor: m.status === 'INVITED' ? 'grey.400' : 'secondary.main' }}>
+                    {m.status === 'INVITED' ? '@' : m.profile?.preferredName?.[0]?.toUpperCase() || 'U'}
+                  </Avatar>
+                </ListItemIcon>
+                <ListItemText
+                  primary={
+                    <Stack direction="row" spacing={1} alignItems="center">
                       <Typography variant="subtitle1" fontWeight={600}>
-                        {m.profile?.preferredName || 'Unknown User'}
+                        {m.status === 'INVITED' ? (m.inviteEmail || 'Invited User') : (m.profile?.preferredName || 'Unknown User')}
                       </Typography>
-                    }
-                    secondary={m.profile?.email || 'No email'}
-                  />
-                  <Chip
-                    label={m.role}
-                    size="small"
-                    color={m.role === 'OWNER' ? 'primary' : 'default'}
-                    variant={m.role === 'OWNER' ? 'filled' : 'outlined'}
-                  />
-                </ListItemButton>
+                      {m.status === 'INVITED' && <Chip label="Invited" size="small" variant="outlined" />}
+                    </Stack>
+                  }
+                  secondary={m.status === 'INVITED' ? 'Pending Acceptance' : (m.profile?.email || 'No email')}
+                />
+                <Chip
+                  label={m.role}
+                  size="small"
+                  color={m.role === 'OWNER' ? 'primary' : 'default'}
+                  variant={m.role === 'OWNER' ? 'filled' : 'outlined'}
+                  sx={{ mr: 2 }}
+                />
               </ListItem>
               {idx < members.length - 1 && <Divider />}
             </Box>
@@ -204,13 +261,6 @@ const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
         <DialogContent>
           <Box component="div" pt={1} display="flex" flexDirection="column" gap={2}>
             <TextField
-              label="Full Name"
-              fullWidth
-              value={inviteName}
-              onChange={e => setInviteName(e.target.value)}
-              placeholder="e.g. Jane Doe"
-            />
-            <TextField
               label="Email Address"
               fullWidth
               value={inviteEmail}
@@ -221,7 +271,7 @@ const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setInviteOpen(false)}>Cancel</Button>
-          <Button onClick={handleInvite} variant="contained" disabled={!inviteName || !inviteEmail || isInviting}>
+          <Button onClick={handleInvite} variant="contained" disabled={!inviteEmail || isInviting}>
             {isInviting ? 'Inviting...' : 'Send Invitation'}
           </Button>
         </DialogActions>
