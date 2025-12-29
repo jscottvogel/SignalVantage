@@ -53,6 +53,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 import { ExecutiveBriefingDrawer } from './components/ExecutiveBriefingDrawer';
+import { CreateOrganizationWizard } from "./components/CreateOrganizationWizard";
 
 
 const client = generateClient<Schema>();
@@ -100,6 +101,7 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
   const [selectedObjective, setSelectedObjective] = useState<Schema["StrategicObjective"]["type"] | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showBriefing, setShowBriefing] = useState(false);
+  const [showCreateOrgWizard, setShowCreateOrgWizard] = useState(false);
 
   // New State for Org Switching & Profile
   const [userProfile, setUserProfile] = useState<Schema["UserProfile"]["type"] | null>(null);
@@ -203,10 +205,9 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
         }
 
       } else {
-        let organization = null;
-        const email = currentUser?.signInDetails?.loginId;
-
+        // No active memberships found. 
         // 1. Check for pending invites matching user's email
+        const email = currentUser?.signInDetails?.loginId;
         if (email) {
           try {
             const { data: invites } = await client.models.Membership.list({
@@ -232,41 +233,27 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
               if (updatedMember) {
                 const { data: linkedOrg } = await updatedMember.organization();
                 if (linkedOrg) {
-                  organization = linkedOrg;
+                  // Link Success
+                  setOrg(linkedOrg);
+                  const { data: objs } = await linkedOrg.objectives();
+                  setObjectives(objs);
+
                   showSuccess(`Successfully joined ${linkedOrg.name}`);
                   // Refresh memberships
-                  const newMembership = { ...updatedMember, organization: linkedOrg };
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  setActiveMemberships([newMembership as any]);
+                  const newMembership = { ...updatedMember, organization: linkedOrg } as any;
+                  setActiveMemberships([newMembership]);
                 }
               }
+            } else {
+              // No invites, and no active memberships. 
+              // Do NOT create default org. User is in "no org" state.
+              setOrg(null);
+              setObjectives([]);
             }
           } catch (e) {
             console.warn("Error processing invite:", e);
           }
-        }
-
-        // 2. If an organization was found/joined, load it. Otherwise create new.
-        if (organization) {
-          await loadOrganization(organization.id);
-        } else {
-          const { data: newOrg, errors: orgErrors } = await client.models.Organization.create({
-            name: "My Organization",
-          });
-          if (orgErrors) throw new Error(orgErrors[0].message);
-
-          const { data: newMem, errors: memErrors } = await client.models.Membership.create({
-            role: "OWNER",
-            organizationId: newOrg!.id,
-            userProfileId: foundProfile.id,
-            status: 'ACTIVE'
-          });
-          if (memErrors) throw new Error(memErrors[0].message);
-
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setActiveMemberships([{ ...newMem, organization: newOrg } as any]);
-          setOrg(newOrg);
-          setObjectives([]); // New org empty
         }
       }
     } catch (e) {
@@ -492,10 +479,46 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
         </Toolbar>
       </AppBar>
       <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 10 }}>
-        <Box display="flex" justifyContent="center" alignItems="center" height="60vh" flexDirection="column">
-          <CircularProgress size={48} sx={{ mb: 2 }} />
-          <Typography color="text.secondary">Loading workspace...</Typography>
-        </Box>
+        {userProfile ? (
+          <Container maxWidth="sm">
+            <Paper sx={{ p: 4, textAlign: 'center' }}>
+              <Typography variant="h4" gutterBottom>Welcome to Vantage</Typography>
+              <Typography color="text.secondary" paragraph>
+                You are not currently a member of any organization.
+              </Typography>
+              <Typography color="text.secondary" paragraph>
+                To get started, you can create a new organization or ask an administrator to invite you to an existing one.
+              </Typography>
+              <Box mt={3}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={() => setShowCreateOrgWizard(true)}
+                >
+                  Create New Organization
+                </Button>
+              </Box>
+            </Paper>
+            <CreateOrganizationWizard
+              open={showCreateOrgWizard}
+              onClose={() => setShowCreateOrgWizard(false)}
+              userProfile={userProfile}
+              onSuccess={(newOrg, newMem) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const enrichedMem = { ...newMem, organization: newOrg } as any;
+                setActiveMemberships([enrichedMem]);
+                setOrg(newOrg);
+                setObjectives([]);
+                showSuccess(`Organization "${newOrg.name}" created!`);
+              }}
+            />
+          </Container>
+        ) : (
+          <Box display="flex" justifyContent="center" alignItems="center" height="60vh" flexDirection="column">
+            <CircularProgress size={48} sx={{ mb: 2 }} />
+            <Typography color="text.secondary">Loading workspace...</Typography>
+          </Box>
+        )}
       </Box>
     </Box>
   );
@@ -553,6 +576,11 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
                   {m.organization.name}
                 </MenuItem>
               ))}
+              <Divider />
+              <MenuItem onClick={() => { setOrgMenuAnchor(null); setShowCreateOrgWizard(true); }}>
+                <ListItemIcon><AddIcon fontSize="small" /></ListItemIcon>
+                <ListItemText>Create New Organization</ListItemText>
+              </MenuItem>
             </Menu>
           </Box>
 
@@ -642,6 +670,22 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
         <ObjectiveDetailModal
           objective={selectedObjective}
           onClose={() => setSelectedObjective(null)}
+        />
+      )}
+
+      {userProfile && (
+        <CreateOrganizationWizard
+          open={showCreateOrgWizard}
+          onClose={() => setShowCreateOrgWizard(false)}
+          userProfile={userProfile}
+          onSuccess={(newOrg, newMem) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const enrichedMem = { ...newMem, organization: newOrg } as any;
+            setActiveMemberships([...activeMemberships, enrichedMem]);
+            setOrg(newOrg);
+            setObjectives([]); // Switching to new empty org
+            showSuccess(`Organization "${newOrg.name}" created!`);
+          }}
         />
       )}
     </Box>
