@@ -54,6 +54,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 import { ExecutiveBriefingDrawer } from './components/ExecutiveBriefingDrawer';
 import { CreateOrganizationWizard } from "./components/CreateOrganizationWizard";
+import { SettingsView } from "./components/SettingsView";
 
 
 const client = generateClient<Schema>();
@@ -342,7 +343,13 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
       case 'team':
         return org ? <TeamView org={org} /> : null;
       case 'settings':
-        return <Paper sx={{ p: 6, textAlign: 'center' }}><Typography color="text.secondary">Organization settings coming soon.</Typography></Paper>;
+        return org && userProfile ? (
+          <SettingsView
+            org={org}
+            userProfile={userProfile}
+            onUpdateProfile={() => user && checkAndBootstrap(user)}
+          />
+        ) : <CircularProgress />;
       case 'profile':
         return userProfile ? (
           <ProfileView

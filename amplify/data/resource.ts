@@ -21,6 +21,10 @@ const schema = a.schema({
     .model({
       email: a.string(),
       preferredName: a.string(),
+      tier: a.enum(['FREE', 'BASIC', 'PREMIUM']), // Subscription Tier
+      stripeCustomerId: a.string(),
+      stripeSubscriptionId: a.string(),
+      subscriptionStatus: a.enum(['ACTIVE', 'PAST_DUE', 'CANCELED', 'INCOMPLETE']),
       memberships: a.hasMany('Membership', 'userProfileId'),
     })
     .authorization((allow) => [allow.owner()]),
