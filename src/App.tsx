@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Authenticator } from "@aws-amplify/ui-react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../amplify/data/resource";
@@ -105,9 +105,15 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
   const [userProfile, setUserProfile] = useState<Schema["UserProfile"]["type"] | null>(null);
   const [activeMemberships, setActiveMemberships] = useState<(Schema["Membership"]["type"] & { organization: Schema["Organization"]["type"] })[]>([]);
   const [orgMenuAnchor, setOrgMenuAnchor] = useState<null | HTMLElement>(null);
+  const orgRef = useRef<Schema["Organization"]["type"] | null>(null);
+
+  useEffect(() => {
+    orgRef.current = org;
+  }, [org]);
 
   // Helper to load org data once ID is known
-  const loadOrganization = async (organizationId: string) => {
+  // Helper to load org data once ID is known
+  const loadOrganization = useCallback(async (organizationId: string) => {
     try {
       setLoading(true);
       const { data: organization } = await client.models.Organization.get({ id: organizationId });
@@ -121,7 +127,7 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleOrgSwitch = (orgId: string) => {
     loadOrganization(orgId);
@@ -173,6 +179,7 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
         if (m.status === 'INVITED') return null; // Skip pending invites here
         try {
           const { data: linkedOrg } = await m.organization();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return linkedOrg ? ({ ...m, organization: linkedOrg } as any) : null;
         } catch { return null; }
       }));
@@ -183,9 +190,10 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
 
       if (activeList.length > 0) {
         // Load the first one by default if not already loaded, OR if current org is not in the list (e.g. removed)
-        const currentStillValid = org && activeList.find(m => m.organization.id === org.id);
+        const currentOrg = orgRef.current;
+        const currentStillValid = currentOrg && activeList.find(m => m.organization.id === currentOrg.id);
 
-        if (!org || !currentStillValid) {
+        if (!currentOrg || !currentStillValid) {
           await loadOrganization(activeList[0].organization.id);
         } else {
           // Just refresh data
@@ -267,7 +275,7 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
     } finally {
       setLoading(false);
     }
-  }, [org]);
+  }, [loadOrganization]);
 
   useEffect(() => {
     if (user) {
