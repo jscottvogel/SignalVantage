@@ -118,7 +118,7 @@ const ProfileView = ({ userProfile, onProfileUpdate }: { userProfile: any, onPro
         // Load my orgs
         const { data: memberships } = await userProfile.memberships();
         const activeMemberships = await Promise.all(memberships.map(async (m: any) => {
-          if (m.status !== 'ACTIVE') return null;
+          if (m.status && m.status !== 'ACTIVE') return null;
           const { data: org } = await m.organization();
           return { ...m, organization: org };
         }));
