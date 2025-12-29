@@ -40,6 +40,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import BusinessIcon from '@mui/icons-material/Business';
@@ -148,6 +149,97 @@ const ProfileView = ({ userProfile, onProfileUpdate }: { userProfile: any, onPro
     }
   };
 
+  const handleLeave = async (membership: any) => {
+    const orgName = membership.organization?.name || 'this organization';
+    if (!window.confirm(`Are you sure you want to leave ${orgName}?`)) return;
+
+    try {
+      setLoading(true);
+      // 1. Fetch organization details to get all members (for ownership check and reassignment)
+      const orgId = membership.organizationId;
+      const { data: orgRestored } = await client.models.Organization.get({ id: orgId });
+
+      if (!orgRestored) {
+        alert("Organization not found.");
+        setLoading(false);
+        return;
+      }
+
+      const { data: allMembers } = await orgRestored.members();
+
+      // Enrich members to get profile info
+      const membersWithProfiles = await Promise.all(allMembers.map(async (m) => {
+        if (m.userProfileId) {
+          const { data: p } = await m.user();
+          return { ...m, profile: p };
+        }
+        return m;
+      }));
+
+      // 2. Safety Check: Last Owner
+      const owners = membersWithProfiles.filter(m => m.role === 'OWNER');
+      if (membership.role === 'OWNER' && owners.length <= 1) {
+        alert("You are the last owner of this organization. You cannot leave without deleting the organization or appointing another owner.");
+        setLoading(false);
+        return;
+      }
+
+      // 3. Determine Target Owner for Reassignment
+      const targetOwnerMember = owners.find(m => m.userProfileId !== userProfile.id);
+
+      if (!targetOwnerMember || !targetOwnerMember.profile) {
+        alert("Could not find another owner to reassign your work to.");
+        setLoading(false);
+        return;
+      }
+
+      const targetOwner = {
+        userId: targetOwnerMember.profile.id,
+        displayName: targetOwnerMember.profile.preferredName || 'Organization Owner',
+        role: 'OWNER'
+      };
+
+      const removedUserId = userProfile.id;
+
+      // 4. Reassign Entities
+      const { data: objs } = await orgRestored.objectives();
+      const { data: outcomes } = await orgRestored.outcomes();
+      const { data: krs } = await orgRestored.keyResults();
+      const { data: inits } = await orgRestored.initiatives();
+
+      const updates: Promise<any>[] = [];
+
+      objs.forEach(o => {
+        if (o.owner?.userId === removedUserId) updates.push(client.models.StrategicObjective.update({ id: o.id, owner: targetOwner }));
+      });
+      outcomes.forEach(o => {
+        if (o.owner?.userId === removedUserId) updates.push(client.models.Outcome.update({ id: o.id, owner: targetOwner }));
+      });
+      krs.forEach(k => {
+        if (k.owners?.some((ow: any) => ow?.userId === removedUserId)) {
+          const newOwners = k.owners.map((ow: any) => ow.userId === removedUserId ? targetOwner : ow);
+          updates.push(client.models.KeyResult.update({ id: k.id, owners: newOwners }));
+        }
+      });
+      inits.forEach(i => {
+        if (i.owner?.userId === removedUserId) updates.push(client.models.Initiative.update({ id: i.id, owner: targetOwner }));
+      });
+
+      await Promise.all(updates);
+
+      // 5. Delete Membership
+      await client.models.Membership.delete({ id: membership.id });
+
+      alert(`You have left ${orgName}.`);
+      onProfileUpdate(); // Refresh UI/Re-bootstrap
+    } catch (e) {
+      console.error("Failed to leave organization", e);
+      alert("An error occurred while trying to leave the organization.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!userProfile || loading) return <Box p={4} textAlign="center"><CircularProgress /></Box>;
 
   return (
@@ -203,7 +295,19 @@ const ProfileView = ({ userProfile, onProfileUpdate }: { userProfile: any, onPro
         <List>
           {myOrgs.map((m, idx) => (
             <Box key={m.id}>
-              <ListItem>
+              <ListItem
+                secondaryAction={
+                  <Button
+                    color="error"
+                    size="small"
+                    onClick={() => handleLeave(m)}
+                    startIcon={<ExitToAppIcon />}
+                    sx={{ ml: 2 }}
+                  >
+                    Leave
+                  </Button>
+                }
+              >
                 <ListItemIcon>
                   <BusinessIcon color="action" />
                 </ListItemIcon>
@@ -211,7 +315,7 @@ const ProfileView = ({ userProfile, onProfileUpdate }: { userProfile: any, onPro
                   primary={m.organization?.name}
                   secondary={`Role: ${m.role}`}
                 />
-                {m.role === 'OWNER' && <Chip label="Owner" size="small" color="primary" variant="outlined" />}
+                {m.role === 'OWNER' && <Chip label="Owner" size="small" color="primary" variant="outlined" sx={{ ml: 2 }} />}
               </ListItem>
               {idx < myOrgs.length - 1 && <Divider />}
             </Box>
