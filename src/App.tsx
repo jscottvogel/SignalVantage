@@ -28,7 +28,9 @@ import {
   Alert,
   Stack,
   Skeleton,
-  Chip
+  Chip,
+  Menu,
+  MenuItem
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import GroupIcon from '@mui/icons-material/Group';
@@ -39,6 +41,9 @@ import AddIcon from '@mui/icons-material/Add';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import BusinessIcon from '@mui/icons-material/Business';
+import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
 
 import { StrategicObjectiveCard } from "./components/StrategicObjectiveCard";
 import { CreateObjectiveForm } from "./components/CreateObjectiveForm";
@@ -81,10 +86,141 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  // ... other existing imports
 } from '@mui/material';
 
-// ... other code
+
+const ProfileView = ({ userProfile, onProfileUpdate }: { userProfile: any, onProfileUpdate: () => void }) => {
+  const [invites, setInvites] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [myOrgs, setMyOrgs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        // Load pending invites
+        if (userProfile?.email) {
+          const { data: foundInvites } = await client.models.Membership.list({
+            filter: {
+              inviteEmail: { eq: userProfile.email },
+              status: { eq: 'INVITED' }
+            }
+          });
+
+          // Enrich invites with org data
+          const enrichedInvites = await Promise.all(foundInvites.map(async (inv) => {
+            const { data: org } = await inv.organization();
+            return { ...inv, organization: org };
+          }));
+          setInvites(enrichedInvites);
+        }
+
+        // Load my orgs
+        const { data: memberships } = await userProfile.memberships();
+        const activeMemberships = await Promise.all(memberships.map(async (m: any) => {
+          if (m.status !== 'ACTIVE') return null;
+          const { data: org } = await m.organization();
+          return { ...m, organization: org };
+        }));
+        setMyOrgs(activeMemberships.filter(m => m !== null));
+
+      } catch (e) {
+        console.error("Error loading profile data", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [userProfile]);
+
+  const handleAccept = async (inviteId: string) => {
+    try {
+      await client.models.Membership.update({
+        id: inviteId,
+        userProfileId: userProfile.id,
+        status: 'ACTIVE'
+      });
+      alert("Invitation accepted! You can now switch to this organization.");
+      onProfileUpdate(); // Refresh parent state
+    } catch (e) {
+      console.error("Failed to accept", e);
+      alert("Failed to accept invitation");
+    }
+  };
+
+  if (!userProfile || loading) return <Box p={4} textAlign="center"><CircularProgress /></Box>;
+
+  return (
+    <Box maxWidth="md">
+      <Typography variant="h4" gutterBottom fontWeight="bold" mb={4}>My Profile</Typography>
+
+      <Paper variant="outlined" sx={{ p: 4, mb: 4 }}>
+        <Stack direction="row" spacing={3} alignItems="center" mb={4}>
+          <Avatar sx={{ width: 80, height: 80, fontSize: '2rem' }}>
+            {userProfile.preferredName?.[0]?.toUpperCase()}
+          </Avatar>
+          <Box>
+            <Typography variant="h5" fontWeight="bold">{userProfile.preferredName}</Typography>
+            <Typography variant="body1" color="text.secondary">{userProfile.email}</Typography>
+          </Box>
+        </Stack>
+      </Paper>
+
+      <Typography variant="h6" gutterBottom>Pending Invitations</Typography>
+      {invites.length === 0 ? (
+        <Paper variant="outlined" sx={{ p: 4, mb: 4, textAlign: 'center', bgcolor: 'rgba(0,0,0,0.02)' }}>
+          <Typography color="text.secondary">No pending invitations.</Typography>
+        </Paper>
+      ) : (
+        <Stack spacing={2} mb={4}>
+          {invites.map(inv => (
+            <Paper key={inv.id} variant="outlined" sx={{ p: 2 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    Invited to join {inv.organization?.name || 'an Organization'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Role: {inv.role}
+                  </Typography>
+                </Box>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<MarkEmailReadIcon />}
+                  onClick={() => handleAccept(inv.id)}
+                >
+                  Accept & Join
+                </Button>
+              </Stack>
+            </Paper>
+          ))}
+        </Stack>
+      )}
+
+      <Typography variant="h6" gutterBottom>My Organizations</Typography>
+      <Paper variant="outlined">
+        <List>
+          {myOrgs.map((m, idx) => (
+            <Box key={m.id}>
+              <ListItem>
+                <ListItemIcon>
+                  <BusinessIcon color="action" />
+                </ListItemIcon>
+                <ListItemText
+                  primary={m.organization?.name}
+                  secondary={`Role: ${m.role}`}
+                />
+                {m.role === 'OWNER' && <Chip label="Owner" size="small" color="primary" variant="outlined" />}
+              </ListItem>
+              {idx < myOrgs.length - 1 && <Divider />}
+            </Box>
+          ))}
+        </List>
+      </Paper>
+    </Box>
+  );
+};
 
 const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
   const [members, setMembers] = useState<any[]>([]);
@@ -300,6 +436,34 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showBriefing, setShowBriefing] = useState(false);
 
+  // New State for Org Switching & Profile
+  const [userProfile, setUserProfile] = useState<Schema["UserProfile"]["type"] | null>(null);
+  const [activeMemberships, setActiveMemberships] = useState<any[]>([]);
+  const [orgMenuAnchor, setOrgMenuAnchor] = useState<null | HTMLElement>(null);
+
+  // Helper to load org data once ID is known
+  const loadOrganization = async (organizationId: string) => {
+    try {
+      setLoading(true);
+      const { data: organization } = await client.models.Organization.get({ id: organizationId });
+      if (organization) {
+        setOrg(organization);
+        const { data: objs } = await organization.objectives();
+        setObjectives(objs);
+      }
+    } catch (e) {
+      console.error("Failed to load organization", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOrgSwitch = (orgId: string) => {
+    loadOrganization(orgId);
+    setOrgMenuAnchor(null);
+    setCurrentView('dashboard');
+  };
+
   // Feedback Handling
   const [snackbar, setSnackbar] = useState<{ open: boolean, message: string, severity: 'success' | 'error' | 'info' }>({
     open: false,
@@ -323,43 +487,111 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
     try {
       setLoading(true);
       const { data: profiles } = await client.models.UserProfile.list();
-      let userProfile = profiles[0];
+      let foundProfile = profiles[0];
 
-      if (!userProfile) {
+      if (!foundProfile) {
         console.log("Creating new UserProfile...");
         const { data: newProfile, errors } = await client.models.UserProfile.create({
           email: currentUser?.signInDetails?.loginId || "unknown",
           preferredName: currentUser?.signInDetails?.loginId || "User",
         });
         if (errors) throw new Error(errors[0].message);
-        userProfile = newProfile!;
+        foundProfile = newProfile!;
       }
+      setUserProfile(foundProfile);
 
-      const { data: memberships } = await userProfile.memberships();
+      // Fetch all memberships
+      const { data: memberships } = await foundProfile.memberships();
 
-      if (memberships.length > 0) {
-        const membership = memberships[0];
-        const { data: organization } = await membership.organization();
+      // Filter for ACTIVE memberships and enrich with Organization names
+      const enriched = await Promise.all(memberships.map(async (m) => {
+        if (m.status === 'INVITED') return null; // Skip pending invites here
+        try {
+          const { data: linkedOrg } = await m.organization();
+          return linkedOrg ? { ...m, organization: linkedOrg } : null;
+        } catch { return null; }
+      }));
 
-        if (organization) {
-          const { data: objs } = await organization.objectives();
-          setObjectives(objs);
-          setOrg(organization);
+      const activeList = enriched.filter(m => m !== null);
+      setActiveMemberships(activeList);
+
+      if (activeList.length > 0) {
+        // Load the first one by default if not already loaded, OR if current org is not in the list (e.g. removed)
+        const currentStillValid = org && activeList.find(m => m.organization.id === org.id);
+
+        if (!org || !currentStillValid) {
+          await loadOrganization(activeList[0].organization.id);
+        } else {
+          // Just refresh data
+          if (activeList[0]?.organization?.id) {
+            await loadOrganization(activeList[0].organization.id);
+          }
         }
+
       } else {
-        const { data: newOrg, errors: orgErrors } = await client.models.Organization.create({
-          name: "My Organization",
-        });
-        if (orgErrors) throw new Error(orgErrors[0].message);
+        let organization = null;
+        const email = currentUser?.signInDetails?.loginId;
 
-        const { errors: memErrors } = await client.models.Membership.create({
-          role: "OWNER",
-          organizationId: newOrg!.id,
-          userProfileId: userProfile.id,
-        });
-        if (memErrors) throw new Error(memErrors[0].message);
+        // 1. Check for pending invites matching user's email
+        if (email) {
+          try {
+            const { data: invites } = await client.models.Membership.list({
+              filter: {
+                inviteEmail: { eq: email },
+                status: { eq: 'INVITED' }
+              }
+            });
 
-        setOrg(newOrg);
+            if (invites.length > 0) {
+              console.log("Found pending invite, accepting...");
+              const invite = invites[0];
+
+              // Link profile to membership and activate
+              const { data: updatedMember, errors: updateErrors } = await client.models.Membership.update({
+                id: invite.id,
+                userProfileId: foundProfile.id,
+                status: 'ACTIVE'
+              });
+
+              if (updateErrors) throw new Error(updateErrors[0].message);
+
+              if (updatedMember) {
+                const { data: linkedOrg } = await updatedMember.organization();
+                if (linkedOrg) {
+                  organization = linkedOrg;
+                  showSuccess(`Successfully joined ${linkedOrg.name}`);
+                  // Refresh memberships
+                  const newMembership = { ...updatedMember, organization: linkedOrg };
+                  setActiveMemberships([newMembership]);
+                }
+              }
+            }
+          } catch (e) {
+            console.warn("Error processing invite:", e);
+          }
+        }
+
+        // 2. If an organization was found/joined, load it. Otherwise create new.
+        if (organization) {
+          await loadOrganization(organization.id);
+        } else {
+          const { data: newOrg, errors: orgErrors } = await client.models.Organization.create({
+            name: "My Organization",
+          });
+          if (orgErrors) throw new Error(orgErrors[0].message);
+
+          const { data: newMem, errors: memErrors } = await client.models.Membership.create({
+            role: "OWNER",
+            organizationId: newOrg!.id,
+            userProfileId: foundProfile.id,
+            status: 'ACTIVE'
+          });
+          if (memErrors) throw new Error(memErrors[0].message);
+
+          setActiveMemberships([{ ...newMem, organization: newOrg }]);
+          setOrg(newOrg);
+          setObjectives([]); // New org empty
+        }
       }
     } catch (e) {
       console.error("Error bootstrapping:", e);
@@ -449,7 +681,12 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
       case 'settings':
         return <Paper sx={{ p: 6, textAlign: 'center' }}><Typography color="text.secondary">Organization settings coming soon.</Typography></Paper>;
       case 'profile':
-        return <Paper sx={{ p: 6, textAlign: 'center' }}><Typography color="text.secondary">User profile management coming soon.</Typography></Paper>;
+        return userProfile ? (
+          <ProfileView
+            userProfile={userProfile}
+            onProfileUpdate={() => checkAndBootstrap(user)}
+          />
+        ) : <CircularProgress />;
       default:
         const stats = { action: 0, watch: 0, stable: 0 };
         objectives.forEach(obj => {
@@ -568,9 +805,21 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
   };
 
   if (!org && !loading) return (
-    // ...
-    <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
-      <Typography color="text.secondary">Unable to access workspace. Please contact support.</Typography>
+    <Box sx={{ display: 'flex' }}>
+      <CssBaseline />
+      <AppBar position="fixed" elevation={0} sx={{ bgcolor: 'background.default', borderBottom: 1, borderColor: 'divider' }}>
+        <Toolbar>
+          <Typography variant="h6" color="text.primary" fontWeight="bold">VANTAGE</Typography>
+          <Box flexGrow={1} />
+          <Button onClick={signOut}>Sign Out</Button>
+        </Toolbar>
+      </AppBar>
+      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 10 }}>
+        <Box display="flex" justifyContent="center" alignItems="center" height="60vh" flexDirection="column">
+          <CircularProgress size={48} sx={{ mb: 2 }} />
+          <Typography color="text.secondary">Loading workspace...</Typography>
+        </Box>
+      </Box>
     </Box>
   );
 
@@ -578,7 +827,7 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
 
-      {/* Top Bar (Mobile Only for Title, Desktop has header in sidebar usually, but here we keep app bar for breadcrumbs/user mostly on mobile) */}
+      {/* Top Bar */}
       <AppBar
         position="fixed"
         sx={{
@@ -604,11 +853,31 @@ function Dashboard({ user, signOut }: { user: any; signOut: ((data?: any) => voi
             <MenuIcon />
           </IconButton>
 
-          {/* Breadcrumb-ish title for context */}
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
-            {/* Dynamic Title based on View */}
-            {org?.name}
-          </Typography>
+          <Box sx={{ flexGrow: 1 }}>
+            <Button
+              endIcon={<ExpandMoreIcon />}
+              onClick={(e) => setOrgMenuAnchor(e.currentTarget)}
+              sx={{
+                color: 'text.primary',
+                textTransform: 'none',
+                fontSize: '1.25rem',
+                fontWeight: 700
+              }}
+            >
+              {org?.name || 'Vantage'}
+            </Button>
+            <Menu
+              anchorEl={orgMenuAnchor}
+              open={Boolean(orgMenuAnchor)}
+              onClose={() => setOrgMenuAnchor(null)}
+            >
+              {activeMemberships.map(m => (
+                <MenuItem key={m.id} onClick={() => handleOrgSwitch(m.organization.id)}>
+                  {m.organization.name}
+                </MenuItem>
+              ))}
+            </Menu>
+          </Box>
 
           <Box display="flex" alignItems="center" gap={2}>
             <Button color="inherit" size="small" sx={{ display: { xs: 'none', sm: 'block' } }}>Help</Button>
