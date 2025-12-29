@@ -371,19 +371,19 @@ const TeamView = ({ org }: { org: Schema["Organization"]["type"] }) => {
               >
                 <ListItemIcon>
                   <Avatar sx={{ bgcolor: m.status === 'INVITED' ? 'grey.400' : 'secondary.main' }}>
-                    {m.status === 'INVITED' ? '@' : m.profile?.preferredName?.[0]?.toUpperCase() || 'U'}
+                    {m.profile?.preferredName?.[0]?.toUpperCase() || m.inviteEmail?.[0]?.toUpperCase() || 'U'}
                   </Avatar>
                 </ListItemIcon>
                 <ListItemText
                   primary={
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Typography variant="subtitle1" fontWeight={600}>
-                        {m.status === 'INVITED' ? (m.inviteEmail || 'Invited User') : (m.profile?.preferredName || 'Unknown User')}
+                        {m.profile?.preferredName || m.inviteEmail || 'Unknown User'}
                       </Typography>
                       {m.status === 'INVITED' && <Chip label="Invited" size="small" variant="outlined" />}
                     </Stack>
                   }
-                  secondary={m.status === 'INVITED' ? 'Pending Acceptance' : (m.profile?.email || 'No email')}
+                  secondary={m.status === 'INVITED' ? 'Pending Acceptance' : (m.profile?.email || m.inviteEmail || 'No email')}
                 />
                 <Chip
                   label={m.role}
