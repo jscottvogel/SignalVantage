@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../amplify/data/resource";
 import {
@@ -13,7 +13,7 @@ import {
     ListItem,
     ListItemIcon,
     ListItemText,
-    Divider,
+
     Chip
 } from '@mui/material';
 import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
@@ -32,46 +32,47 @@ export const ProfileView = ({ userProfile, onProfileUpdate }: ProfileViewProps) 
     const [loading, setLoading] = useState(false);
     const [myOrgs, setMyOrgs] = useState<(Schema["Membership"]["type"] & { organization?: Schema["Organization"]["type"] })[]>([]);
 
-    useEffect(() => {
-        const loadData = async () => {
-            setLoading(true);
-            try {
-                // Load pending invites
-                if (userProfile?.email) {
-                    const { data: foundInvites } = await client.models.Membership.list({
-                        filter: {
-                            inviteEmail: { eq: userProfile.email },
-                            status: { eq: 'INVITED' }
-                        }
-                    });
+    const loadData = useCallback(async () => {
+        setLoading(true);
+        try {
+            // Load pending invites
+            if (userProfile?.email) {
+                const { data: foundInvites } = await client.models.Membership.list({
+                    filter: {
+                        inviteEmail: { eq: userProfile.email },
+                        status: { eq: 'INVITED' }
+                    }
+                });
 
-                    // Enrich invites with org data
-                    const enrichedInvites = await Promise.all(foundInvites.map(async (inv) => {
-                        const { data: org } = await inv.organization();
-                        return { ...inv, organization: org };
-                    }));
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    setInvites(enrichedInvites as any);
-                }
-
-                // Load my orgs
-                const { data: memberships } = await userProfile.memberships();
-                const activeMemberships = await Promise.all(memberships.map(async (m) => {
-                    if (m.status && m.status !== 'ACTIVE') return null;
-                    const { data: org } = await m.organization();
-                    return { ...m, organization: org };
+                // Enrich invites with org data
+                const enrichedInvites = await Promise.all(foundInvites.map(async (inv) => {
+                    const { data: org } = await inv.organization();
+                    return { ...inv, organization: org };
                 }));
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                setMyOrgs(activeMemberships.filter(m => m !== null) as any);
-
-            } catch (e) {
-                console.error("Error loading profile data", e);
-            } finally {
-                setLoading(false);
+                setInvites(enrichedInvites as any);
             }
-        };
-        loadData();
+
+            // Load my orgs
+            const { data: memberships } = await userProfile.memberships();
+            const activeMemberships = await Promise.all(memberships.map(async (m) => {
+                if (m.status && m.status !== 'ACTIVE') return null;
+                const { data: org } = await m.organization();
+                return { ...m, organization: org };
+            }));
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            setMyOrgs(activeMemberships.filter(m => m !== null) as any);
+
+        } catch (e) {
+            console.error("Error loading profile data", e);
+        } finally {
+            setLoading(false);
+        }
     }, [userProfile]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     const handleAccept = async (inviteId: string) => {
         try {
@@ -237,28 +238,30 @@ export const ProfileView = ({ userProfile, onProfileUpdate }: ProfileViewProps) 
                     {myOrgs.map((m, idx) => (
                         <Box key={m.id}>
                             <ListItem
-                                secondaryAction={
-                                    <Button
-                                        color="error"
-                                        size="small"
-                                        onClick={() => handleLeave(m)}
-                                        startIcon={<ExitToAppIcon />}
-                                        sx={{ ml: 2 }}
-                                    >
-                                        Leave
-                                    </Button>
-                                }
+                                divider={idx < myOrgs.length - 1}
                             >
                                 <ListItemIcon>
                                     <BusinessIcon color="action" />
                                 </ListItemIcon>
                                 <ListItemText
-                                    primary={m.organization?.name}
+                                    primary={
+                                        <Stack direction="row" alignItems="center" spacing={2}>
+                                            <Typography variant="body1">{m.organization?.name}</Typography>
+                                            {m.role === 'OWNER' && <Chip label="Owner" size="small" color="primary" variant="outlined" />}
+                                        </Stack>
+                                    }
                                     secondary={`Role: ${m.role}`}
                                 />
-                                {m.role === 'OWNER' && <Chip label="Owner" size="small" color="primary" variant="outlined" sx={{ ml: 2 }} />}
+                                <Button
+                                    color="error"
+                                    size="small"
+                                    onClick={() => handleLeave(m)}
+                                    startIcon={<ExitToAppIcon />}
+                                    sx={{ ml: 2, minWidth: '100px' }}
+                                >
+                                    Leave
+                                </Button>
                             </ListItem>
-                            {idx < myOrgs.length - 1 && <Divider />}
                         </Box>
                     ))}
                 </List>
