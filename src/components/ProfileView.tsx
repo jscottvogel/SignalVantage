@@ -25,9 +25,10 @@ const client = generateClient<Schema>();
 interface ProfileViewProps {
     userProfile: Schema["UserProfile"]["type"];
     onProfileUpdate: () => void;
+    onCreateOrganization: () => void;
 }
 
-export const ProfileView = ({ userProfile, onProfileUpdate }: ProfileViewProps) => {
+export const ProfileView = ({ userProfile, onProfileUpdate, onCreateOrganization }: ProfileViewProps) => {
     const [invites, setInvites] = useState<(Schema["Membership"]["type"] & { organization?: Schema["Organization"]["type"] })[]>([]);
     const [loading, setLoading] = useState(false);
     const [myOrgs, setMyOrgs] = useState<(Schema["Membership"]["type"] & { organization?: Schema["Organization"]["type"] })[]>([]);
@@ -232,7 +233,12 @@ export const ProfileView = ({ userProfile, onProfileUpdate }: ProfileViewProps) 
                 </Stack>
             )}
 
-            <Typography variant="h6" gutterBottom>My Organizations</Typography>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6">My Organizations</Typography>
+                <Button variant="outlined" onClick={onCreateOrganization}>
+                    Create Organization
+                </Button>
+            </Stack>
             <Paper variant="outlined">
                 <List>
                     {myOrgs.map((m, idx) => (

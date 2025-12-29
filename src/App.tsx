@@ -348,6 +348,7 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
           <ProfileView
             userProfile={userProfile}
             onProfileUpdate={() => user && checkAndBootstrap(user)}
+            onCreateOrganization={() => setShowCreateOrgWizard(true)}
           />
         ) : <CircularProgress />;
       default: {
