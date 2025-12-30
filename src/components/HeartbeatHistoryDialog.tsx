@@ -33,10 +33,16 @@ export default function HeartbeatHistoryDialog({ open, onClose, item, itemType }
         try {
             // Filter heartbeats by the appropriate ID field
             let filter: any = {};
+            // Strict ID check
+            if (!item?.id) return;
+
             if (itemType === 'initiative') filter = { initiativeId: { eq: item.id } };
             else if (itemType === 'outcome') filter = { outcomeId: { eq: item.id } };
             else if (itemType === 'objective') filter = { strategicObjectiveId: { eq: item.id } };
             else if (itemType === 'kr') filter = { keyResultId: { eq: item.id } };
+
+            // Explicitly ensure we are filtering for non-null ID
+            console.log("Fetching history for", itemType, item.id);
 
             const { data } = await client.models.Heartbeat.list({
                 filter: filter,
