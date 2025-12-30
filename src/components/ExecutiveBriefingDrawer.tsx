@@ -31,6 +31,8 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
 
     useEffect(() => {
         if (open && organizationId) {
+            setGeneratedNarrative('');
+            setGeneratedSummary('');
             loadContext();
         }
     }, [open, organizationId]);
@@ -93,9 +95,7 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
         }
     };
 
-    const handleGenerate = async () => {
-        setLoading(true);
-
+    const getPrompt = () => {
         const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives.
 Format your response exactly as follows:
 
@@ -107,7 +107,12 @@ EXECUTIVE_NARRATIVE
 
 DO NOT output JSON. DO NOT use markdown code blocks.
 DO NOT MAKE UP ANY FACTS or embellish the material. Use the provided context data.`;
-        const fullPrompt = `SYSTEM_PROMPT: ${systemPrompt} \n\nADDITIONAL_INSTRUCTIONS: ${instructions} \n\nCONTEXT_DATA_JSON: \n${contextData} `;
+        return `SYSTEM_PROMPT: ${systemPrompt} \n\nADDITIONAL_INSTRUCTIONS: ${instructions} \n\nCONTEXT_DATA_JSON: \n${contextData} `;
+    };
+
+    const handleGenerate = async () => {
+        setLoading(true);
+        const fullPrompt = getPrompt();
 
         try {
             const { data, errors } = await client.queries.generateBriefing({ prompt: fullPrompt });
@@ -127,8 +132,7 @@ DO NOT MAKE UP ANY FACTS or embellish the material. Use the provided context dat
     };
 
     const handleCopyPrompt = () => {
-        const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives... (JSON format requested)`;
-        const fullPrompt = `SYSTEM_PROMPT: ${systemPrompt} \n\nADDITIONAL_INSTRUCTIONS: ${instructions} \n\nCONTEXT_DATA_JSON: \n${contextData} `;
+        const fullPrompt = getPrompt();
         navigator.clipboard.writeText(fullPrompt);
         alert("Full prompt with context copied to clipboard!");
     };

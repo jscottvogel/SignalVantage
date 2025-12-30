@@ -99,9 +99,14 @@ interface ItemDialogState {
 }
 
 export function ObjectiveDetailModal({ objective, onClose }: Props) {
+    const [localObjective, setLocalObjective] = useState(objective);
     const [outcomes, setOutcomes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [members, setMembers] = useState<any[]>([]);
+
+    useEffect(() => {
+        setLocalObjective(objective);
+    }, [objective]);
 
     // Dialog State
     const [dialogState, setDialogState] = useState<ItemDialogState>({
@@ -155,6 +160,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
 
     const refreshTree = useCallback(async () => {
         try {
+            // Refresh main object
+            const { data: refreshed } = await client.models.StrategicObjective.get({ id: objective.id });
+            if (refreshed) setLocalObjective(refreshed);
+
             // Fetch outcomes
             const { data: outcomesRes } = await objective.outcomes();
 
@@ -585,27 +594,27 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     <Box>
                         <Typography variant="overline" color="text.secondary" fontWeight="bold">STRATEGIC OBJECTIVE</Typography>
                         <Stack direction="row" spacing={2} alignItems="center">
-                            <Typography variant="h5" fontWeight="bold" color="primary.main">{objective.title}</Typography>
-                            {objective.owner && <OwnerChip owner={objective.owner} />}
+                            <Typography variant="h5" fontWeight="bold" color="primary.main">{localObjective.title}</Typography>
+                            {localObjective.owner && <OwnerChip owner={localObjective.owner} />}
                             <Tooltip title="Start Heartbeat">
-                                <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('objective', objective)}>
+                                <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('objective', localObjective)}>
                                     <MonitorHeartIcon fontSize="small" />
                                 </IconButton>
                             </Tooltip>
                             {outcomes.length > 0 && (
                                 <Tooltip title="Adjust Outcome Weights">
-                                    <IconButton size="small" onClick={() => openWeightModal(outcomes, objective.title, 'Outcome', client.models.Outcome)}>
+                                    <IconButton size="small" onClick={() => openWeightModal(outcomes, localObjective.title, 'Outcome', client.models.Outcome)}>
                                         <BalanceIcon fontSize="small" />
                                     </IconButton>
                                 </Tooltip>
                             )}
                             <Tooltip title="View History">
-                                <IconButton size="small" onClick={() => setHistoryState({ open: true, item: objective, type: 'objective' })}>
+                                <IconButton size="small" onClick={() => setHistoryState({ open: true, item: localObjective, type: 'objective' })}>
                                     <HistoryIcon fontSize="small" />
                                 </IconButton>
                             </Tooltip>
-                            <Tooltip title="Edit Objective"><IconButton size="small" onClick={() => openDialog('edit', 'objective' as any, '', objective)}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                            <Tooltip title="Delete Objective"><IconButton size="small" onClick={() => handleDelete('objective', objective.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                            <Tooltip title="Edit Objective"><IconButton size="small" onClick={() => openDialog('edit', 'objective' as any, '', localObjective)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                            <Tooltip title="Delete Objective"><IconButton size="small" onClick={() => handleDelete('objective', localObjective.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
                         </Stack>
                     </Box>
                     <IconButton onClick={onClose} aria-label="close"><CloseIcon /></IconButton>
@@ -615,10 +624,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     {/* Header / Context Area */}
                     <Box p={3} bgcolor="background.paper" mb={1} sx={{ borderBottom: 1, borderColor: 'divider' }}>
                         <Typography variant="body1" color="text.secondary" paragraph>
-                            {objective.description || "No description provided."}
+                            {localObjective.description || "No description provided."}
                         </Typography>
                         <Stack direction="row" spacing={1}>
-                            <HeartbeatStatus due={objective.nextHeartbeatDue} />
+                            <HeartbeatStatus due={localObjective.nextHeartbeatDue} />
 
                             {/* Weighted Confidence Calculation */}
                             {(() => {
