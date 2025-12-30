@@ -87,42 +87,71 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     const [isSynthesizing, setIsSynthesizing] = useState(false);
 
     const synthesizeDraft = async () => {
-        if (itemType !== 'objective') return;
         setIsSynthesizing(true);
         try {
-            const objective = item as any;
-            const orgId = objective.organizationId;
+            let contextStr = '';
+            // @ts-ignore
+            const orgId = item.organizationId;
 
-            // Fetch All Initiatives for context
-            const { data: allInits } = await client.models.Initiative.list({
-                filter: { organizationId: { eq: orgId } }
-            });
-
-            // 1. Fetch Deep Context
-            const { data: outcomes } = await objective.outcomes();
-            // Manually constructing a simple context string to save complexity
-            let contextStr = `Strategic Objective: ${objective.title}\nDescription: ${objective.description}\n\nActivity Data:\n`;
-
-            for (const outcome of outcomes) {
-                contextStr += `Outcome: ${outcome.title} (Status: ${outcome.status}, Weight: ${outcome.weight})\n`;
-                const { data: krs } = await outcome.keyResults();
-                for (const kr of krs) {
-                    const relevantInits = allInits.filter((init: any) =>
-                        init.linkedEntities?.keyResultIds?.includes(kr.id)
-                    );
-
-                    const krConf = kr.latestHeartbeat?.systemAssessment?.systemConfidence || kr.latestHeartbeat?.ownerInput?.ownerConfidence || 'N/A';
-                    contextStr += `  - KR: ${kr.statement} (Confidence: ${krConf})\n`;
-                    for (const init of relevantInits) {
-                        const initUpdates = init.latestHeartbeat?.ownerInput?.progressSummary || "No recent updates";
-                        const health = init.state?.health || 'Unknown';
-                        contextStr += `    * Initiative: ${init.title} (Health: ${health}). Update: ${initUpdates}\n`;
-                    }
+            // Fetch Initiatives if needed (Outcome/KR/Objective)
+            let allInits: any[] = [];
+            if (['objective', 'outcome', 'kr'].includes(itemType)) {
+                try {
+                    const { data } = await client.models.Initiative.list({
+                        filter: { organizationId: { eq: orgId } }
+                    });
+                    allInits = data;
+                } catch (e) {
+                    console.log("Failed to fetch initiatives", e);
                 }
             }
 
+            if (itemType === 'objective') {
+                const objective = item as any;
+                const { data: outcomes } = await objective.outcomes();
+                contextStr = `Strategic Objective: ${objective.title}\nDescription: ${objective.description}\n\nActivity Data:\n`;
+                for (const outcome of outcomes) {
+                    contextStr += `Outcome: ${outcome.title} (Status: ${outcome.status})\n`;
+                    const { data: krs } = await outcome.keyResults();
+                    for (const kr of krs) {
+                        const relevantInits = allInits.filter((init: any) => init.linkedEntities?.keyResultIds?.includes(kr.id));
+                        const krConf = kr.latestHeartbeat?.ownerInput?.ownerConfidence || 'N/A';
+                        contextStr += `  - KR: ${kr.statement} (Confidence: ${krConf})\n`;
+                        for (const init of relevantInits) {
+                            const initUpdates = init.latestHeartbeat?.ownerInput?.progressSummary || "No recent updates";
+                            contextStr += `    * Initiative: ${init.title}. Update: ${initUpdates}\n`;
+                        }
+                    }
+                }
+            } else if (itemType === 'outcome') {
+                const outcome = item as any;
+                const { data: krs } = await outcome.keyResults();
+                contextStr = `Outcome: ${outcome.title}\nDescription: ${outcome.description}\n\nActivity Data:\n`;
+                for (const kr of krs) {
+                    const relevantInits = allInits.filter((init: any) => init.linkedEntities?.keyResultIds?.includes(kr.id));
+                    const krConf = kr.latestHeartbeat?.ownerInput?.ownerConfidence || 'N/A';
+                    contextStr += `  - KR: ${kr.statement} (Confidence: ${krConf})\n`;
+                    for (const init of relevantInits) {
+                        const initUpdates = init.latestHeartbeat?.ownerInput?.progressSummary || "No recent updates";
+                        contextStr += `    * Initiative: ${init.title}. Update: ${initUpdates}\n`;
+                    }
+                }
+            } else if (itemType === 'kr') {
+                const kr = item as any;
+                const relevantInits = allInits.filter((init: any) => init.linkedEntities?.keyResultIds?.includes(kr.id));
+                contextStr = `Key Result: ${kr.statement}\nMetric: ${kr.metric?.name}\n\nActivity Data:\n`;
+                for (const init of relevantInits) {
+                    const initUpdates = init.latestHeartbeat?.ownerInput?.progressSummary || "No recent updates";
+                    contextStr += `    * Initiative: ${init.title}. Update: ${initUpdates}\n`;
+                }
+            } else if (itemType === 'initiative') {
+                const init = item as any;
+                contextStr = `Initiative: ${init.title}\nDescription: ${init.description}\nState: ${init.state?.lifecycle}\n\n`;
+                contextStr += "Please draft a professional update for this initiative based on its description and standard progress.";
+            }
+
             // 2. Call LLM
-            const systemPrompt = `Analyze the provided context for a Strategic Objective and synthesize a Heartbeat Update.
+            const systemPrompt = `Analyze the provided context for a ${itemType} and synthesize a Heartbeat Update.
 Format your response exactly as follows:
 
 EXECUTIVE_SUMMARY
@@ -140,7 +169,6 @@ DO NOT output JSON. Use the tags above.`;
 
             if (response) {
                 // 3. Parse Response
-                // Summary stores Confidence & Rationale
                 const summaryPart = response.summary || "";
                 const narrativePart = response.narrative || "";
 
@@ -485,20 +513,18 @@ DO NOT output JSON. Use the tags above.`;
             case 1: // Progress
                 return (
                     <Box pt={2}>
-                        {itemType === 'objective' && (
-                            <Box mb={2} display="flex" justifyContent="flex-end">
-                                <Button
-                                    variant="outlined"
-                                    color="secondary"
-                                    startIcon={isSynthesizing ? <CircularProgress size={16} /> : <SmartToyIcon />}
-                                    onClick={synthesizeDraft}
-                                    disabled={isSynthesizing}
-                                    size="small"
-                                >
-                                    {isSynthesizing ? "Synthesizing..." : "AI Assist: Synthesize Draft"}
-                                </Button>
-                            </Box>
-                        )}
+                        <Box mb={2} display="flex" justifyContent="flex-end">
+                            <Button
+                                variant="outlined"
+                                color="secondary"
+                                startIcon={isSynthesizing ? <CircularProgress size={16} /> : <SmartToyIcon />}
+                                onClick={synthesizeDraft}
+                                disabled={isSynthesizing}
+                                size="small"
+                            >
+                                {isSynthesizing ? "Synthesizing..." : "AI Assist: Synthesize Draft"}
+                            </Button>
+                        </Box>
                         {(item as Schema['KeyResult']['type']).metric && (
                             <Box mb={3} p={2} bgcolor="primary.light" borderRadius={1} bg-opacity={0.1}>
                                 <Typography variant="subtitle2" gutterBottom color="primary.dark">
@@ -665,24 +691,22 @@ DO NOT output JSON. Use the tags above.`;
                             </Box>
                         </Stack>
 
-                        {itemType === 'objective' && (
-                            <Box mt={3} p={2} bgcolor="warning.50" border={1} borderColor="warning.200" borderRadius={1}>
-                                <FormControlLabel
-                                    control={
-                                        <Checkbox
-                                            checked={isAttested}
-                                            onChange={(e) => setIsAttested(e.target.checked)}
-                                            color="primary"
-                                        />
-                                    }
-                                    label={
-                                        <Typography variant="body2" fontWeight="bold">
-                                            I attest that this heartbeat update is accurate and reflects the current status of this Strategic Objective.
-                                        </Typography>
-                                    }
-                                />
-                            </Box>
-                        )}
+                        <Box mt={3} p={2} bgcolor="warning.50" border={1} borderColor="warning.200" borderRadius={1}>
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={isAttested}
+                                        onChange={(e) => setIsAttested(e.target.checked)}
+                                        color="primary"
+                                    />
+                                }
+                                label={
+                                    <Typography variant="body2" fontWeight="bold">
+                                        I attest that this heartbeat update is accurate and reflects the current status of this {itemType === 'kr' ? 'Key Result' : itemType.charAt(0).toUpperCase() + itemType.slice(1)}.
+                                    </Typography>
+                                }
+                            />
+                        </Box>
                     </Box>
                 );
             default:
@@ -714,7 +738,7 @@ DO NOT output JSON. Use the tags above.`;
                     disabled={
                         (activeStep === 3 && !confidenceRationale) ||
                         (activeStep === 1 && !progressSummary) ||
-                        (activeStep === steps.length - 1 && itemType === 'objective' && !isAttested) ||
+                        (activeStep === steps.length - 1 && !isAttested) ||
                         isSubmitting
                     }
                 >
