@@ -31,6 +31,10 @@ type StrategicItem =
     | Schema['StrategicObjective']['type']
     | Schema['KeyResult']['type'];
 
+type KeyResultWithInitiatives = Schema['KeyResult']['type'] & {
+    initiatives?: Schema['Initiative']['type'][];
+};
+
 interface HeartbeatWizardProps {
     open: boolean;
     onClose: () => void;
@@ -107,14 +111,18 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     // Calculate KR Rollup on mount
     useState(() => {
         if (itemType === 'kr') {
-            const kr = item as Schema['KeyResult']['type'];
-            const initiatives = (kr as any).initiatives;
+            const kr = item as KeyResultWithInitiatives;
+            const initiatives = kr.initiatives;
             if (initiatives) {
-                const mappedInitiatives = initiatives.map((i: any) => ({
+                const mappedInitiatives = initiatives.map(i => ({
                     confidence: i.latestHeartbeat?.systemAssessment?.systemConfidence || i.latestHeartbeat?.ownerInput?.ownerConfidence || 'MEDIUM',
                     title: i.title
                 }));
-                setDerivedKR(generateKeyResultRollup(mappedInitiatives));
+                const rollup = generateKeyResultRollup(mappedInitiatives);
+                setDerivedKR({
+                    ...rollup,
+                    confidence: rollup.confidence as string | number // handling loose type matching for now
+                });
             }
         }
     });
@@ -154,11 +162,11 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
         setIsSubmitting(true);
         try {
             const now = new Date().toISOString();
-            let heartbeatPayload: any = {};
-            let systemAssessment: any = {};
-            let ownerInput: any = {};
+            let heartbeatPayload: Partial<Parameters<typeof client.models.Heartbeat.create>[0]> = {};
+            let systemAssessment: Schema['SystemAssessment']['type'] | undefined;
+            let ownerInput: Schema['OwnerInput']['type'] | undefined;
 
-            const itemKR = itemType === 'kr' ? (item as Schema['KeyResult']['type']) : null;
+            const itemKR = itemType === 'kr' ? (item as KeyResultWithInitiatives) : null;
 
             // If KR has a metric, treat it as specific data collection (standard flow)
             // Otherwise, use derived rollup
@@ -167,7 +175,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 if (!derivedKR) throw new Error("Rollup calculation failed");
 
                 systemAssessment = {
-                    systemConfidence: derivedKR.confidence,
+                    systemConfidence: Number(derivedKR.confidence),
                     confidenceTrend: derivedKR.trend,
                     integritySignals: {
                         updateFreshness: 'ON_TIME', // Assumed for rollup
@@ -176,7 +184,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                     },
                     uncertaintyFlags: [],
                     factsInferencesRecommendations: {
-                        facts: [`Rolled up from ${(itemKR as any).initiatives?.length || 0} initiatives.`],
+                        facts: [`Rolled up from ${itemKR?.initiatives?.length || 0} initiatives.`],
                         inferences: [],
                         recommendations: []
                     }
@@ -220,8 +228,8 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
 
                 // Calculate System Assessment
                 systemAssessment = assessHeartbeat(
-                    ownerInput as any,
-                    (item as any).latestHeartbeat,
+                    ownerInput as Schema['OwnerInput']['type'],
+                    item.latestHeartbeat,
                     item.nextHeartbeatDue
                 );
 
@@ -251,7 +259,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 else if (itemType === 'kr') heartbeatPayload.keyResultId = item.id;
             }
 
-            const newHeartbeat = await client.models.Heartbeat.create(heartbeatPayload);
+            const newHeartbeat = await client.models.Heartbeat.create(heartbeatPayload as Parameters<typeof client.models.Heartbeat.create>[0]);
 
             // 2. Update Parent Latest Heartbeat
             const latestHeartbeat = {
@@ -259,7 +267,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 timestamp: now,
                 ownerInput: (itemKR && !itemKR.metric) ? heartbeatPayload.ownerInput : ownerInput,
                 systemAssessment: systemAssessment,
-                summary: (itemKR && !itemKR.metric) ? derivedKR?.summary : ownerInput.progressSummary,
+                summary: (itemKR && !itemKR.metric) ? derivedKR?.summary : ownerInput?.progressSummary,
             };
 
             // ... (Next Due Date logic remains common)
@@ -267,7 +275,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
 
             // Calculate Next Due Date
             let nextHeartbeatDue = null;
-            const itemCadence = (item as any).heartbeatCadence;
+            const itemCadence = item.heartbeatCadence;
             if (itemCadence) {
                 const { frequency, hour } = itemCadence;
                 const safeHour = hour ?? 9;
@@ -286,7 +294,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 const initItem = item as Schema['Initiative']['type'];
                 await client.models.Initiative.update({
                     id: item.id,
-                    latestHeartbeat: latestHeartbeat as any,
+                    latestHeartbeat: latestHeartbeat as Schema['InitiativeHeartbeat']['type'],
                     nextHeartbeatDue: nextHeartbeatDue || undefined,
                     state: {
                         ...initItem.state,
@@ -297,19 +305,19 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             } else if (itemType === 'outcome') {
                 await client.models.Outcome.update({
                     id: item.id,
-                    latestHeartbeat: latestHeartbeat as any,
+                    latestHeartbeat: latestHeartbeat as Schema['InitiativeHeartbeat']['type'],
                     nextHeartbeatDue: nextHeartbeatDue || undefined,
                 });
             } else if (itemType === 'objective') {
                 await client.models.StrategicObjective.update({
                     id: item.id,
-                    latestHeartbeat: latestHeartbeat as any,
+                    latestHeartbeat: latestHeartbeat as Schema['InitiativeHeartbeat']['type'],
                     nextHeartbeatDue: nextHeartbeatDue || undefined,
                 });
             } else if (itemType === 'kr') {
                 await client.models.KeyResult.update({
                     id: item.id,
-                    latestHeartbeat: latestHeartbeat as any,
+                    latestHeartbeat: latestHeartbeat as Schema['LatestHeartbeat']['type'],
                     nextHeartbeatDue: nextHeartbeatDue || undefined,
                 });
             }
@@ -325,8 +333,8 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     };
 
     const renderStepContent = (step: number) => {
-        const itemKR = itemType === 'kr' ? (item as Schema['KeyResult']['type']) : null;
-        const displayTitle = 'title' in item ? item.title : (item as any).statement || 'Unknown Item';
+        const itemKR = itemType === 'kr' ? (item as KeyResultWithInitiatives) : null;
+        const displayTitle = 'title' in item ? item.title : (item as Schema['KeyResult']['type']).statement || 'Unknown Item';
 
         if (itemType === 'kr' && !itemKR?.metric) {
             if (!derivedKR) return <Typography>Calculating Rollup...</Typography>;
@@ -334,7 +342,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 <Box pt={2}>
                     <Typography variant="h6" gutterBottom>Derived Key Result Heartbeat</Typography>
                     <Typography variant="body2" color="text.secondary" paragraph>
-                        This heartbeat is automatically derived from {(item as Schema['KeyResult']['type']).initiatives?.length || 0} linked initiatives.
+                        This heartbeat is automatically derived from {itemKR?.initiatives?.length || 0} linked initiatives.
                     </Typography>
 
                     <Box bgcolor="grey.50" p={2} borderRadius={1} mb={2} border={1} borderColor="divider">
@@ -374,8 +382,8 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                             Please provide an update for the current cycle. Your honest assessment drives the system's confidence.
                         </Typography>
                         <Box bgcolor="grey.100" p={2} borderRadius={1}>
-                            <Typography variant="subtitle2">Last Confidence: {(item as any).latestHeartbeat?.ownerInput?.ownerConfidence || 'None'}</Typography>
-                            <Typography variant="caption" display="block">Last Update: {(item as any).latestHeartbeat?.timestamp ? new Date((item as any).latestHeartbeat.timestamp).toLocaleDateString() : 'Never'}</Typography>
+                            <Typography variant="subtitle2">Last Confidence: {item.latestHeartbeat?.ownerInput?.ownerConfidence || 'None'}</Typography>
+                            <Typography variant="caption" display="block">Last Update: {item.latestHeartbeat?.timestamp ? new Date(item.latestHeartbeat.timestamp).toLocaleDateString() : 'Never'}</Typography>
                         </Box>
                     </Box>
                 );
