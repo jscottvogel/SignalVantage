@@ -16,15 +16,111 @@ interface Props {
     objectives: Schema["StrategicObjective"]["type"][];
 }
 
-export function ExecutiveBriefingDrawer({ open, onClose, objectives }: Props) {
-    const briefingSections = React.useMemo(() => generateExecutiveBriefing(objectives), [objectives]);
+import React, { useState, useEffect } from 'react';
+import {
+    Drawer, Box, Typography, IconButton, Stack, Button,
+    Paper, CircularProgress, Alert, TextField
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import { generateClient } from "aws-amplify/data";
+import type { Schema } from '../../amplify/data/resource';
 
-    const handleCopy = () => {
-        const text = briefingSections.map(s => {
-            return `${s.title}\n${s.items.map(i => `- ${i.headline}: ${i.body}`).join('\n')}`;
-        }).join('\n\n');
-        navigator.clipboard.writeText(text);
-        // Could show a snackbar here but keeping it simple for now
+const client = generateClient<Schema>();
+
+interface Props {
+    open: boolean;
+    onClose: () => void;
+    // We pass the org Id to fetch fresh, deep context
+    organizationId?: string;
+}
+
+export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props) {
+    const [loading, setLoading] = useState(false);
+    const [contextData, setContextData] = useState<string>('');
+    const [generatedNarrative, setGeneratedNarrative] = useState('');
+    const [instructions, setInstructions] = useState('');
+
+    useEffect(() => {
+        if (open && organizationId) {
+            loadContext();
+        }
+    }, [open, organizationId]);
+
+    const loadContext = async () => {
+        setLoading(true);
+        try {
+            // 1. Fetch Org Settings (Instructions)
+            const { data: org } = await client.models.Organization.get({ id: organizationId! });
+            setInstructions(org?.briefingInstructions || '');
+
+            // 2. Fetch Deep Tree
+            const { data: objs } = await client.models.StrategicObjective.list({
+                filter: { organizationId: { eq: organizationId! } }
+            });
+
+            const deepContext = await Promise.all(objs.map(async (obj) => {
+                const { data: outcomes } = await obj.outcomes();
+                const outcomesWithChildren = await Promise.all(outcomes.map(async (outcome) => {
+                    const { data: krs } = await outcome.keyResults();
+                    const krsWithChildren = await Promise.all(krs.map(async (kr) => {
+                        const { data: inits } = await kr.initiatives();
+                        return {
+                            ...kr,
+                            initiatives: inits,
+                            latestHeartbeat: kr.latestHeartbeat // Assuming already hydrated or simplistic
+                        };
+                    }));
+                    return {
+                        ...outcome,
+                        keyResults: krsWithChildren,
+                        latestHeartbeat: outcome.latestHeartbeat
+                    };
+                }));
+
+                return {
+                    ...obj,
+                    outcomes: outcomesWithChildren,
+                    latestHeartbeat: obj.latestHeartbeat
+                };
+            }));
+
+            // 3. Serialize
+            setContextData(JSON.stringify(deepContext, null, 2));
+
+        } catch (e) {
+            console.error("Failed to load briefing context", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGenerate = () => {
+        // Construct the full prompt
+        const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives and provide a clear, concise executive level narrative of where these objectives currently stand and how this will impact the business. DO NOT MAKE UP ANY FACTS or embellish the material.`;
+
+        const fullPrompt = `
+SYSTEM_PROMPT: ${systemPrompt}
+
+ADDITIONAL_INSTRUCTIONS: ${instructions}
+
+CONTEXT_DATA_JSON:
+${contextData}
+        `;
+
+        // In a real implementation with Bedrock configured:
+        // await client.queries.generateBriefing({ prompt: fullPrompt });
+
+        // For now, we simulate the "Action" by copying to clipboard or showing it
+        setGeneratedNarrative(`[SIMULATED AI RESPONSE]\n\nBased on your ${JSON.parse(contextData).length} strategic objectives, here is the executive summary...\n\n(Note: In a fully integrated environment, this would call Amazon Bedrock. For now, the prompt has been prepared for you to copy.)`);
+    };
+
+    const handleCopyPrompt = () => {
+        const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives and provide a clear, concise executive level narrative of where these objectives currently stand and how this will impact the business. DO NOT MAKE UP ANY FACTS or embellish the material.`;
+        const fullPrompt = `${systemPrompt}\n\nAdditional Instructions: ${instructions}\n\nData Context:\n${contextData}`;
+        navigator.clipboard.writeText(fullPrompt);
+        alert("Full prompt with context copied to clipboard!");
     };
 
     return (
@@ -37,7 +133,7 @@ export function ExecutiveBriefingDrawer({ open, onClose, objectives }: Props) {
                     height: '85vh',
                     borderTopLeftRadius: 16,
                     borderTopRightRadius: 16,
-                    maxWidth: '800px', // Center on desktop
+                    maxWidth: '900px',
                     mx: 'auto'
                 }
             }}
@@ -52,59 +148,68 @@ export function ExecutiveBriefingDrawer({ open, onClose, objectives }: Props) {
                         <Box>
                             <Typography variant="h6" fontWeight="bold">Executive Briefing</Typography>
                             <Typography variant="caption" color="text.secondary">
-                                AI-synthesized narrative for rapid consumption
+                                AI-synthesized narrative (Context Gathering Mode)
                             </Typography>
                         </Box>
                     </Box>
-                    <Stack direction="row" spacing={1}>
-                        <Button
-                            startIcon={<ContentCopyIcon />}
-                            size="small"
-                            onClick={handleCopy}
-                            variant="contained"
-                            color="primary"
-                        >
-                            Copy
-                        </Button>
-                        <IconButton onClick={onClose} edge="end">
-                            <CloseIcon />
-                        </IconButton>
-                    </Stack>
+                    <IconButton onClick={onClose} edge="end">
+                        <CloseIcon />
+                    </IconButton>
                 </Box>
 
                 {/* Content */}
-                <Box p={3} flexGrow={1} overflow="auto" bgcolor="#f8fafc">
-                    <Stack spacing={4}>
-                        {briefingSections.map((section, idx) => (
-                            <Box key={idx} component="section">
-                                <Typography variant="h6" gutterBottom color="primary.main" fontWeight={700}>
-                                    {section.title}
+                <Box p={4} flexGrow={1} overflow="auto" bgcolor="#f8fafc">
+                    {loading ? (
+                        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" height="50vh">
+                            <CircularProgress size={40} sx={{ mb: 2 }} />
+                            <Typography color="text.secondary">Gathering strategic context...</Typography>
+                        </Box>
+                    ) : (
+                        <Stack spacing={3}>
+                            <Alert severity="info">
+                                Context gathered from {contextData ? JSON.parse(contextData).length : 0} Strategic Objectives.
+                            </Alert>
+
+                            {generatedNarrative ? (
+                                <Paper sx={{ p: 4, bgcolor: 'white' }}>
+                                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'serif', fontSize: '1.1rem' }}>
+                                        {generatedNarrative}
+                                    </Typography>
+                                </Paper>
+                            ) : (
+                                <Box textAlign="center" py={8}>
+                                    <SmartToyIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                                    <Typography variant="h6" color="text.secondary" gutterBottom>
+                                        Ready to Generate
+                                    </Typography>
+                                    <Typography color="text.secondary" sx={{ maxWidth: 500, mx: 'auto', mb: 4 }}>
+                                        We have assembled the full tree of Objectives, Outcomes, Key Results, and Heartbeats.
+                                        Click below to generate the narrative.
+                                    </Typography>
+                                    <Stack direction="row" spacing={2} justifyContent="center">
+                                        <Button variant="contained" size="large" onClick={handleGenerate} startIcon={<SmartToyIcon />}>
+                                            Generate Narrative
+                                        </Button>
+                                        <Button variant="outlined" size="large" onClick={handleCopyPrompt} startIcon={<ContentCopyIcon />}>
+                                            Copy Prompt (for external LLM)
+                                        </Button>
+                                    </Stack>
+                                </Box>
+                            )}
+
+                            {/* Debug / Visibility into what is being sent */}
+                            <Box mt={4}>
+                                <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 1 }}>
+                                    CONTEXT PREVIEW (First 2000 chars)
                                 </Typography>
-                                <Paper elevation={0} variant="outlined" sx={{ overflow: 'hidden' }}>
-                                    {section.items.map((item, i) => (
-                                        <Box key={item.id}>
-                                            <Box p={2.5} bgcolor={item.severity === 'critical' ? '#fff5f5' : item.severity === 'warning' ? '#fffbeb' : 'white'}>
-                                                <Typography variant="subtitle2" fontWeight={700} gutterBottom>
-                                                    {item.headline}
-                                                </Typography>
-                                                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                                                    {item.body}
-                                                </Typography>
-                                            </Box>
-                                            {i < section.items.length - 1 && <Divider />}
-                                        </Box>
-                                    ))}
+                                <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f1f5f9', maxHeight: 200, overflow: 'auto' }}>
+                                    <Typography variant="caption" fontFamily="monospace">
+                                        {contextData.substring(0, 2000)}...
+                                    </Typography>
                                 </Paper>
                             </Box>
-                        ))}
-
-                        <Box pt={4} textAlign="center">
-                            <Typography variant="caption" color="text.secondary">
-                                Generated based on real-time heartbeat data. <br />
-                                Review specific objectives in the dashboard for full evidence chain.
-                            </Typography>
-                        </Box>
-                    </Stack>
+                        </Stack>
+                    )}
                 </Box>
             </Box>
         </Drawer>

@@ -10,7 +10,8 @@ import {
     LinearProgress,
     Stack,
     Chip,
-    Divider
+    Divider,
+    TextField
 } from '@mui/material';
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../amplify/data/resource";
@@ -133,6 +134,32 @@ export const SettingsView = ({ org, userProfile, onUpdateProfile }: SettingsView
                         <Typography variant="caption" color="text.secondary">
                             * Limits for Outcomes, Key Results, and Initiatives are enforced per-parent (e.g., max {limits.maxOutcomesPerObjective} Outcomes per Objective).
                         </Typography>
+                    </Paper>
+
+                    <Paper variant="outlined" sx={{ p: 4, mb: 4 }}>
+                        <Typography variant="h6" mb={2}>Executive Briefing Settings</Typography>
+                        <Typography variant="body2" color="text.secondary" paragraph>
+                            Customize the instructions provided to the AI when generating executive briefings.
+                        </Typography>
+                        <TextField
+                            label="Additional AI Instructions"
+                            multiline
+                            rows={3}
+                            fullWidth
+                            placeholder="e.g., Focus on risk mitigation strategies..."
+                            defaultValue={org.briefingInstructions || ''}
+                            onBlur={async (e) => {
+                                const val = e.target.value;
+                                if (val !== org.briefingInstructions) {
+                                    await client.models.Organization.update({
+                                        id: org.id,
+                                        briefingInstructions: val
+                                    });
+                                    // Soft notify?
+                                }
+                            }}
+                            sx={{ mb: 2 }}
+                        />
                     </Paper>
 
                     <Paper variant="outlined" sx={{ p: 4 }}>

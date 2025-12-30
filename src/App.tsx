@@ -473,7 +473,7 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
             <ExecutiveBriefingDrawer
               open={showBriefing}
               onClose={() => setShowBriefing(false)}
-              objectives={objectives}
+              organizationId={org?.id}
             />
           </>
         );
