@@ -55,6 +55,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { ExecutiveBriefingDrawer } from './components/ExecutiveBriefingDrawer';
 import { CreateOrganizationWizard } from "./components/CreateOrganizationWizard";
 import { SettingsView } from "./components/SettingsView";
+import { logPageView } from "./utils/telemetry";
 
 
 const client = generateClient<Schema>();
@@ -297,7 +298,11 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
           <ListItem key={item.id} disablePadding sx={{ mb: 1 }}>
             <ListItemButton
               selected={currentView === item.id}
-              onClick={() => { setCurrentView(item.id as ViewState); setMobileOpen(false); }}
+              onClick={() => {
+                setCurrentView(item.id as ViewState);
+                setMobileOpen(false);
+                logPageView(item.label, org?.id);
+              }}
             >
               <ListItemIcon sx={{ color: currentView === item.id ? 'secondary.main' : 'inherit' }}>
                 {item.icon}

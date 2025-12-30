@@ -312,6 +312,19 @@ const schema = a.schema({
       organization: a.belongsTo('Organization', 'organizationId'),
     })
     .authorization((allow) => [allow.authenticated()]),
+
+  UserTelemetry: a
+    .model({
+      type: a.string().required(), // e.g., 'CLICK', 'VIEW', 'ERROR'
+      component: a.string(),
+      action: a.string(),
+      metadata: a.json(),
+      timestamp: a.datetime(),
+
+      userId: a.id(),
+      organizationId: a.id(),
+    })
+    .authorization((allow) => [allow.authenticated()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
