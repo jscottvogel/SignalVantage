@@ -93,16 +93,24 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             // @ts-ignore
             const orgId = item.organizationId;
 
-            // Fetch Initiatives if needed (Outcome/KR/Objective)
+            // Fetch Initiatives & KRs if needed (Outcome/KR/Objective)
             let allInits: any[] = [];
+            let allKRs: any[] = [];
+
             if (['objective', 'outcome', 'kr'].includes(itemType)) {
                 try {
-                    const { data } = await client.models.Initiative.list({
-                        filter: { organizationId: { eq: orgId } }
-                    });
-                    allInits = data;
+                    const [initsRes, krsRes] = await Promise.all([
+                        client.models.Initiative.list({ filter: { organizationId: { eq: orgId } } }),
+                        ['objective', 'outcome'].includes(itemType)
+                            ? client.models.KeyResult.list({ filter: { organizationId: { eq: orgId } } })
+                            : Promise.resolve({ data: [] })
+                    ]);
+
+                    allInits = initsRes.data;
+                    allKRs = krsRes.data as any[];
+
                 } catch (e) {
-                    console.log("Failed to fetch initiatives", e);
+                    console.log("Failed to fetch context data", e);
                 }
             }
 
@@ -112,7 +120,9 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 contextStr = `Strategic Objective: ${objective.title}\nDescription: ${objective.description}\n\nActivity Data:\n`;
                 for (const outcome of outcomes) {
                     contextStr += `Outcome: ${outcome.title} (Status: ${outcome.status})\n`;
-                    const { data: krs } = await outcome.keyResults();
+                    // Filter KRs in memory
+                    const krs = allKRs.filter((k: any) => k.outcomeId === outcome.id);
+
                     for (const kr of krs) {
                         const relevantInits = allInits.filter((init: any) => init.linkedEntities?.keyResultIds?.includes(kr.id));
                         const krConf = kr.latestHeartbeat?.ownerInput?.ownerConfidence || 'N/A';
@@ -125,7 +135,9 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 }
             } else if (itemType === 'outcome') {
                 const outcome = item as any;
-                const { data: krs } = await outcome.keyResults();
+                // Filter KRs in memory
+                const krs = allKRs.filter((k: any) => k.outcomeId === outcome.id);
+
                 contextStr = `Outcome: ${outcome.title}\nDescription: ${outcome.description}\n\nActivity Data:\n`;
                 for (const kr of krs) {
                     const relevantInits = allInits.filter((init: any) => init.linkedEntities?.keyResultIds?.includes(kr.id));
