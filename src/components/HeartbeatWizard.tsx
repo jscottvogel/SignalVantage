@@ -4,10 +4,12 @@ import {
     Button, Typography, Box, TextField, Stack,
     IconButton,
     List, ListItem, ListItemText, Chip, Step, Stepper, StepLabel,
-    Slider, Select, MenuItem, FormControl, InputLabel
+    Slider, Select, MenuItem, FormControl, InputLabel,
+    Checkbox, FormControlLabel, CircularProgress
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
 
@@ -80,6 +82,87 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
 
     const [ownerConfidence, setOwnerConfidence] = useState<number>(50);
     const [confidenceRationale, setConfidenceRationale] = useState('');
+
+    const [isAttested, setIsAttested] = useState(false);
+    const [isSynthesizing, setIsSynthesizing] = useState(false);
+
+    const synthesizeDraft = async () => {
+        if (itemType !== 'objective') return;
+        setIsSynthesizing(true);
+        try {
+            // 1. Fetch Deep Context
+            const { data: outcomes } = await (item as any).outcomes();
+            // Manually constructing a simple context string to save complexity
+            let contextStr = `Strategic Objective: ${(item as any).title}\nDescription: ${(item as any).description}\n\nActivity Data:\n`;
+
+            for (const outcome of outcomes) {
+                contextStr += `Outcome: ${outcome.title} (Status: ${outcome.status}, Weight: ${outcome.weight})\n`;
+                const { data: krs } = await outcome.keyResults();
+                for (const kr of krs) {
+                    const { data: initRes } = await kr.initiatives(); // Assuming relation name is 'initiatives' (plural) as per schema hasMany
+                    const krConf = kr.latestHeartbeat?.systemAssessment?.systemConfidence || kr.latestHeartbeat?.ownerInput?.ownerConfidence || 'N/A';
+                    contextStr += `  - KR: ${kr.statement} (Confidence: ${krConf})\n`;
+                    for (const init of initRes) {
+                        const initUpdates = init.latestHeartbeat?.summary || "No recent updates";
+                        const health = init.state?.health || 'Unknown';
+                        contextStr += `    * Initiative: ${init.title} (Health: ${health}). Update: ${initUpdates}\n`;
+                    }
+                }
+            }
+
+            // 2. Call LLM
+            const systemPrompt = `Analyze the provided context for a Strategic Objective and synthesize a Heartbeat Update.
+Format your response exactly as follows:
+
+EXECUTIVE_SUMMARY
+CONFIDENCE_SCORE: [0-100]
+RATIONALE: [One sentence rationale]
+###SECTION_SPLIT###
+EXECUTIVE_NARRATIVE
+PROGRESS: [A concise progress summary paragraph]
+RISKS: [Risk 1];[Risk 2];[Risk 3]
+
+DO NOT output JSON. Use the tags above.`;
+
+            const fullPrompt = `SYSTEM_PROMPT: ${systemPrompt} \n\nCONTEXT_DATA: \n${contextStr}`;
+            const { data: response } = await client.queries.generateBriefing({ prompt: fullPrompt });
+
+            if (response) {
+                // 3. Parse Response
+                // Summary stores Confidence & Rationale
+                const summaryPart = response.summary || "";
+                const narrativePart = response.narrative || "";
+
+                // Parse Confidence
+                const confMatch = summaryPart.match(/CONFIDENCE_SCORE:\s*(\d+)/i);
+                if (confMatch) setOwnerConfidence(Math.min(100, Math.max(0, parseInt(confMatch[1]))));
+
+                // Parse Rationale
+                const ratMatch = summaryPart.match(/RATIONALE:\s*(.*)/i);
+                if (ratMatch) setConfidenceRationale(ratMatch[1].trim());
+                else setConfidenceRationale(summaryPart.replace(/CONFIDENCE_SCORE:.*\n?/, '').trim());
+
+                // Parse Progress
+                const progressMatch = narrativePart.match(/PROGRESS:\s*([\s\S]*?)(?=RISKS:|$)/i);
+                if (progressMatch) setProgressSummary(progressMatch[1].trim());
+                else setProgressSummary(narrativePart);
+
+                // Parse Risks
+                const risksMatch = narrativePart.match(/RISKS:\s*([\s\S]*)/i);
+                if (risksMatch) {
+                    const riskList = risksMatch[1].split(';').map(r => r.trim()).filter(r => r.length > 0);
+                    const newRisks = riskList.map(r => ({ description: r, impact: 'Medium', probability: 50 }));
+                    setRisks(prev => [...prev, ...newRisks]);
+                }
+            }
+
+        } catch (e) {
+            console.error("Synthesis failed", e);
+            alert("AI Synthesis failed. Please try again.");
+        } finally {
+            setIsSynthesizing(false);
+        }
+    };
 
     // Pre-populate for Edit Mode
     useState(() => {
@@ -391,6 +474,20 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             case 1: // Progress
                 return (
                     <Box pt={2}>
+                        {itemType === 'objective' && (
+                            <Box mb={2} display="flex" justifyContent="flex-end">
+                                <Button
+                                    variant="outlined"
+                                    color="secondary"
+                                    startIcon={isSynthesizing ? <CircularProgress size={16} /> : <SmartToyIcon />}
+                                    onClick={synthesizeDraft}
+                                    disabled={isSynthesizing}
+                                    size="small"
+                                >
+                                    {isSynthesizing ? "Synthesizing..." : "AI Assist: Synthesize Draft"}
+                                </Button>
+                            </Box>
+                        )}
                         {(item as Schema['KeyResult']['type']).metric && (
                             <Box mb={3} p={2} bgcolor="primary.light" borderRadius={1} bg-opacity={0.1}>
                                 <Typography variant="subtitle2" gutterBottom color="primary.dark">
@@ -556,6 +653,25 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                                 <Typography variant="body2">{risks.length}</Typography>
                             </Box>
                         </Stack>
+
+                        {itemType === 'objective' && (
+                            <Box mt={3} p={2} bgcolor="warning.50" border={1} borderColor="warning.200" borderRadius={1}>
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={isAttested}
+                                            onChange={(e) => setIsAttested(e.target.checked)}
+                                            color="primary"
+                                        />
+                                    }
+                                    label={
+                                        <Typography variant="body2" fontWeight="bold">
+                                            I attest that this heartbeat update is accurate and reflects the current status of this Strategic Objective.
+                                        </Typography>
+                                    }
+                                />
+                            </Box>
+                        )}
                     </Box>
                 );
             default:
@@ -587,6 +703,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                     disabled={
                         (activeStep === 3 && !confidenceRationale) ||
                         (activeStep === 1 && !progressSummary) ||
+                        (activeStep === steps.length - 1 && itemType === 'objective' && !isAttested) ||
                         isSubmitting
                     }
                 >
