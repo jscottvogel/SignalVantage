@@ -43,9 +43,18 @@ export const handler = async (event: any) => {
         const generatedText = responseBody.content[0].text;
 
         try {
-            // Attempt to find the JSON object within the text (handles markdown blocks or preambles)
-            const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
-            const textToParse = jsonMatch ? jsonMatch[0] : generatedText;
+            // Strategy 1: Look for markdown code block explicitly
+            const updatedText = generatedText.trim();
+            const markdownMatch = updatedText.match(/```json\s*([\s\S]*?)\s*```/);
+
+            let textToParse = "";
+            if (markdownMatch && markdownMatch[1]) {
+                textToParse = markdownMatch[1];
+            } else {
+                // Strategy 2: Look for first { to last }
+                const jsonMatch = updatedText.match(/\{[\s\S]*\}/);
+                textToParse = jsonMatch ? jsonMatch[0] : updatedText;
+            }
 
             const parsed = JSON.parse(textToParse);
             return {
@@ -53,7 +62,12 @@ export const handler = async (event: any) => {
                 narrative: parsed.narrative || generatedText
             };
         } catch (e) {
-            console.log("Failed to parse JSON response, falling back to raw text. content:", generatedText);
+            console.log("Failed to parse JSON response. Error:", e);
+            console.log("Content was:", generatedText);
+
+            // Fallback: If it looks like JSON but failed (e.g. unescaped newlines), 
+            // we might be able to salvage it or just return raw.
+            // For now, return raw but maybe the UI can handle it better if we flag it.
             return {
                 summary: "",
                 narrative: generatedText

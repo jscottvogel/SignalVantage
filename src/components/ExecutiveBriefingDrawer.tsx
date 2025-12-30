@@ -102,7 +102,8 @@ Provide two outputs in a JSON object:
 2. "narrative": A clear, concise executive level narrative of where these objectives currently stand and how this will impact the business.
 
 DO NOT MAKE UP ANY FACTS or embellish the material. Use the provided context data.
-Ensure the response is valid JSON.`;
+Return ONLY the raw JSON object. Do not include markdown formatting (like \`\`\`json), preambles, or postscripts.
+Ensure the response is valid JSON without unescaped newlines in strings.`;
         const fullPrompt = `SYSTEM_PROMPT: ${systemPrompt} \n\nADDITIONAL_INSTRUCTIONS: ${instructions} \n\nCONTEXT_DATA_JSON: \n${contextData} `;
 
         try {
