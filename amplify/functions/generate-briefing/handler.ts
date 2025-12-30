@@ -43,13 +43,17 @@ export const handler = async (event: any) => {
         const generatedText = responseBody.content[0].text;
 
         try {
-            const parsed = JSON.parse(generatedText);
+            // Attempt to find the JSON object within the text (handles markdown blocks or preambles)
+            const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+            const textToParse = jsonMatch ? jsonMatch[0] : generatedText;
+
+            const parsed = JSON.parse(textToParse);
             return {
                 summary: parsed.summary || "",
                 narrative: parsed.narrative || generatedText
             };
         } catch (e) {
-            console.log("Failed to parse JSON response, falling back to raw text");
+            console.log("Failed to parse JSON response, falling back to raw text. content:", generatedText);
             return {
                 summary: "",
                 narrative: generatedText
