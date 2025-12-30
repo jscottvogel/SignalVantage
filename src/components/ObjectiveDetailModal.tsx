@@ -976,8 +976,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                 <Autocomplete
                                     freeSolo
                                     options={['%', '$', '#', 'items', 'hours', 'days']}
-                                    value={itemMetricUnit}
-                                    onInputChange={(_, newInputValue) => setItemMetricUnit(newInputValue)}
+                                    inputValue={itemMetricUnit || ''}
+                                    onInputChange={(_, newInputValue) => setItemMetricUnit(newInputValue || '')}
                                     renderInput={(params) => (
                                         <TextField
                                             {...params}
