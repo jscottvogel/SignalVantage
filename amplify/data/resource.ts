@@ -301,6 +301,7 @@ const schema = a.schema({
       description: a.string(),
       linkedEntities: a.ref('LinkedEntities'),
       owner: a.ref('ObjectiveOwner'),
+      projectLink: a.url(),
       timeframe: a.ref('InitiativeTimeframe'),
       state: a.ref('InitiativeState'),
       heartbeatCadence: a.ref('HeartbeatCadence'),

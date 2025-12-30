@@ -30,6 +30,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import HistoryIcon from '@mui/icons-material/History';
 import BalanceIcon from '@mui/icons-material/Balance';
+import LinkIcon from '@mui/icons-material/Link';
 import HeartbeatWizard from './HeartbeatWizard';
 import HeartbeatHistoryDialog from './HeartbeatHistoryDialog';
 import WeightDistributionModal from './WeightDistributionModal';
@@ -118,6 +119,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [itemCadenceFreq, setItemCadenceFreq] = useState('');
     const [itemCadenceDay, setItemCadenceDay] = useState('FRI');
     const [itemCadenceHour, setItemCadenceHour] = useState(9); // 9 AM default
+    const [itemProjectLink, setItemProjectLink] = useState('');
 
 
 
@@ -231,6 +233,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         let initText = '';
         let initOwner = '';
         let initDesc = '';
+        let initProjectLink = '';
         let initStatus = 'active';
         let initMetricName = '';
         let initMetricUnit = '';
@@ -244,6 +247,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             const owner = item.owner || (item.owners && item.owners[0]);
             initOwner = owner?.userId || '';
             initDesc = item.description || '';
+            initProjectLink = item.projectLink || '';
 
             if (type === 'initiative') {
                 initStatus = item.state?.lifecycle || 'planned';
@@ -276,6 +280,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         });
         setItemText(initText);
         setItemDescription(initDesc);
+        setItemProjectLink(initProjectLink);
         setItemStatus(initStatus);
         setItemMetricName(initMetricName);
         setItemMetricUnit(initMetricUnit);
@@ -425,6 +430,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         organizationId: SafeOrgId,
                         title: itemText,
                         description: itemDescription,
+                        projectLink: itemProjectLink || undefined,
                         owner: ownerObj,
                         state: { lifecycle: itemStatus, health: 'on_track', updatedAt: new Date().toISOString() },
                         linkedEntities: {
@@ -477,6 +483,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         id,
                         title: itemText,
                         description: itemDescription,
+                        projectLink: itemProjectLink || undefined,
                         state: { lifecycle: itemStatus, health: 'on_track', updatedAt: new Date().toISOString() },
                         owner: ownerObj,
                         heartbeatCadence: cadenceObj,
@@ -769,6 +776,20 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                     <Stack direction="row" alignItems="center" spacing={1}>
                                                                                         <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
                                                                                         <Typography variant="body2">{init.title}</Typography>
+                                                                                        {init.projectLink && (
+                                                                                            <Tooltip title="Open Project Plan">
+                                                                                                <IconButton
+                                                                                                    size="small"
+                                                                                                    component="a"
+                                                                                                    href={init.projectLink}
+                                                                                                    target="_blank"
+                                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                                    sx={{ p: 0.2, ml: 0.5, color: 'primary.main' }}
+                                                                                                >
+                                                                                                    <LinkIcon sx={{ fontSize: 16 }} />
+                                                                                                </IconButton>
+                                                                                            </Tooltip>
+                                                                                        )}
                                                                                         <Chip label={`${init.weight || 0}%`} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
                                                                                         {init.latestHeartbeat?.ownerInput?.ownerConfidence && (
                                                                                             <Tooltip title="Latest Confidence & Trend">
@@ -862,6 +883,17 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                 variant="outlined"
                                 value={itemDescription}
                                 onChange={(e) => setItemDescription(e.target.value)}
+                            />
+                        )}
+                        {/* Project Link for Initiative */}
+                        {dialogState.type === 'initiative' && (
+                            <TextField
+                                label="Project Link (JIRA, Asana, etc.)"
+                                fullWidth
+                                variant="outlined"
+                                value={itemProjectLink}
+                                onChange={(e) => setItemProjectLink(e.target.value)}
+                                placeholder="https://..."
                             />
                         )}
                         {/* Status Select */}
