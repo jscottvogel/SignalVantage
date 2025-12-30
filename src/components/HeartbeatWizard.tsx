@@ -388,10 +388,27 @@ DO NOT output JSON. Use the tags above.`;
                     systemAssessment: systemAssessment
                 };
 
-                if (itemType === 'initiative') heartbeatPayload.initiativeId = item.id;
-                else if (itemType === 'outcome') heartbeatPayload.outcomeId = item.id;
-                else if (itemType === 'objective') heartbeatPayload.strategicObjectiveId = item.id;
-                else if (itemType === 'kr') heartbeatPayload.keyResultId = item.id;
+                if (itemType === 'initiative') {
+                    heartbeatPayload.initiativeId = item.id;
+                    heartbeatPayload.outcomeId = undefined;
+                    heartbeatPayload.strategicObjectiveId = undefined;
+                    heartbeatPayload.keyResultId = undefined;
+                } else if (itemType === 'outcome') {
+                    heartbeatPayload.outcomeId = item.id;
+                    heartbeatPayload.initiativeId = undefined;
+                    heartbeatPayload.strategicObjectiveId = undefined;
+                    heartbeatPayload.keyResultId = undefined;
+                } else if (itemType === 'objective') {
+                    heartbeatPayload.strategicObjectiveId = item.id;
+                    heartbeatPayload.initiativeId = undefined;
+                    heartbeatPayload.outcomeId = undefined;
+                    heartbeatPayload.keyResultId = undefined;
+                } else if (itemType === 'kr') {
+                    heartbeatPayload.keyResultId = item.id;
+                    heartbeatPayload.initiativeId = undefined;
+                    heartbeatPayload.outcomeId = undefined;
+                    heartbeatPayload.strategicObjectiveId = undefined;
+                }
             }
 
             const newHeartbeat = await client.models.Heartbeat.create(heartbeatPayload as Parameters<typeof client.models.Heartbeat.create>[0]);
