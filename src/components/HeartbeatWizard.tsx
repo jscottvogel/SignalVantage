@@ -396,7 +396,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                                     Current {(item as Schema['KeyResult']['type']).metric?.name} Value
                                 </Typography>
                                 <TextField
-                                    label={`Value (${(item as Schema['KeyResult']['type']).metric?.unit})`}
+                                    label={`Value ${(item as Schema['KeyResult']['type']).metric?.unit ? `(${(item as Schema['KeyResult']['type']).metric?.unit})` : ''}`}
                                     type="number"
                                     fullWidth
                                     value={metricValue}

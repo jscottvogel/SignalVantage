@@ -67,12 +67,15 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [itemDescription, setItemDescription] = useState('');
     const [itemStatus, setItemStatus] = useState('active'); // Default status
     const [itemMetricName, setItemMetricName] = useState('');
+    const [itemMetricUnit, setItemMetricUnit] = useState('');
     const [selectedOwnerId, setSelectedOwnerId] = useState('');
-
     // Cadence State
     const [itemCadenceFreq, setItemCadenceFreq] = useState('');
     const [itemCadenceDay, setItemCadenceDay] = useState('FRI');
     const [itemCadenceHour, setItemCadenceHour] = useState(9); // 9 AM default
+
+
+
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -175,7 +178,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         let initOwner = '';
         let initDesc = '';
         let initStatus = 'active';
-        let initMetric = '';
+        let initMetricName = '';
+        let initMetricUnit = '';
         let initFreq = '';
         let initDay = 'FRI';
         let initHour = 9;
@@ -194,7 +198,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             }
 
             if (type === 'kr') {
-                initMetric = item.metric?.name || '';
+                initMetricName = item.metric?.name || '';
+                initMetricUnit = item.metric?.unit || '';
             }
 
             if (item.heartbeatCadence) {
@@ -218,7 +223,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         setItemText(initText);
         setItemDescription(initDesc);
         setItemStatus(initStatus);
-        setItemMetricName(initMetric);
+        setItemMetricName(initMetricName);
+        setItemMetricUnit(initMetricUnit);
         setSelectedOwnerId(initOwner);
         setItemCadenceFreq(initFreq);
         setItemCadenceDay(initDay);
@@ -288,6 +294,12 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 nextDue = date.toISOString();
             }
 
+            // Construct Metric Object
+            const metricObj = itemMetricName ? {
+                name: itemMetricName,
+                unit: itemMetricUnit || undefined
+            } : null;
+
             if (dialogState.mode === 'create') {
                 if (dialogState.type === 'outcome') {
                     // Balancing Logic for Outcome
@@ -329,7 +341,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         statement: itemText,
                         status: itemStatus as any,
                         owners: ownerObj ? [ownerObj] : [],
-                        metric: itemMetricName ? { name: itemMetricName } : null,
+                        metric: metricObj,
                         heartbeatCadence: cadenceObj || undefined,
                         nextHeartbeatDue: nextDue || undefined,
                         weight: newWeight
@@ -402,7 +414,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         statement: itemText,
                         status: itemStatus as any,
                         owners: ownerObj ? [ownerObj] : [],
-                        metric: itemMetricName ? { name: itemMetricName } : null,
+                        metric: metricObj,
                         heartbeatCadence: cadenceObj,
                         nextHeartbeatDue: nextDue || undefined
                     });
@@ -662,6 +674,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                             </Typography>
                                                                         )}
                                                                     </Box>
+                                                                    <Tooltip title="Log Heartbeat">
+                                                                        <IconButton size="small" sx={{ p: 0.5 }} color="primary" onClick={() => openHeartbeatWizard('kr', kr)}>
+                                                                            <MonitorHeartIcon sx={{ fontSize: 14 }} />
+                                                                        </IconButton>
+                                                                    </Tooltip>
                                                                     <Tooltip title="View History">
                                                                         <IconButton size="small" sx={{ p: 0.5 }} onClick={() => setHistoryState({ open: true, item: kr, type: 'kr' })}>
                                                                             <HistoryIcon sx={{ fontSize: 14 }} />
@@ -866,16 +883,26 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                 )}
                             </Stack>
                         </Box>
-                        {/* KR Metric Name */}
+                        {/* KR Metric Name & Unit */}
                         {dialogState.type === 'kr' && (
-                            <TextField
-                                label="Metric Name (Optional)"
-                                fullWidth
-                                variant="outlined"
-                                value={itemMetricName}
-                                onChange={(e) => setItemMetricName(e.target.value)}
-                                placeholder="e.g. NPS Score"
-                            />
+                            <Stack direction="row" spacing={2}>
+                                <TextField
+                                    label="Metric Name (Optional)"
+                                    fullWidth
+                                    variant="outlined"
+                                    value={itemMetricName}
+                                    onChange={(e) => setItemMetricName(e.target.value)}
+                                    placeholder="e.g. NPS Score"
+                                />
+                                <TextField
+                                    label="Unit (Optional)"
+                                    sx={{ width: '150px' }}
+                                    variant="outlined"
+                                    value={itemMetricUnit}
+                                    onChange={(e) => setItemMetricUnit(e.target.value)}
+                                    placeholder="e.g. %"
+                                />
+                            </Stack>
                         )}
 
                         <FormControl fullWidth>
