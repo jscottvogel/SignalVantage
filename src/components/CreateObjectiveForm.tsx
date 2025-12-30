@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
+import { SUBSCRIPTION_LIMITS, type SubscriptionTier } from '../utils/subscriptionLimits';
 import {
     Dialog,
     DialogTitle,
@@ -13,7 +14,8 @@ import {
     Divider,
     IconButton,
     Paper,
-    Stack
+    Stack,
+    Alert
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
@@ -25,6 +27,7 @@ interface Props {
     organizationId: string;
     onClose: () => void;
     onSuccess: (newObjective: Schema['StrategicObjective']['type']) => void;
+    userProfile: Schema['UserProfile']['type'];
 }
 
 interface NewInitiative {
@@ -43,13 +46,26 @@ interface NewOutcome {
     keyResults: NewKeyResult[];
 }
 
-export function CreateObjectiveForm({ organizationId, onClose, onSuccess }: Props) {
+export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userProfile }: Props) {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [outcomes, setOutcomes] = useState<NewOutcome[]>([]);
     const [loading, setLoading] = useState(false);
+    const [existingObjCount, setExistingObjCount] = useState<number | null>(null);
+
+    const currentTier = (userProfile.tier as SubscriptionTier) || 'FREE';
+    const limits = SUBSCRIPTION_LIMITS[currentTier];
+
+    useEffect(() => {
+        client.models.StrategicObjective.list({
+            filter: { organizationId: { eq: organizationId } }
+        }).then(({ data }) => setExistingObjCount(data.length));
+    }, [organizationId]);
 
     const addOutcome = () => {
+        if (outcomes.length >= limits.maxOutcomesPerObjective) {
+            if (!confirm(`You have reached the recommended limit of ${limits.maxOutcomesPerObjective} Outcomes per Objective. Continue?`)) return;
+        }
         setOutcomes([...outcomes, { title: '', description: '', keyResults: [] }]);
     };
 
@@ -67,7 +83,11 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess }: Prop
 
     const addKeyResult = (outcomeIndex: number) => {
         const newOutcomes = [...outcomes];
-        newOutcomes[outcomeIndex].keyResults.push({ statement: '', initiatives: [] });
+        const currentKRs = newOutcomes[outcomeIndex].keyResults;
+        if (currentKRs.length >= limits.maxKeyResultsPerOutcome) {
+            if (!confirm(`You have reached the recommended limit of ${limits.maxKeyResultsPerOutcome} Key Results per Outcome. Continue?`)) return;
+        }
+        currentKRs.push({ statement: '', initiatives: [] });
         setOutcomes(newOutcomes);
     };
 
@@ -85,7 +105,11 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess }: Prop
 
     const addInitiative = (outcomeIndex: number, krIndex: number) => {
         const newOutcomes = [...outcomes];
-        newOutcomes[outcomeIndex].keyResults[krIndex].initiatives.push({ title: '', description: '' });
+        const currentInits = newOutcomes[outcomeIndex].keyResults[krIndex].initiatives;
+        if (currentInits.length >= limits.maxInitiativesPerKeyResult) {
+            if (!confirm(`You have reached the recommended limit of ${limits.maxInitiativesPerKeyResult} Initiatives per Key Result. Continue?`)) return;
+        }
+        currentInits.push({ title: '', description: '' });
         setOutcomes(newOutcomes);
     };
 
@@ -103,6 +127,11 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess }: Prop
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (existingObjCount !== null && existingObjCount >= limits.maxObjectives) {
+            if (!confirm(`Organization limit of ${limits.maxObjectives} Objectives reached. Create anyway (soft limit)?`)) return;
+        }
+
         setLoading(true);
         try {
             // 1. Create Objective
@@ -184,6 +213,12 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess }: Prop
 
             <DialogContent dividers>
                 <Box component="form" id="create-objective-form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+
+                    {existingObjCount !== null && existingObjCount >= limits.maxObjectives && (
+                        <Alert severity="warning">
+                            Warning: Organization has reached the recommended limit of {limits.maxObjectives} strategic objectives.
+                        </Alert>
+                    )}
 
                     <Box>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>OBJECTIVE DETAILS</Typography>

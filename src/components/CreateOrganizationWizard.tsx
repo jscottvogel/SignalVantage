@@ -13,8 +13,11 @@ import {
     Stepper,
     Step,
     StepLabel,
-    CircularProgress
+    CircularProgress,
+    Alert
 } from '@mui/material';
+
+import { SUBSCRIPTION_LIMITS, type SubscriptionTier } from '../utils/subscriptionLimits';
 
 const client = generateClient<Schema>();
 
@@ -30,6 +33,21 @@ export const CreateOrganizationWizard = ({ open, onClose, onSuccess, userProfile
     const [orgName, setOrgName] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [ownedCount, setOwnedCount] = useState<number | null>(null);
+
+    const currentTier: SubscriptionTier = (userProfile.tier as SubscriptionTier) || 'FREE';
+    const limits = SUBSCRIPTION_LIMITS[currentTier];
+
+    useEffect(() => {
+        if (open) {
+            const checkLimit = async () => {
+                const { data: memberships } = await userProfile.memberships();
+                const owned = memberships.filter(m => m.role === 'OWNER').length;
+                setOwnedCount(owned);
+            };
+            checkLimit();
+        }
+    }, [open, userProfile]);
 
     const steps = ['Organization Details', 'Confirmation'];
 
@@ -91,6 +109,11 @@ export const CreateOrganizationWizard = ({ open, onClose, onSuccess, userProfile
             case 0:
                 return (
                     <Box pt={2}>
+                        {ownedCount !== null && ownedCount >= limits.maxOrganizations && (
+                            <Alert severity="warning" sx={{ mb: 2 }}>
+                                You have used {ownedCount} / {limits.maxOrganizations} organizations allowed on the {currentTier} plan.
+                            </Alert>
+                        )}
                         <Typography variant="body1" gutterBottom>
                             Let's start by naming your new organization. This is usually your company name.
                         </Typography>

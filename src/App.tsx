@@ -663,9 +663,10 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
       </Snackbar>
 
       {/* Dialogs */}
-      {showCreateModal && org && (
+      {showCreateModal && org && userProfile && (
         <CreateObjectiveForm
           organizationId={org.id}
+          userProfile={userProfile!}
           onClose={() => setShowCreateModal(false)}
           onSuccess={(newObj) => {
             setObjectives([...objectives, newObj]);

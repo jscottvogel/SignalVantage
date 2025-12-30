@@ -30,7 +30,8 @@ export const SettingsView = ({ org, userProfile, onUpdateProfile }: SettingsView
         objectives: 0,
         outcomes: 0,
         keyResults: 0,
-        initiatives: 0
+        initiatives: 0,
+        ownedOrgs: 0
     });
     // const [loading, setLoading] = useState(true);
 
@@ -47,11 +48,16 @@ export const SettingsView = ({ org, userProfile, onUpdateProfile }: SettingsView
                 const { data: krs } = await org.keyResults();
                 const { data: inits } = await org.initiatives();
 
+                // Fetch owned organizations
+                const { data: memberships } = await userProfile.memberships();
+                const owned = memberships.filter(m => m.role === 'OWNER').length;
+
                 setCounts({
                     objectives: objs.length,
                     outcomes: outs.length,
                     keyResults: krs.length,
-                    initiatives: inits.length
+                    initiatives: inits.length,
+                    ownedOrgs: owned
                 });
             } catch (e) {
                 console.error("Failed to fetch usage:", e);
@@ -60,7 +66,7 @@ export const SettingsView = ({ org, userProfile, onUpdateProfile }: SettingsView
             }
         };
         fetchUsage();
-    }, [org]);
+    }, [org, userProfile]);
 
     const handleUpgrade = async (tier: SubscriptionTier) => {
         // Mock Stripe Checkout
@@ -122,6 +128,7 @@ export const SettingsView = ({ org, userProfile, onUpdateProfile }: SettingsView
                         </Stack>
                         <Divider sx={{ mb: 3 }} />
 
+                        {renderUsageBar("Owned Organizations", counts.ownedOrgs, limits.maxOrganizations)}
                         {renderUsageBar("Strategic Objectives", counts.objectives, limits.maxObjectives)}
                         <Typography variant="caption" color="text.secondary">
                             * Limits for Outcomes, Key Results, and Initiatives are enforced per-parent (e.g., max {limits.maxOutcomesPerObjective} Outcomes per Objective).
