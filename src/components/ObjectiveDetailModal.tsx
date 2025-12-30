@@ -943,10 +943,27 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                     freeSolo
                                     fullWidth
                                     options={METRIC_OPTIONS}
-                                    groupBy={(option) => typeof option === 'string' ? 'Other' : option.group}
-                                    getOptionLabel={(option) => typeof option === 'string' ? option : option.label}
-                                    inputValue={itemMetricName}
-                                    onInputChange={(_, newInputValue) => setItemMetricName(newInputValue)}
+                                    groupBy={(option) => {
+                                        if (!option || typeof option !== 'object') return 'Custom';
+                                        return (option as any).group || 'Other';
+                                    }}
+                                    getOptionLabel={(option) => {
+                                        if (typeof option === 'string') return option;
+                                        // Safety check for option object
+                                        if (option && typeof option === 'object' && 'label' in option) return (option as any).label;
+                                        return '';
+                                    }}
+                                    // Control inputValue directly for free text
+                                    inputValue={itemMetricName || ''}
+                                    onInputChange={(_, newInputValue) => setItemMetricName(newInputValue || '')}
+                                    // Ensure value is handled if selected
+                                    onChange={(_, newValue) => {
+                                        if (typeof newValue === 'string') {
+                                            setItemMetricName(newValue);
+                                        } else if (newValue && typeof newValue === 'object') {
+                                            setItemMetricName((newValue as any).label);
+                                        }
+                                    }}
                                     renderInput={(params) => (
                                         <TextField
                                             {...params}
