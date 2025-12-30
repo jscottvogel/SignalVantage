@@ -10,6 +10,7 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from '../../amplify/data/resource';
 
+
 const client = generateClient<Schema>();
 
 interface Props {
@@ -24,6 +25,8 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
     const [contextData, setContextData] = useState<string>('');
     const [generatedNarrative, setGeneratedNarrative] = useState('');
     const [instructions, setInstructions] = useState('');
+
+
 
     useEffect(() => {
         if (open && organizationId) {
@@ -78,7 +81,8 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
                 };
             }));
 
-            // 4. Serialize
+            // 4. Serialize & Store
+
             setContextData(JSON.stringify(deepContext, null, 2));
 
         } catch (e) {
@@ -88,14 +92,22 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
         }
     };
 
-    const handleGenerate = () => {
+    const handleGenerate = async () => {
+        setLoading(true);
 
+        const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives and provide a clear, concise executive level narrative of where these objectives currently stand and how this will impact the business. DO NOT MAKE UP ANY FACTS or embellish the material. Use the provided context data.`;
+        const fullPrompt = `SYSTEM_PROMPT: ${systemPrompt} \n\nADDITIONAL_INSTRUCTIONS: ${instructions} \n\nCONTEXT_DATA_JSON: \n${contextData} `;
 
-        // In a real implementation with Bedrock configured:
-        // await client.queries.generateBriefing({ prompt: fullPrompt });
-
-        // For now, we simulate the "Action" by copying to clipboard or showing it
-        setGeneratedNarrative(`[SIMULATED AI RESPONSE]\n\nBased on your ${JSON.parse(contextData).length} strategic objectives, here is the executive summary...\n\n(Note: In a fully integrated environment, this would call Amazon Bedrock.For now, the prompt has been prepared for you to copy.)`);
+        try {
+            const { data, errors } = await client.queries.generateBriefing({ prompt: fullPrompt });
+            if (errors) throw new Error(errors[0].message);
+            if (data) setGeneratedNarrative(data);
+        } catch (e) {
+            console.error(e);
+            alert("Failed to generate briefing. Please try again or check your context size.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleCopyPrompt = () => {

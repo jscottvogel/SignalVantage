@@ -1,4 +1,5 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
+import { generateBriefing } from "../functions/generate-briefing/resource";
 
 /*== STEP 1 ===============================================================
 The section below creates a Todo database table with a "content" field. Try
@@ -327,6 +328,12 @@ const schema = a.schema({
       organizationId: a.id(),
     })
     .authorization((allow) => [allow.authenticated()]),
+
+  generateBriefing: a.query()
+    .arguments({ prompt: a.string().required() })
+    .returns(a.string())
+    .authorization((allow) => [allow.authenticated()])
+    .handler(a.handler.function(generateBriefing)),
 });
 
 export type Schema = ClientSchema<typeof schema>;
