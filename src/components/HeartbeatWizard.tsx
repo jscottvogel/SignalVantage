@@ -90,20 +90,31 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
         if (itemType !== 'objective') return;
         setIsSynthesizing(true);
         try {
+            const objective = item as any;
+            const orgId = objective.organizationId;
+
+            // Fetch All Initiatives for context
+            const { data: allInits } = await client.models.Initiative.list({
+                filter: { organizationId: { eq: orgId } }
+            });
+
             // 1. Fetch Deep Context
-            const { data: outcomes } = await (item as any).outcomes();
+            const { data: outcomes } = await objective.outcomes();
             // Manually constructing a simple context string to save complexity
-            let contextStr = `Strategic Objective: ${(item as any).title}\nDescription: ${(item as any).description}\n\nActivity Data:\n`;
+            let contextStr = `Strategic Objective: ${objective.title}\nDescription: ${objective.description}\n\nActivity Data:\n`;
 
             for (const outcome of outcomes) {
                 contextStr += `Outcome: ${outcome.title} (Status: ${outcome.status}, Weight: ${outcome.weight})\n`;
                 const { data: krs } = await outcome.keyResults();
                 for (const kr of krs) {
-                    const { data: initRes } = await kr.initiatives(); // Assuming relation name is 'initiatives' (plural) as per schema hasMany
+                    const relevantInits = allInits.filter((init: any) =>
+                        init.linkedEntities?.keyResultIds?.includes(kr.id)
+                    );
+
                     const krConf = kr.latestHeartbeat?.systemAssessment?.systemConfidence || kr.latestHeartbeat?.ownerInput?.ownerConfidence || 'N/A';
                     contextStr += `  - KR: ${kr.statement} (Confidence: ${krConf})\n`;
-                    for (const init of initRes) {
-                        const initUpdates = init.latestHeartbeat?.summary || "No recent updates";
+                    for (const init of relevantInits) {
+                        const initUpdates = init.latestHeartbeat?.ownerInput?.progressSummary || "No recent updates";
                         const health = init.state?.health || 'Unknown';
                         contextStr += `    * Initiative: ${init.title} (Health: ${health}). Update: ${initUpdates}\n`;
                     }
