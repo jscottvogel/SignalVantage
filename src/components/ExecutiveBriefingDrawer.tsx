@@ -97,13 +97,16 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
         setLoading(true);
 
         const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives.
-Provide two outputs in a JSON object:
-1. "summary": A 2-sentence executive summary of the overall status.
-2. "narrative": A clear, concise executive level narrative of where these objectives currently stand and how this will impact the business.
+Format your response exactly as follows:
 
-DO NOT MAKE UP ANY FACTS or embellish the material. Use the provided context data.
-Return ONLY the raw JSON object. Do not include markdown formatting (like \`\`\`json), preambles, or postscripts.
-Ensure the response is valid JSON without unescaped newlines in strings.`;
+EXECUTIVE_SUMMARY
+[A 2-sentence executive summary]
+###SECTION_SPLIT###
+EXECUTIVE_NARRATIVE
+[A clear, concise executive level narrative]
+
+DO NOT output JSON. DO NOT use markdown code blocks.
+DO NOT MAKE UP ANY FACTS or embellish the material. Use the provided context data.`;
         const fullPrompt = `SYSTEM_PROMPT: ${systemPrompt} \n\nADDITIONAL_INSTRUCTIONS: ${instructions} \n\nCONTEXT_DATA_JSON: \n${contextData} `;
 
         try {

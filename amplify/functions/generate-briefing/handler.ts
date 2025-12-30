@@ -42,37 +42,31 @@ export const handler = async (event: any) => {
         // Claude 3 response structure
         const generatedText = responseBody.content[0].text;
 
+        let summary = "";
+        let narrative = generatedText;
+
         try {
-            // Strategy 1: Look for markdown code block explicitly
-            const updatedText = generatedText.trim();
-            const markdownMatch = updatedText.match(/```json\s*([\s\S]*?)\s*```/);
-
-            let textToParse = "";
-            if (markdownMatch && markdownMatch[1]) {
-                textToParse = markdownMatch[1];
+            if (generatedText.includes("###SECTION_SPLIT###")) {
+                const parts = generatedText.split("###SECTION_SPLIT###");
+                summary = parts[0].replace(/EXECUTIVE_SUMMARY/i, "").trim();
+                narrative = parts[1].replace(/EXECUTIVE_NARRATIVE/i, "").trim();
             } else {
-                // Strategy 2: Look for first { to last }
-                const jsonMatch = updatedText.match(/\{[\s\S]*\}/);
-                textToParse = jsonMatch ? jsonMatch[0] : updatedText;
+                // Legacy/Fallback JSON attempt
+                const jsonMatch = generatedText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[0]);
+                    summary = parsed.summary || "";
+                    narrative = parsed.narrative || generatedText;
+                }
             }
-
-            const parsed = JSON.parse(textToParse);
-            return {
-                summary: parsed.summary || "",
-                narrative: parsed.narrative || generatedText
-            };
         } catch (e) {
-            console.log("Failed to parse JSON response. Error:", e);
-            console.log("Content was:", generatedText);
-
-            // Fallback: If it looks like JSON but failed (e.g. unescaped newlines), 
-            // we might be able to salvage it or just return raw.
-            // For now, return raw but maybe the UI can handle it better if we flag it.
-            return {
-                summary: "",
-                narrative: generatedText
-            };
+            console.log("Parsing failed, returning raw text.", e);
         }
+
+        return {
+            summary,
+            narrative
+        };
 
     } catch (error) {
         console.error("Error invoking Bedrock:", error);
