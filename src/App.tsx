@@ -683,7 +683,10 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
       {selectedObjective && (
         <ObjectiveDetailModal
           objective={selectedObjective}
-          onClose={() => setSelectedObjective(null)}
+          onClose={() => {
+            setSelectedObjective(null);
+            if (org) loadOrganization(org.id);
+          }}
         />
       )}
 
