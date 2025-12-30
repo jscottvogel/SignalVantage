@@ -171,7 +171,16 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             const { data: membershipList } = await org.members();
             const membersWithProfiles = await Promise.all(
                 membershipList.map(async (m) => {
-                    const { data: profile } = await m.user();
+                    let profile = null;
+                    // Attempt 1: Fetch through relation
+                    const { data: profileRel } = await m.user();
+                    if (profileRel) {
+                        profile = profileRel;
+                    } else if (m.userProfileId) {
+                        // Attempt 2: Direct lookup if relation failing
+                        const { data: profileDirect } = await client.models.UserProfile.get({ id: m.userProfileId });
+                        profile = profileDirect;
+                    }
                     return { ...m, profile };
                 })
             );
@@ -975,7 +984,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                 <MenuItem value=""><em>None</em></MenuItem>
                                 {members.map((m) => (
                                     <MenuItem key={m.userProfileId} value={m.userProfileId}>
-                                        {m.profile?.preferredName || m.profile?.email || 'Unknown'}
+                                        {m.profile?.preferredName || m.profile?.email || m.inviteEmail || 'Unknown Member'}
                                     </MenuItem>
                                 ))}
                             </Select>
