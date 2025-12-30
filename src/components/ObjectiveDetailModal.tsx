@@ -934,9 +934,9 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                     freeSolo
                                     fullWidth
                                     options={METRIC_OPTIONS}
-                                    groupBy={(option) => option.group}
+                                    groupBy={(option) => typeof option === 'string' ? 'Other' : option.group}
                                     getOptionLabel={(option) => typeof option === 'string' ? option : option.label}
-                                    value={itemMetricName}
+                                    inputValue={itemMetricName}
                                     onInputChange={(_, newInputValue) => setItemMetricName(newInputValue)}
                                     renderInput={(params) => (
                                         <TextField
