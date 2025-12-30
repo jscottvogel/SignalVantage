@@ -1,25 +1,8 @@
 
-import React from 'react';
-import {
-    Drawer, Box, Typography, IconButton, Stack, Divider, Button,
-    Paper
-} from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
-import type { Schema } from '../../amplify/data/resource';
-import { generateExecutiveBriefing } from '../utils/executiveBriefing';
-
-interface Props {
-    open: boolean;
-    onClose: () => void;
-    objectives: Schema["StrategicObjective"]["type"][];
-}
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Drawer, Box, Typography, IconButton, Stack, Button,
-    Paper, CircularProgress, Alert, TextField
+    Paper, CircularProgress, Alert
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
@@ -55,7 +38,12 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
             const { data: org } = await client.models.Organization.get({ id: organizationId! });
             setInstructions(org?.briefingInstructions || '');
 
-            // 2. Fetch Deep Tree
+            // 2. Fetch All Initiatives for the Org (to map later)
+            const { data: allInitiatives } = await client.models.Initiative.list({
+                filter: { organizationId: { eq: organizationId! } }
+            });
+
+            // 3. Fetch Deep Tree
             const { data: objs } = await client.models.StrategicObjective.list({
                 filter: { organizationId: { eq: organizationId! } }
             });
@@ -65,11 +53,15 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
                 const outcomesWithChildren = await Promise.all(outcomes.map(async (outcome) => {
                     const { data: krs } = await outcome.keyResults();
                     const krsWithChildren = await Promise.all(krs.map(async (kr) => {
-                        const { data: inits } = await kr.initiatives();
+                        // Filter initiatives that link to this KR
+                        const linkedInits = allInitiatives.filter(init =>
+                            init.linkedEntities?.keyResultIds?.includes(kr.id)
+                        );
+
                         return {
                             ...kr,
-                            initiatives: inits,
-                            latestHeartbeat: kr.latestHeartbeat // Assuming already hydrated or simplistic
+                            initiatives: linkedInits,
+                            latestHeartbeat: kr.latestHeartbeat
                         };
                     }));
                     return {
@@ -86,7 +78,7 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
                 };
             }));
 
-            // 3. Serialize
+            // 4. Serialize
             setContextData(JSON.stringify(deepContext, null, 2));
 
         } catch (e) {
@@ -97,28 +89,18 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
     };
 
     const handleGenerate = () => {
-        // Construct the full prompt
-        const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives and provide a clear, concise executive level narrative of where these objectives currently stand and how this will impact the business. DO NOT MAKE UP ANY FACTS or embellish the material.`;
 
-        const fullPrompt = `
-SYSTEM_PROMPT: ${systemPrompt}
-
-ADDITIONAL_INSTRUCTIONS: ${instructions}
-
-CONTEXT_DATA_JSON:
-${contextData}
-        `;
 
         // In a real implementation with Bedrock configured:
         // await client.queries.generateBriefing({ prompt: fullPrompt });
 
         // For now, we simulate the "Action" by copying to clipboard or showing it
-        setGeneratedNarrative(`[SIMULATED AI RESPONSE]\n\nBased on your ${JSON.parse(contextData).length} strategic objectives, here is the executive summary...\n\n(Note: In a fully integrated environment, this would call Amazon Bedrock. For now, the prompt has been prepared for you to copy.)`);
+        setGeneratedNarrative(`[SIMULATED AI RESPONSE]\n\nBased on your ${JSON.parse(contextData).length} strategic objectives, here is the executive summary...\n\n(Note: In a fully integrated environment, this would call Amazon Bedrock.For now, the prompt has been prepared for you to copy.)`);
     };
 
     const handleCopyPrompt = () => {
-        const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives and provide a clear, concise executive level narrative of where these objectives currently stand and how this will impact the business. DO NOT MAKE UP ANY FACTS or embellish the material.`;
-        const fullPrompt = `${systemPrompt}\n\nAdditional Instructions: ${instructions}\n\nData Context:\n${contextData}`;
+        const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives and provide a clear, concise executive level narrative of where these objectives currently stand and how this will impact the business.DO NOT MAKE UP ANY FACTS or embellish the material.`;
+        const fullPrompt = `SYSTEM_PROMPT: ${systemPrompt} \n\nADDITIONAL_INSTRUCTIONS: ${instructions} \n\nCONTEXT_DATA_JSON: \n${contextData} `;
         navigator.clipboard.writeText(fullPrompt);
         alert("Full prompt with context copied to clipboard!");
     };

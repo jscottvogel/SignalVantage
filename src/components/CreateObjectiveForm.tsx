@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
 import { SUBSCRIPTION_LIMITS, type SubscriptionTier } from '../utils/subscriptionLimits';
