@@ -41,7 +41,20 @@ export const handler = async (event: any) => {
 
         // Claude 3 response structure
         const generatedText = responseBody.content[0].text;
-        return generatedText;
+
+        try {
+            const parsed = JSON.parse(generatedText);
+            return {
+                summary: parsed.summary || "",
+                narrative: parsed.narrative || generatedText
+            };
+        } catch (e) {
+            console.log("Failed to parse JSON response, falling back to raw text");
+            return {
+                summary: "",
+                narrative: generatedText
+            };
+        }
 
     } catch (error) {
         console.error("Error invoking Bedrock:", error);

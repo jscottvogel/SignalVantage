@@ -24,6 +24,7 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
     const [loading, setLoading] = useState(false);
     const [contextData, setContextData] = useState<string>('');
     const [generatedNarrative, setGeneratedNarrative] = useState('');
+    const [generatedSummary, setGeneratedSummary] = useState('');
     const [instructions, setInstructions] = useState('');
 
 
@@ -95,13 +96,24 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
     const handleGenerate = async () => {
         setLoading(true);
 
-        const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives and provide a clear, concise executive level narrative of where these objectives currently stand and how this will impact the business. DO NOT MAKE UP ANY FACTS or embellish the material. Use the provided context data.`;
+        const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives.
+Provide two outputs in a JSON object:
+1. "summary": A 2-sentence executive summary of the overall status.
+2. "narrative": A clear, concise executive level narrative of where these objectives currently stand and how this will impact the business.
+
+DO NOT MAKE UP ANY FACTS or embellish the material. Use the provided context data.
+Ensure the response is valid JSON.`;
         const fullPrompt = `SYSTEM_PROMPT: ${systemPrompt} \n\nADDITIONAL_INSTRUCTIONS: ${instructions} \n\nCONTEXT_DATA_JSON: \n${contextData} `;
 
         try {
             const { data, errors } = await client.queries.generateBriefing({ prompt: fullPrompt });
             if (errors) throw new Error(errors[0].message);
-            if (data) setGeneratedNarrative(data);
+            if (data) {
+                // @ts-ignore - Schema updated but types might lag in IDE
+                setGeneratedNarrative(data.narrative || '');
+                // @ts-ignore
+                setGeneratedSummary(data.summary || '');
+            }
         } catch (e) {
             console.error(e);
             alert("Failed to generate briefing. Please try again or check your context size.");
@@ -111,7 +123,7 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
     };
 
     const handleCopyPrompt = () => {
-        const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives and provide a clear, concise executive level narrative of where these objectives currently stand and how this will impact the business.DO NOT MAKE UP ANY FACTS or embellish the material.`;
+        const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives... (JSON format requested)`;
         const fullPrompt = `SYSTEM_PROMPT: ${systemPrompt} \n\nADDITIONAL_INSTRUCTIONS: ${instructions} \n\nCONTEXT_DATA_JSON: \n${contextData} `;
         navigator.clipboard.writeText(fullPrompt);
         alert("Full prompt with context copied to clipboard!");
@@ -165,11 +177,23 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
                             </Alert>
 
                             {generatedNarrative ? (
-                                <Paper sx={{ p: 4, bgcolor: 'white' }}>
-                                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'serif', fontSize: '1.1rem' }}>
-                                        {generatedNarrative}
-                                    </Typography>
-                                </Paper>
+                                <Stack spacing={3}>
+                                    {generatedSummary && (
+                                        <Paper variant="outlined" sx={{ p: 3, bgcolor: 'primary.50', borderColor: 'primary.200' }}>
+                                            <Typography variant="subtitle2" color="primary.main" gutterBottom fontWeight="bold">
+                                                EXECUTIVE SUMMARY
+                                            </Typography>
+                                            <Typography variant="h6" component="p" sx={{ fontSize: '1.25rem', lineHeight: 1.4 }}>
+                                                {generatedSummary}
+                                            </Typography>
+                                        </Paper>
+                                    )}
+                                    <Paper sx={{ p: 4, bgcolor: 'white' }}>
+                                        <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'serif', fontSize: '1.1rem' }}>
+                                            {generatedNarrative}
+                                        </Typography>
+                                    </Paper>
+                                </Stack>
                             ) : (
                                 <Box textAlign="center" py={8}>
                                     <SmartToyIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
@@ -190,7 +214,6 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
                                     </Stack>
                                 </Box>
                             )}
-
 
 
                         </Stack>

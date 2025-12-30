@@ -329,9 +329,14 @@ const schema = a.schema({
     })
     .authorization((allow) => [allow.authenticated()]),
 
+  BriefingResponse: a.customType({
+    summary: a.string(),
+    narrative: a.string(),
+  }),
+
   generateBriefing: a.query()
     .arguments({ prompt: a.string().required() })
-    .returns(a.string())
+    .returns(a.ref('BriefingResponse'))
     .authorization((allow) => [allow.authenticated()])
     .handler(a.handler.function(generateBriefing)),
 });
