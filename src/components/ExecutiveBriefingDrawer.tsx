@@ -191,17 +191,8 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
                                 </Box>
                             )}
 
-                            {/* Debug / Visibility into what is being sent */}
-                            <Box mt={4}>
-                                <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mb: 1 }}>
-                                    CONTEXT PREVIEW (First 2000 chars)
-                                </Typography>
-                                <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f1f5f9', maxHeight: 200, overflow: 'auto' }}>
-                                    <Typography variant="caption" fontFamily="monospace">
-                                        {contextData.substring(0, 2000)}...
-                                    </Typography>
-                                </Paper>
-                            </Box>
+
+
                         </Stack>
                     )}
                 </Box>
