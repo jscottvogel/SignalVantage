@@ -526,17 +526,20 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         );
     };
 
-    const StatusChip = ({ status }: { status: string }) => {
-        if (!status) return null;
-        let color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' = 'default';
-        if (['active', 'on_track'].includes(status.toLowerCase())) color = 'success';
-        if (['draft', 'planned'].includes(status.toLowerCase())) color = 'info';
-        if (['closed', 'completed'].includes(status.toLowerCase())) color = 'default';
-        if (['cancelled', 'off_track', 'low'].includes(status.toLowerCase())) color = 'error';
-        if (status.toLowerCase() === 'medium') color = 'warning';
-        if (status.toLowerCase() === 'high') color = 'success';
+    const StatusChip = ({ status }: { status: string | number | undefined | null }) => {
+        if (status === undefined || status === null || status === '') return null;
+        const statusStr = String(status);
+        const lowerStatus = statusStr.toLowerCase();
 
-        return <Chip label={status} size="small" color={color} sx={{ height: 20, fontSize: '0.65rem', textTransform: 'uppercase' }} />;
+        let color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' = 'default';
+        if (['active', 'on_track'].includes(lowerStatus)) color = 'success';
+        if (['draft', 'planned'].includes(lowerStatus)) color = 'info';
+        if (['closed', 'completed'].includes(lowerStatus)) color = 'default';
+        if (['cancelled', 'off_track', 'low'].includes(lowerStatus)) color = 'error';
+        if (lowerStatus === 'medium') color = 'warning';
+        if (lowerStatus === 'high') color = 'success';
+
+        return <Chip label={statusStr} size="small" color={color} sx={{ height: 20, fontSize: '0.65rem', textTransform: 'uppercase' }} />;
     };
 
     const TrendIcon = ({ trend }: { trend?: string }) => {
