@@ -19,8 +19,10 @@ import {
     MenuItem,
     Select,
     FormControl,
-    InputLabel
+    InputLabel,
+    Autocomplete
 } from '@mui/material';
+import { COMMON_METRICS } from '../utils/commonMetrics';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -44,6 +46,7 @@ interface NewKeyResult {
     statement: string;
     initiatives: NewInitiative[];
     ownerId?: string;
+    metricName?: string;
 }
 
 interface NewOutcome {
@@ -119,7 +122,7 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
         if (currentKRs.length >= limits.maxKeyResultsPerOutcome) {
             if (!confirm(`You have reached the recommended limit of ${limits.maxKeyResultsPerOutcome} Key Results per Outcome. Continue?`)) return;
         }
-        currentKRs.push({ statement: '', initiatives: [], ownerId: userProfile.id });
+        currentKRs.push({ statement: '', initiatives: [], ownerId: userProfile.id, metricName: '' });
         setOutcomes(newOutcomes);
     };
 
@@ -170,6 +173,17 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
             return member ? { userId: member.id, displayName: member.displayName, role: 'OWNER' } : null;
         };
 
+        const getMetricObj = (metricName?: string) => {
+            if (!metricName) return null;
+            const m = COMMON_METRICS.find(cm => cm.name === metricName);
+            if (!m) return null;
+            return {
+                name: m.name,
+                unit: m.unit,
+                direction: 'HIGHER_BETTER', // Default, could be refined
+            };
+        };
+
         setLoading(true);
         try {
             // 1. Create Objective
@@ -203,7 +217,8 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
                             outcomeId: outcome.id,
                             statement: krData.statement,
                             status: 'active',
-                            owners: krData.ownerId ? [getOwnerObj(krData.ownerId)!] : [] // Key Result has `owners` array
+                            owners: krData.ownerId ? [getOwnerObj(krData.ownerId)!] : [], // Key Result has `owners` array
+                            metric: getMetricObj(krData.metricName)
                         });
                         if (krErrors) console.error("KR creation error", krErrors);
 
@@ -370,21 +385,38 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
 
                                     {outcome.keyResults.map((kr, kIdx) => (
                                         <Box key={kIdx} mb={2}>
-                                            <Stack direction="row" spacing={1} alignItems="center">
-                                                <TextField
+                                            <Stack direction="column" spacing={2} sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                    <TextField
+                                                        fullWidth
+                                                        size="small"
+                                                        placeholder="Key Result Statement"
+                                                        value={kr.statement}
+                                                        onChange={e => updateKeyResult(oIdx, kIdx, 'statement', e.target.value)}
+                                                    />
+                                                    <Box minWidth={150}>
+                                                        <OwnerSelect
+                                                            value={kr.ownerId}
+                                                            onChange={(val) => updateKeyResult(oIdx, kIdx, 'ownerId', val)}
+                                                        />
+                                                    </Box>
+                                                    <IconButton size="small" onClick={() => removeKeyResult(oIdx, kIdx)}><DeleteIcon fontSize="small" /></IconButton>
+                                                </Stack>
+
+                                                <Autocomplete
                                                     fullWidth
                                                     size="small"
-                                                    placeholder="Key Result Statement"
-                                                    value={kr.statement}
-                                                    onChange={e => updateKeyResult(oIdx, kIdx, 'statement', e.target.value)}
+                                                    options={COMMON_METRICS}
+                                                    groupBy={(option) => option.category}
+                                                    getOptionLabel={(option) => option.name}
+                                                    value={COMMON_METRICS.find(m => m.name === kr.metricName) || null}
+                                                    onChange={(_, newValue) => {
+                                                        updateKeyResult(oIdx, kIdx, 'metricName', newValue?.name || '')
+                                                    }}
+                                                    renderInput={(params) => (
+                                                        <TextField {...params} label="Standard Metric (Optional)" placeholder="Select a standard metric to track" />
+                                                    )}
                                                 />
-                                                <Box minWidth={150}>
-                                                    <OwnerSelect
-                                                        value={kr.ownerId}
-                                                        onChange={(val) => updateKeyResult(oIdx, kIdx, 'ownerId', val)}
-                                                    />
-                                                </Box>
-                                                <IconButton size="small" onClick={() => removeKeyResult(oIdx, kIdx)}><DeleteIcon fontSize="small" /></IconButton>
                                             </Stack>
 
                                             {/* Initiatives */}

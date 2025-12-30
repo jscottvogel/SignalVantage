@@ -149,6 +149,7 @@ const schema = a.schema({
     milestoneStatus: a.string(),
     ownerConfidence: a.integer(),
     confidenceRationale: a.string(),
+    metricValue: a.float(), // Added for tracking metric data
     newRisks: a.ref('Risk').array(),
     dependencies: a.ref('Dependency').array(),
   }),

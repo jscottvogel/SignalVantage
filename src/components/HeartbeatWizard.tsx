@@ -34,6 +34,9 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     const [derivedKR, setDerivedKR] = useState<any>(null);
 
     // Form State
+    // Metric State
+    const [metricValue, setMetricValue] = useState<number | ''>('');
+
     // Form State
     const [progressSummary, setProgressSummary] = useState('');
     const [risks, setRisks] = useState<{ description: string, impact: string, probability: number }[]>([]);
@@ -55,6 +58,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 setProgressSummary(input.progressSummary || '');
                 setConfidenceRationale(input.confidenceRationale || '');
                 setOwnerConfidence(input.ownerConfidence !== undefined ? input.ownerConfidence : 50);
+                if (input.metricValue !== undefined) setMetricValue(input.metricValue);
 
                 if (input.newRisks) {
                     setRisks(input.newRisks.map((r: any) => ({
@@ -86,7 +90,10 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     });
 
     const handleNext = () => {
-        if (itemType === 'kr' || activeStep === steps.length - 1) {
+        // Skip manual entry only for KRs WITHOUT metrics
+        if (itemType === 'kr' && !item.metric) {
+            handleSubmit();
+        } else if (activeStep === steps.length - 1) {
             handleSubmit();
         } else {
             setActiveStep((prev) => prev + 1);
@@ -96,18 +103,6 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     const handleBack = () => {
         setActiveStep((prev) => prev - 1);
     };
-
-
-    // Calculate KR Rollup on mount
-    useState(() => {
-        if (itemType === 'kr' && item.initiatives) {
-            const initiatives = item.initiatives.map((i: any) => ({
-                confidence: i.latestHeartbeat?.systemAssessment?.systemConfidence || i.latestHeartbeat?.ownerInput?.ownerConfidence || 'MEDIUM',
-                title: i.title
-            }));
-            setDerivedKR(generateKeyResultRollup(initiatives));
-        }
-    });
 
     const addRisk = () => {
         if (!newRiskDesc.trim()) return;
@@ -132,8 +127,10 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             let systemAssessment: any = {};
             let ownerInput: any = {};
 
-            if (itemType === 'kr') {
-                // KR Derived Heartbeat
+            // If KR has a metric, treat it as specific data collection (standard flow)
+            // Otherwise, use derived rollup
+            if (itemType === 'kr' && !item.metric) {
+                // KR Derived Heartbeat (Pure Rollup)
                 if (!derivedKR) throw new Error("Rollup calculation failed");
 
                 systemAssessment = {
@@ -167,11 +164,12 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 };
 
             } else {
-                // Standard Initiative/Outcome Heartbeat Logic
+                // Standard Initiative/Outcome/Metric-KR Heartbeat Logic
                 ownerInput = {
                     progressSummary,
                     ownerConfidence: ownerConfidence || 'MEDIUM',
                     confidenceRationale,
+                    metricValue: metricValue !== '' ? Number(metricValue) : undefined,
                     newRisks: risks.map(r => ({
                         id: crypto.randomUUID(),
                         description: r.description,
@@ -219,6 +217,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 if (itemType === 'initiative') heartbeatPayload.initiativeId = item.id;
                 else if (itemType === 'outcome') heartbeatPayload.outcomeId = item.id;
                 else if (itemType === 'objective') heartbeatPayload.strategicObjectiveId = item.id;
+                else if (itemType === 'kr') heartbeatPayload.keyResultId = item.id;
             }
 
             const newHeartbeat = await client.models.Heartbeat.create(heartbeatPayload);
@@ -294,7 +293,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     };
 
     const renderStepContent = (step: number) => {
-        if (itemType === 'kr') {
+        if (itemType === 'kr' && !item.metric) {
             if (!derivedKR) return <Typography>Calculating Rollup...</Typography>;
             return (
                 <Box pt={2}>
@@ -333,6 +332,9 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 return (
                     <Box pt={2}>
                         <Typography variant="h6" gutterBottom>{item.title}</Typography>
+                        {item.metric && (
+                            <Chip label={`Metric: ${item.metric.name}`} color="primary" variant="outlined" sx={{ mb: 2 }} />
+                        )}
                         <Typography variant="body2" color="text.secondary" paragraph>
                             Please provide an update for the current cycle. Your honest assessment drives the system's confidence.
                         </Typography>
@@ -345,6 +347,23 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             case 1: // Progress
                 return (
                     <Box pt={2}>
+                        {item.metric && (
+                            <Box mb={3} p={2} bgcolor="primary.light" borderRadius={1} bg-opacity={0.1}>
+                                <Typography variant="subtitle2" gutterBottom color="primary.dark">
+                                    Current {item.metric.name} Value
+                                </Typography>
+                                <TextField
+                                    label={`Value (${item.metric.unit})`}
+                                    type="number"
+                                    fullWidth
+                                    value={metricValue}
+                                    onChange={(e) => setMetricValue(Number(e.target.value))}
+                                    required
+                                    variant="filled"
+                                    sx={{ bgcolor: 'white' }}
+                                />
+                            </Box>
+                        )}
                         <Typography variant="subtitle1" gutterBottom>What changed since the last update?</Typography>
                         <TextField
                             multiline
