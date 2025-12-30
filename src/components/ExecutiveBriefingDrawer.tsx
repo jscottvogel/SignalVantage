@@ -37,6 +37,13 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
         }
     }, [open, organizationId]);
 
+    useEffect(() => {
+        if (!open) {
+            setGeneratedNarrative('');
+            setGeneratedSummary('');
+        }
+    }, [open]);
+
     const loadContext = async () => {
         setLoading(true);
         try {
@@ -107,7 +114,7 @@ EXECUTIVE_NARRATIVE
 
 DO NOT output JSON. DO NOT use markdown code blocks.
 DO NOT MAKE UP ANY FACTS or embellish the material. Use the provided context data.`;
-        return `SYSTEM_PROMPT: ${systemPrompt} \n\nADDITIONAL_INSTRUCTIONS: ${instructions} \n\nCONTEXT_DATA_JSON: \n${contextData} `;
+        return `SYSTEM_PROMPT: ${systemPrompt} \n\nADDITIONAL_INSTRUCTIONS: ${instructions} \n\nCONTEXT_DATA: \n${contextData} `;
     };
 
     const handleGenerate = async () => {
