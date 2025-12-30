@@ -33,6 +33,7 @@ import BalanceIcon from '@mui/icons-material/Balance';
 import HeartbeatWizard from './HeartbeatWizard';
 import HeartbeatHistoryDialog from './HeartbeatHistoryDialog';
 import WeightDistributionModal from './WeightDistributionModal';
+import { logger } from '../utils/logger';
 
 const client = generateClient<Schema>();
 
@@ -191,7 +192,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 filter: { organizationId: { eq: org.id } },
                 limit: 1000 // Ensure we get enough
             });
-            console.log("Debug: All Initiatives Fetched:", allInitiatives);
+            logger.log("Debug: All Initiatives Fetched:", allInitiatives);
 
             // Map initiatives to KRs
             const outcomesFinal = outcomesWithChildren.map(outcome => ({
@@ -201,7 +202,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         const ids = init.linkedEntities?.keyResultIds || [];
                         return ids.includes(kr.id);
                     });
-                    console.log(`Debug: KR ${kr.id} linked initiatives:`, linked);
+                    logger.log(`Debug: KR ${kr.id} linked initiatives:`, linked);
                     return {
                         ...kr,
                         initiatives: linked
@@ -211,7 +212,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
 
             setOutcomes(outcomesFinal);
         } catch (e) {
-            console.error("Error fetching details", e);
+            logger.error("Error fetching details", e);
         } finally {
             setLoading(false);
         }
@@ -305,7 +306,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             }
             await refreshTree();
         } catch (e) {
-            console.error("Delete failed", e);
+            logger.error("Delete failed", e);
             alert("Failed to delete item.");
         }
     };
@@ -487,7 +488,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             await refreshTree();
             setDialogState({ ...dialogState, open: false });
         } catch (e) {
-            console.error("Operation failed", e);
+            logger.error("Operation failed", e);
             alert("Failed to save item.");
         } finally {
             setIsSubmitting(false);

@@ -13,6 +13,7 @@ import type { Schema } from '../../amplify/data/resource';
 
 const client = generateClient<Schema>();
 import { assessHeartbeat, generateKeyResultRollup } from '../utils/heartbeatLogic';
+import { logger } from '../utils/logger';
 
 interface Risk {
     description: string;
@@ -325,7 +326,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             onComplete();
             onClose();
         } catch (e) {
-            console.error("Error submitting heartbeat", e);
+            logger.error("Error submitting heartbeat", e);
             alert("Failed to submit heartbeat.");
         } finally {
             setIsSubmitting(false);
