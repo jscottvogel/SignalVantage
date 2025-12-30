@@ -19,7 +19,8 @@ import {
     MenuItem,
     FormControl,
     InputLabel,
-    Tooltip
+    Tooltip,
+    Autocomplete
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
@@ -34,6 +35,49 @@ import HeartbeatHistoryDialog from './HeartbeatHistoryDialog';
 import WeightDistributionModal from './WeightDistributionModal';
 
 const client = generateClient<Schema>();
+
+const METRIC_OPTIONS = [
+    { group: 'Customer & Growth Metrics', label: 'Net Promoter Score (NPS)' },
+    { group: 'Customer & Growth Metrics', label: 'Customer Satisfaction (CSAT)' },
+    { group: 'Customer & Growth Metrics', label: 'Customer Effort Score (CES)' },
+    { group: 'Customer & Growth Metrics', label: 'Customer Retention Rate' },
+    { group: 'Customer & Growth Metrics', label: 'Churn Rate' },
+    { group: 'Customer & Growth Metrics', label: 'Customer Lifetime Value (CLV / LTV)' },
+    { group: 'Customer & Growth Metrics', label: 'Customer Acquisition Cost (CAC)' },
+    { group: 'Product & Adoption Metrics', label: 'Monthly Active Users (MAU) / Daily Active Users (DAU)' },
+    { group: 'Product & Adoption Metrics', label: 'DAU/MAU Ratio' },
+    { group: 'Product & Adoption Metrics', label: 'Activation Rate' },
+    { group: 'Product & Adoption Metrics', label: 'Feature Adoption Rate' },
+    { group: 'Product & Adoption Metrics', label: 'Time to First Value (TTFV)' },
+    { group: 'Product & Adoption Metrics', label: 'Conversion Rate' },
+    { group: 'Revenue & Financial Metrics', label: 'Revenue Growth Rate' },
+    { group: 'Revenue & Financial Metrics', label: 'Annual Recurring Revenue (ARR) / Monthly Recurring Revenue (MRR)' },
+    { group: 'Revenue & Financial Metrics', label: 'Average Revenue Per User (ARPU)' },
+    { group: 'Revenue & Financial Metrics', label: 'Gross Margin' },
+    { group: 'Revenue & Financial Metrics', label: 'Operating Margin' },
+    { group: 'Revenue & Financial Metrics', label: 'Cost to Serve' },
+    { group: 'Revenue & Financial Metrics', label: 'Return on Investment (ROI)' },
+    { group: 'Operational & Delivery Metrics', label: 'On-Time Delivery Rate' },
+    { group: 'Operational & Delivery Metrics', label: 'Cycle Time / Lead Time' },
+    { group: 'Operational & Delivery Metrics', label: 'Throughput' },
+    { group: 'Operational & Delivery Metrics', label: 'Dependency Resolution Rate' },
+    { group: 'Operational & Delivery Metrics', label: 'Risk Burn-Down' },
+    { group: 'Operational & Delivery Metrics', label: 'Initiative Health' },
+    { group: 'Quality & Reliability Metrics', label: 'Defect Rate' },
+    { group: 'Quality & Reliability Metrics', label: 'Error Rate' },
+    { group: 'Quality & Reliability Metrics', label: 'System Availability / Uptime' },
+    { group: 'Quality & Reliability Metrics', label: 'Mean Time to Detect (MTTD)' },
+    { group: 'Quality & Reliability Metrics', label: 'Mean Time to Recover (MTTR)' },
+    { group: 'People & Execution Health', label: 'Employee Engagement Score' },
+    { group: 'People & Execution Health', label: 'Attrition / Retention Rate' },
+    { group: 'People & Execution Health', label: 'Capacity Utilization' },
+    { group: 'People & Execution Health', label: 'Delivery Predictability' },
+    { group: 'People & Execution Health', label: 'Confidence Trend' },
+    { group: 'Strategy & Outcome Metrics', label: 'OKR Achievement Rate' },
+    { group: 'Strategy & Outcome Metrics', label: 'Outcome Realization Rate' },
+    { group: 'Strategy & Outcome Metrics', label: 'Value Delivered vs. Planned' },
+    { group: 'Strategy & Outcome Metrics', label: 'Strategic Alignment Score' },
+];
 
 interface Props {
     objective: Schema['StrategicObjective']['type'];
@@ -886,21 +930,36 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         {/* KR Metric Name & Unit */}
                         {dialogState.type === 'kr' && (
                             <Stack direction="row" spacing={2}>
-                                <TextField
-                                    label="Metric Name (Optional)"
+                                <Autocomplete
+                                    freeSolo
                                     fullWidth
-                                    variant="outlined"
+                                    options={METRIC_OPTIONS}
+                                    groupBy={(option) => option.group}
+                                    getOptionLabel={(option) => typeof option === 'string' ? option : option.label}
                                     value={itemMetricName}
-                                    onChange={(e) => setItemMetricName(e.target.value)}
-                                    placeholder="e.g. NPS Score"
+                                    onInputChange={(_, newInputValue) => setItemMetricName(newInputValue)}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label="Metric Name (Optional)"
+                                            variant="outlined"
+                                            placeholder="Select or type..."
+                                        />
+                                    )}
                                 />
-                                <TextField
-                                    label="Unit (Optional)"
-                                    sx={{ width: '150px' }}
-                                    variant="outlined"
+                                <Autocomplete
+                                    freeSolo
+                                    options={['%', '$', '#', 'items', 'hours', 'days']}
                                     value={itemMetricUnit}
-                                    onChange={(e) => setItemMetricUnit(e.target.value)}
-                                    placeholder="e.g. %"
+                                    onInputChange={(_, newInputValue) => setItemMetricUnit(newInputValue)}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label="Unit"
+                                            variant="outlined"
+                                        />
+                                    )}
+                                    sx={{ width: '180px', flexShrink: 0 }}
                                 />
                             </Stack>
                         )}
