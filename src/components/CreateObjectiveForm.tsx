@@ -15,7 +15,11 @@ import {
     IconButton,
     Paper,
     Stack,
-    Alert
+    Alert,
+    MenuItem,
+    Select,
+    FormControl,
+    InputLabel
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
@@ -33,40 +37,68 @@ interface Props {
 interface NewInitiative {
     title: string;
     description: string;
+    ownerId?: string;
 }
 
 interface NewKeyResult {
     statement: string;
     initiatives: NewInitiative[];
+    ownerId?: string;
 }
 
 interface NewOutcome {
     title: string;
     description: string;
     keyResults: NewKeyResult[];
+    ownerId?: string;
+}
+
+interface TeamMember {
+    id: string;
+    displayName: string;
 }
 
 export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userProfile }: Props) {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [ownerId, setOwnerId] = useState<string>(userProfile.id);
     const [outcomes, setOutcomes] = useState<NewOutcome[]>([]);
     const [loading, setLoading] = useState(false);
     const [existingObjCount, setExistingObjCount] = useState<number | null>(null);
+    const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
     const currentTier = (userProfile.tier as SubscriptionTier) || 'FREE';
     const limits = SUBSCRIPTION_LIMITS[currentTier];
 
     useEffect(() => {
+        // Fetch objective count
         client.models.StrategicObjective.list({
             filter: { organizationId: { eq: organizationId } }
         }).then(({ data }) => setExistingObjCount(data.length));
+
+        // Fetch team members
+        const fetchTeam = async () => {
+            const { data: memberships } = await client.models.Membership.list({
+                filter: { organizationId: { eq: organizationId } }
+            });
+            const loadedMembers = await Promise.all(memberships.map(async (m) => {
+                const { data: user } = await m.user(); // Changed from m.profile() to m.user() based on schema
+                return {
+                    id: user?.id || 'unknown',
+                    displayName: user?.preferredName ? `${user.preferredName} ${(user as any).lastName || ''}` : user?.email || 'Unknown User'
+                };
+            }));
+            setTeamMembers(loadedMembers.filter(m => m.id !== 'unknown'));
+        };
+        fetchTeam();
+
     }, [organizationId]);
 
     const addOutcome = () => {
         if (outcomes.length >= limits.maxOutcomesPerObjective) {
             if (!confirm(`You have reached the recommended limit of ${limits.maxOutcomesPerObjective} Outcomes per Objective. Continue?`)) return;
         }
-        setOutcomes([...outcomes, { title: '', description: '', keyResults: [] }]);
+        setOutcomes([...outcomes, { title: '', description: '', keyResults: [], ownerId: userProfile.id }]);
     };
 
     const updateOutcome = (index: number, field: keyof NewOutcome, value: string) => {
@@ -87,13 +119,13 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
         if (currentKRs.length >= limits.maxKeyResultsPerOutcome) {
             if (!confirm(`You have reached the recommended limit of ${limits.maxKeyResultsPerOutcome} Key Results per Outcome. Continue?`)) return;
         }
-        currentKRs.push({ statement: '', initiatives: [] });
+        currentKRs.push({ statement: '', initiatives: [], ownerId: userProfile.id });
         setOutcomes(newOutcomes);
     };
 
-    const updateKeyResult = (outcomeIndex: number, krIndex: number, value: string) => {
+    const updateKeyResult = (outcomeIndex: number, krIndex: number, field: keyof NewKeyResult, value: string) => {
         const newOutcomes = [...outcomes];
-        newOutcomes[outcomeIndex].keyResults[krIndex].statement = value;
+        (newOutcomes[outcomeIndex].keyResults[krIndex] as any)[field] = value;
         setOutcomes(newOutcomes);
     };
 
@@ -109,7 +141,7 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
         if (currentInits.length >= limits.maxInitiativesPerKeyResult) {
             if (!confirm(`You have reached the recommended limit of ${limits.maxInitiativesPerKeyResult} Initiatives per Key Result. Continue?`)) return;
         }
-        currentInits.push({ title: '', description: '' });
+        currentInits.push({ title: '', description: '', ownerId: userProfile.id });
         setOutcomes(newOutcomes);
     };
 
@@ -132,6 +164,12 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
             if (!confirm(`Organization limit of ${limits.maxObjectives} Objectives reached. Create anyway (soft limit)?`)) return;
         }
 
+        const getOwnerObj = (id?: string) => {
+            if (!id) return null;
+            const member = teamMembers.find(m => m.id === id);
+            return member ? { userId: member.id, displayName: member.displayName, role: 'OWNER' } : null;
+        };
+
         setLoading(true);
         try {
             // 1. Create Objective
@@ -139,7 +177,8 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
                 organizationId,
                 title,
                 description,
-                status: 'active'
+                status: 'active',
+                owner: getOwnerObj(ownerId)
             });
             if (objErrors) throw new Error(objErrors[0].message);
             if (!obj) throw new Error('Failed to create objective');
@@ -151,7 +190,8 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
                     strategicObjectiveId: obj.id,
                     title: outcomeData.title,
                     description: outcomeData.description,
-                    status: 'active'
+                    status: 'active',
+                    owner: getOwnerObj(outcomeData.ownerId)
                 });
                 if (outErrors) console.error("Outcome creation error", outErrors);
 
@@ -162,7 +202,8 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
                             strategicObjectiveId: obj.id,
                             outcomeId: outcome.id,
                             statement: krData.statement,
-                            status: 'active'
+                            status: 'active',
+                            owners: krData.ownerId ? [getOwnerObj(krData.ownerId)!] : [] // Key Result has `owners` array
                         });
                         if (krErrors) console.error("KR creation error", krErrors);
 
@@ -172,6 +213,7 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
                                     organizationId,
                                     title: initData.title,
                                     description: initData.description,
+                                    owner: getOwnerObj(initData.ownerId),
                                     linkedEntities: {
                                         strategicObjectiveIds: [obj.id],
                                         outcomeIds: [outcome.id],
@@ -194,6 +236,23 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
             setLoading(false);
         }
     };
+
+    const OwnerSelect = ({ value, onChange, label, size = 'small' }: { value?: string, onChange: (val: string) => void, label?: string, size?: 'small' | 'medium' }) => (
+        <FormControl fullWidth size={size}>
+            <InputLabel>{label || "Owner"}</InputLabel>
+            <Select
+                value={value || ''}
+                label={label || "Owner"}
+                onChange={(e) => onChange(e.target.value)}
+            >
+                {teamMembers.map((member) => (
+                    <MenuItem key={member.id} value={member.id}>
+                        {member.displayName}
+                    </MenuItem>
+                ))}
+            </Select>
+        </FormControl>
+    );
 
     return (
         <Dialog
@@ -222,19 +281,25 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
 
                     <Box>
                         <Typography variant="subtitle2" color="text.secondary" gutterBottom>OBJECTIVE DETAILS</Typography>
-                        <TextField
-                            autoFocus
-                            margin="dense"
-                            id="title"
-                            label="Objective Title"
-                            placeholder="e.g. Expand Market Share globally"
-                            type="text"
-                            fullWidth
-                            variant="outlined"
-                            value={title}
-                            onChange={e => setTitle(e.target.value)}
-                            required
-                        />
+                        <Stack direction="row" spacing={2} mb={2}>
+                            <TextField
+                                autoFocus
+                                margin="dense"
+                                id="title"
+                                label="Objective Title"
+                                placeholder="e.g. Expand Market Share globally"
+                                type="text"
+                                fullWidth
+                                variant="outlined"
+                                value={title}
+                                onChange={e => setTitle(e.target.value)}
+                                required
+                            />
+                            <Box minWidth={200}>
+                                <OwnerSelect value={ownerId} onChange={setOwnerId} size="medium" />
+                            </Box>
+                        </Stack>
+
                         <TextField
                             margin="normal"
                             id="description"
@@ -277,15 +342,23 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
                                 </IconButton>
 
                                 <Box mb={2}>
-                                    <TextField
-                                        label={`Outcome #${oIdx + 1}`}
-                                        fullWidth
-                                        size="small"
-                                        value={outcome.title}
-                                        onChange={e => updateOutcome(oIdx, 'title', e.target.value)}
-                                        placeholder="Desited Business Outcome"
-                                        required
-                                    />
+                                    <Stack direction="row" spacing={2}>
+                                        <TextField
+                                            label={`Outcome #${oIdx + 1}`}
+                                            fullWidth
+                                            size="small"
+                                            value={outcome.title}
+                                            onChange={e => updateOutcome(oIdx, 'title', e.target.value)}
+                                            placeholder="Desited Business Outcome"
+                                            required
+                                        />
+                                        <Box minWidth={180}>
+                                            <OwnerSelect
+                                                value={outcome.ownerId}
+                                                onChange={(val) => updateOutcome(oIdx, 'ownerId', val)}
+                                            />
+                                        </Box>
+                                    </Stack>
                                 </Box>
 
                                 {/* Key Results */}
@@ -303,8 +376,14 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
                                                     size="small"
                                                     placeholder="Key Result Statement"
                                                     value={kr.statement}
-                                                    onChange={e => updateKeyResult(oIdx, kIdx, e.target.value)}
+                                                    onChange={e => updateKeyResult(oIdx, kIdx, 'statement', e.target.value)}
                                                 />
+                                                <Box minWidth={150}>
+                                                    <OwnerSelect
+                                                        value={kr.ownerId}
+                                                        onChange={(val) => updateKeyResult(oIdx, kIdx, 'ownerId', val)}
+                                                    />
+                                                </Box>
                                                 <IconButton size="small" onClick={() => removeKeyResult(oIdx, kIdx)}><DeleteIcon fontSize="small" /></IconButton>
                                             </Stack>
 
@@ -321,6 +400,12 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
                                                             onChange={e => updateInitiative(oIdx, kIdx, iIdx, 'title', e.target.value)}
                                                             sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem', py: 0.5 } }}
                                                         />
+                                                        <Box minWidth={140}>
+                                                            <OwnerSelect
+                                                                value={init.ownerId}
+                                                                onChange={(val) => updateInitiative(oIdx, kIdx, iIdx, 'ownerId', val)}
+                                                            />
+                                                        </Box>
                                                         <IconButton size="small" onClick={() => removeInitiative(oIdx, kIdx, iIdx)}><DeleteIcon fontSize="small" /></IconButton>
                                                     </Stack>
                                                 ))}
