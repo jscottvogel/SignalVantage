@@ -179,16 +179,38 @@ Ensure the response is valid JSON.`;
                             {generatedNarrative ? (
                                 <Stack spacing={3}>
                                     {generatedSummary && (
-                                        <Paper variant="outlined" sx={{ p: 3, bgcolor: 'primary.50', borderColor: 'primary.200' }}>
-                                            <Typography variant="subtitle2" color="primary.main" gutterBottom fontWeight="bold">
-                                                EXECUTIVE SUMMARY
-                                            </Typography>
-                                            <Typography variant="h6" component="p" sx={{ fontSize: '1.25rem', lineHeight: 1.4 }}>
+                                        <Paper variant="outlined" sx={{ p: 3, bgcolor: 'primary.50', borderColor: 'primary.200', position: 'relative' }}>
+                                            <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                                <Typography variant="subtitle2" color="primary.main" fontWeight="bold">
+                                                    EXECUTIVE SUMMARY
+                                                </Typography>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(generatedSummary);
+                                                        alert("Summary copied to clipboard!");
+                                                    }}
+                                                    sx={{ position: 'absolute', top: 8, right: 8 }}
+                                                >
+                                                    <ContentCopyIcon fontSize="small" />
+                                                </IconButton>
+                                            </Box>
+                                            <Typography variant="h6" component="p" sx={{ fontSize: '1.25rem', lineHeight: 1.4, pr: 4 }}>
                                                 {generatedSummary}
                                             </Typography>
                                         </Paper>
                                     )}
-                                    <Paper sx={{ p: 4, bgcolor: 'white' }}>
+                                    <Paper sx={{ p: 4, bgcolor: 'white', position: 'relative' }}>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(generatedNarrative);
+                                                alert("Narrative copied to clipboard!");
+                                            }}
+                                            sx={{ position: 'absolute', top: 16, right: 16 }}
+                                        >
+                                            <ContentCopyIcon />
+                                        </IconButton>
                                         <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'serif', fontSize: '1.1rem' }}>
                                             {generatedNarrative}
                                         </Typography>
