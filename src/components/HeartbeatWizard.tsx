@@ -14,14 +14,40 @@ import type { Schema } from '../../amplify/data/resource';
 const client = generateClient<Schema>();
 import { assessHeartbeat, generateKeyResultRollup } from '../utils/heartbeatLogic';
 
+interface Risk {
+    description: string;
+    impact: string;
+    probability: number;
+}
+
+interface Dependency {
+    description: string;
+    status: string;
+}
+
+type StrategicItem =
+    | Schema['Initiative']['type']
+    | Schema['Outcome']['type']
+    | Schema['StrategicObjective']['type']
+    | Schema['KeyResult']['type'];
+
 interface HeartbeatWizardProps {
     open: boolean;
     onClose: () => void;
-    item: any;
+    item: StrategicItem;
     itemType: 'initiative' | 'outcome' | 'objective' | 'kr';
     onComplete: () => void;
     editHeartbeatId?: string;
-    initialData?: any; // For edit mode
+    initialData?: {
+        ownerInput?: {
+            progressSummary?: string | null;
+            confidenceRationale?: string | null;
+            ownerConfidence?: number | null;
+            metricValue?: number | null;
+            newRisks?: { description: string; impact: string; probability?: number | null }[] | null;
+            dependencies?: { description: string; status: string }[] | null;
+        } | null;
+    };
 }
 
 const steps = ['Context', 'Progress', 'Risks & Dependencies', 'Confidence', 'Review'];
@@ -31,7 +57,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Derived State for KR
-    const [derivedKR, setDerivedKR] = useState<any>(null);
+    const [derivedKR, setDerivedKR] = useState<{ confidence: string | number; trend: string; summary: string } | null>(null);
 
     // Form State
     // Metric State
@@ -39,12 +65,12 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
 
     // Form State
     const [progressSummary, setProgressSummary] = useState('');
-    const [risks, setRisks] = useState<{ description: string, impact: string, probability: number }[]>([]);
+    const [risks, setRisks] = useState<Risk[]>([]);
     const [newRiskDesc, setNewRiskDesc] = useState('');
     const [newRiskImpact, setNewRiskImpact] = useState('Medium');
     const [newRiskProb, setNewRiskProb] = useState<number>(50);
 
-    const [dependencies, setDependencies] = useState<{ description: string, status: string }[]>([]);
+    const [dependencies, setDependencies] = useState<Dependency[]>([]);
     const [newDepDesc, setNewDepDesc] = useState('');
 
     const [ownerConfidence, setOwnerConfidence] = useState<number>(50);
@@ -57,18 +83,18 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             if (input) {
                 setProgressSummary(input.progressSummary || '');
                 setConfidenceRationale(input.confidenceRationale || '');
-                setOwnerConfidence(input.ownerConfidence !== undefined ? input.ownerConfidence : 50);
-                if (input.metricValue !== undefined) setMetricValue(input.metricValue);
+                setOwnerConfidence(input.ownerConfidence ?? 50);
+                if (input.metricValue != null) setMetricValue(input.metricValue);
 
                 if (input.newRisks) {
-                    setRisks(input.newRisks.map((r: any) => ({
+                    setRisks(input.newRisks.map(r => ({
                         description: r.description,
                         impact: r.impact,
                         probability: r.probability || 50
                     })));
                 }
                 if (input.dependencies) {
-                    setDependencies(input.dependencies.map((d: any) => ({
+                    setDependencies(input.dependencies.map(d => ({
                         description: d.description,
                         status: d.status
                     })));
@@ -80,18 +106,23 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
 
     // Calculate KR Rollup on mount
     useState(() => {
-        if (itemType === 'kr' && item.initiatives) {
-            const initiatives = item.initiatives.map((i: any) => ({
-                confidence: i.latestHeartbeat?.systemAssessment?.systemConfidence || i.latestHeartbeat?.ownerInput?.ownerConfidence || 'MEDIUM',
-                title: i.title
-            }));
-            setDerivedKR(generateKeyResultRollup(initiatives));
+        if (itemType === 'kr') {
+            const kr = item as Schema['KeyResult']['type'];
+            const initiatives = (kr as any).initiatives;
+            if (initiatives) {
+                const mappedInitiatives = initiatives.map((i: any) => ({
+                    confidence: i.latestHeartbeat?.systemAssessment?.systemConfidence || i.latestHeartbeat?.ownerInput?.ownerConfidence || 'MEDIUM',
+                    title: i.title
+                }));
+                setDerivedKR(generateKeyResultRollup(mappedInitiatives));
+            }
         }
     });
 
     const handleNext = () => {
         // Skip manual entry only for KRs WITHOUT metrics
-        if (itemType === 'kr' && !item.metric) {
+        const hasMetric = itemType === 'kr' && (item as Schema['KeyResult']['type']).metric;
+        if (itemType === 'kr' && !hasMetric) {
             handleSubmit();
         } else if (activeStep === steps.length - 1) {
             handleSubmit();
@@ -127,9 +158,11 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             let systemAssessment: any = {};
             let ownerInput: any = {};
 
+            const itemKR = itemType === 'kr' ? (item as Schema['KeyResult']['type']) : null;
+
             // If KR has a metric, treat it as specific data collection (standard flow)
             // Otherwise, use derived rollup
-            if (itemType === 'kr' && !item.metric) {
+            if (itemKR && !itemKR.metric) {
                 // KR Derived Heartbeat (Pure Rollup)
                 if (!derivedKR) throw new Error("Rollup calculation failed");
 
@@ -143,14 +176,14 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                     },
                     uncertaintyFlags: [],
                     factsInferencesRecommendations: {
-                        facts: [`Rolled up from ${item.initiatives?.length || 0} initiatives.`],
+                        facts: [`Rolled up from ${(itemKR as any).initiatives?.length || 0} initiatives.`],
                         inferences: [],
                         recommendations: []
                     }
                 };
 
                 heartbeatPayload = {
-                    type: 'SCHEDULED', // Event triggered?
+                    type: 'SCHEDULED',
                     status: 'COMPLETED',
                     timestamp: now,
                     keyResultId: item.id,
@@ -158,7 +191,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                     // No purely human OwnerInput for KR, but we can store the summary
                     ownerInput: {
                         progressSummary: derivedKR.summary,
-                        ownerConfidence: derivedKR.confidence,
+                        ownerConfidence: undefined, // Let backend or display logic handle it
                         confidenceRationale: "System Derived Rollup",
                     }
                 };
@@ -167,7 +200,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 // Standard Initiative/Outcome/Metric-KR Heartbeat Logic
                 ownerInput = {
                     progressSummary,
-                    ownerConfidence: ownerConfidence || 'MEDIUM',
+                    ownerConfidence: ownerConfidence || 50,
                     confidenceRationale,
                     metricValue: metricValue !== '' ? Number(metricValue) : undefined,
                     newRisks: risks.map(r => ({
@@ -188,7 +221,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                 // Calculate System Assessment
                 systemAssessment = assessHeartbeat(
                     ownerInput as any,
-                    item.latestHeartbeat,
+                    (item as any).latestHeartbeat,
                     item.nextHeartbeatDue
                 );
 
@@ -199,8 +232,6 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                         ownerInput: ownerInput,
                         systemAssessment: systemAssessment
                     });
-                    // Skip Next Due Date logic on edit for now or handle complexity?
-                    // Usually edit is just content fix.
                     onComplete();
                     onClose();
                     return;
@@ -226,9 +257,9 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             const latestHeartbeat = {
                 heartbeatId: newHeartbeat.data?.id || crypto.randomUUID(),
                 timestamp: now,
-                ownerInput: itemType === 'kr' ? heartbeatPayload.ownerInput : ownerInput,
+                ownerInput: (itemKR && !itemKR.metric) ? heartbeatPayload.ownerInput : ownerInput,
                 systemAssessment: systemAssessment,
-                summary: itemType === 'kr' ? derivedKR.summary : ownerInput.progressSummary,
+                summary: (itemKR && !itemKR.metric) ? derivedKR?.summary : ownerInput.progressSummary,
             };
 
             // ... (Next Due Date logic remains common)
@@ -236,13 +267,13 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
 
             // Calculate Next Due Date
             let nextHeartbeatDue = null;
-            if (item.heartbeatCadence) {
-                const { frequency, hour = 9 } = item.heartbeatCadence;
+            const itemCadence = (item as any).heartbeatCadence;
+            if (itemCadence) {
+                const { frequency, hour } = itemCadence;
+                const safeHour = hour ?? 9;
                 const date = new Date();
-                date.setHours(hour, 0, 0, 0);
+                date.setHours(safeHour, 0, 0, 0);
 
-                // If currently "LATE", we still schedule from *now* or from *scheduled*? 
-                // Normally next due is calc from now for rhythm.
                 if (frequency === 'DAILY') date.setDate(date.getDate() + 1);
                 else if (frequency === 'WEEKLY') date.setDate(date.getDate() + 7);
                 else if (frequency === 'BIWEEKLY') date.setDate(date.getDate() + 14);
@@ -252,12 +283,13 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             }
 
             if (itemType === 'initiative') {
+                const initItem = item as Schema['Initiative']['type'];
                 await client.models.Initiative.update({
                     id: item.id,
                     latestHeartbeat: latestHeartbeat as any,
                     nextHeartbeatDue: nextHeartbeatDue || undefined,
                     state: {
-                        ...item.state,
+                        ...initItem.state,
                         updatedAt: now,
                         health: (ownerConfidence || 50) < 50 ? 'off_track' : 'on_track'
                     }
@@ -293,13 +325,16 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     };
 
     const renderStepContent = (step: number) => {
-        if (itemType === 'kr' && !item.metric) {
+        const itemKR = itemType === 'kr' ? (item as Schema['KeyResult']['type']) : null;
+        const displayTitle = 'title' in item ? item.title : (item as any).statement || 'Unknown Item';
+
+        if (itemType === 'kr' && !itemKR?.metric) {
             if (!derivedKR) return <Typography>Calculating Rollup...</Typography>;
             return (
                 <Box pt={2}>
                     <Typography variant="h6" gutterBottom>Derived Key Result Heartbeat</Typography>
                     <Typography variant="body2" color="text.secondary" paragraph>
-                        This heartbeat is automatically derived from {item.initiatives?.length || 0} linked initiatives.
+                        This heartbeat is automatically derived from {(item as Schema['KeyResult']['type']).initiatives?.length || 0} linked initiatives.
                     </Typography>
 
                     <Box bgcolor="grey.50" p={2} borderRadius={1} mb={2} border={1} borderColor="divider">
@@ -331,29 +366,29 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             case 0: // Context
                 return (
                     <Box pt={2}>
-                        <Typography variant="h6" gutterBottom>{item.title}</Typography>
-                        {item.metric && (
-                            <Chip label={`Metric: ${item.metric.name}`} color="primary" variant="outlined" sx={{ mb: 2 }} />
+                        <Typography variant="h6" gutterBottom>{displayTitle}</Typography>
+                        {(item as Schema['KeyResult']['type']).metric && (
+                            <Chip label={`Metric: ${(item as Schema['KeyResult']['type']).metric?.name}`} color="primary" variant="outlined" sx={{ mb: 2 }} />
                         )}
                         <Typography variant="body2" color="text.secondary" paragraph>
                             Please provide an update for the current cycle. Your honest assessment drives the system's confidence.
                         </Typography>
                         <Box bgcolor="grey.100" p={2} borderRadius={1}>
-                            <Typography variant="subtitle2">Last Confidence: {item.latestHeartbeat?.ownerInput?.ownerConfidence || 'None'}</Typography>
-                            <Typography variant="caption" display="block">Last Update: {item.latestHeartbeat?.timestamp ? new Date(item.latestHeartbeat.timestamp).toLocaleDateString() : 'Never'}</Typography>
+                            <Typography variant="subtitle2">Last Confidence: {(item as any).latestHeartbeat?.ownerInput?.ownerConfidence || 'None'}</Typography>
+                            <Typography variant="caption" display="block">Last Update: {(item as any).latestHeartbeat?.timestamp ? new Date((item as any).latestHeartbeat.timestamp).toLocaleDateString() : 'Never'}</Typography>
                         </Box>
                     </Box>
                 );
             case 1: // Progress
                 return (
                     <Box pt={2}>
-                        {item.metric && (
+                        {(item as Schema['KeyResult']['type']).metric && (
                             <Box mb={3} p={2} bgcolor="primary.light" borderRadius={1} bg-opacity={0.1}>
                                 <Typography variant="subtitle2" gutterBottom color="primary.dark">
-                                    Current {item.metric.name} Value
+                                    Current {(item as Schema['KeyResult']['type']).metric?.name} Value
                                 </Typography>
                                 <TextField
-                                    label={`Value (${item.metric.unit})`}
+                                    label={`Value (${(item as Schema['KeyResult']['type']).metric?.unit})`}
                                     type="number"
                                     fullWidth
                                     value={metricValue}

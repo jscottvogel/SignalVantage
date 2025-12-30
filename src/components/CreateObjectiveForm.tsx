@@ -85,10 +85,10 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
                 filter: { organizationId: { eq: organizationId } }
             });
             const loadedMembers = await Promise.all(memberships.map(async (m) => {
-                const { data: user } = await m.user(); // Changed from m.profile() to m.user() based on schema
+                const { data: user } = await m.user();
                 return {
                     id: user?.id || 'unknown',
-                    displayName: user?.preferredName ? `${user.preferredName} ${(user as any).lastName || ''}` : user?.email || 'Unknown User'
+                    displayName: user?.preferredName || user?.email || 'Unknown User'
                 };
             }));
             setTeamMembers(loadedMembers.filter(m => m.id !== 'unknown'));
@@ -106,7 +106,7 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
 
     const updateOutcome = (index: number, field: keyof NewOutcome, value: string) => {
         const newOutcomes = [...outcomes];
-        (newOutcomes[index] as any)[field] = value;
+        newOutcomes[index] = { ...newOutcomes[index], [field]: value };
         setOutcomes(newOutcomes);
     };
 
@@ -118,39 +118,54 @@ export function CreateObjectiveForm({ organizationId, onClose, onSuccess, userPr
 
     const addKeyResult = (outcomeIndex: number) => {
         const newOutcomes = [...outcomes];
-        const currentKRs = newOutcomes[outcomeIndex].keyResults;
+        const currentKRs = [...newOutcomes[outcomeIndex].keyResults];
+
         if (currentKRs.length >= limits.maxKeyResultsPerOutcome) {
             if (!confirm(`You have reached the recommended limit of ${limits.maxKeyResultsPerOutcome} Key Results per Outcome. Continue?`)) return;
         }
         currentKRs.push({ statement: '', initiatives: [], ownerId: userProfile.id, metricName: '' });
+        newOutcomes[outcomeIndex] = { ...newOutcomes[outcomeIndex], keyResults: currentKRs };
         setOutcomes(newOutcomes);
     };
 
     const updateKeyResult = (outcomeIndex: number, krIndex: number, field: keyof NewKeyResult, value: string) => {
         const newOutcomes = [...outcomes];
-        (newOutcomes[outcomeIndex].keyResults[krIndex] as any)[field] = value;
+        const currentKRs = [...newOutcomes[outcomeIndex].keyResults];
+        currentKRs[krIndex] = { ...currentKRs[krIndex], [field]: value };
+        newOutcomes[outcomeIndex] = { ...newOutcomes[outcomeIndex], keyResults: currentKRs };
         setOutcomes(newOutcomes);
     };
 
     const removeKeyResult = (outcomeIndex: number, krIndex: number) => {
         const newOutcomes = [...outcomes];
-        newOutcomes[outcomeIndex].keyResults.splice(krIndex, 1);
+        const currentKRs = [...newOutcomes[outcomeIndex].keyResults];
+        currentKRs.splice(krIndex, 1);
+        newOutcomes[outcomeIndex] = { ...newOutcomes[outcomeIndex], keyResults: currentKRs };
         setOutcomes(newOutcomes);
     }
 
     const addInitiative = (outcomeIndex: number, krIndex: number) => {
         const newOutcomes = [...outcomes];
-        const currentInits = newOutcomes[outcomeIndex].keyResults[krIndex].initiatives;
+        const currentKRs = [...newOutcomes[outcomeIndex].keyResults];
+        const currentInits = [...currentKRs[krIndex].initiatives];
+
         if (currentInits.length >= limits.maxInitiativesPerKeyResult) {
             if (!confirm(`You have reached the recommended limit of ${limits.maxInitiativesPerKeyResult} Initiatives per Key Result. Continue?`)) return;
         }
         currentInits.push({ title: '', description: '', ownerId: userProfile.id });
+        currentKRs[krIndex] = { ...currentKRs[krIndex], initiatives: currentInits };
+        newOutcomes[outcomeIndex] = { ...newOutcomes[outcomeIndex], keyResults: currentKRs };
         setOutcomes(newOutcomes);
     };
 
     const updateInitiative = (outcomeIndex: number, krIndex: number, initIndex: number, field: keyof NewInitiative, value: string) => {
         const newOutcomes = [...outcomes];
-        (newOutcomes[outcomeIndex].keyResults[krIndex].initiatives[initIndex] as any)[field] = value;
+        const currentKRs = [...newOutcomes[outcomeIndex].keyResults];
+        const currentInits = [...currentKRs[krIndex].initiatives];
+
+        currentInits[initIndex] = { ...currentInits[initIndex], [field]: value };
+        currentKRs[krIndex] = { ...currentKRs[krIndex], initiatives: currentInits };
+        newOutcomes[outcomeIndex] = { ...newOutcomes[outcomeIndex], keyResults: currentKRs };
         setOutcomes(newOutcomes);
     };
 
