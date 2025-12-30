@@ -34,14 +34,20 @@ export const SettingsView = ({ org, userProfile, onUpdateProfile }: SettingsView
         initiatives: 0,
         ownedOrgs: 0
     });
-    // const [loading, setLoading] = useState(true);
+
+    // Controlled state for instructions to ensure persistence works smoothly
+    const [instructions, setInstructions] = useState(org.briefingInstructions || '');
+
+    // Sync instructions if the prop updates from valid backend refresh
+    useEffect(() => {
+        setInstructions(org.briefingInstructions || '');
+    }, [org.briefingInstructions]);
 
     const currentTier: SubscriptionTier = (userProfile.tier as SubscriptionTier) || 'FREE';
     const limits = SUBSCRIPTION_LIMITS[currentTier];
 
     useEffect(() => {
         const fetchUsage = async () => {
-            // setLoading(true);
             try {
                 // Fetch basic counts (this might be expensive in a real app, but ok for now)
                 const { data: objs } = await org.objectives();
@@ -62,8 +68,6 @@ export const SettingsView = ({ org, userProfile, onUpdateProfile }: SettingsView
                 });
             } catch (e) {
                 console.error("Failed to fetch usage:", e);
-            } finally {
-                // setLoading(false);
             }
         };
         fetchUsage();
@@ -147,15 +151,20 @@ export const SettingsView = ({ org, userProfile, onUpdateProfile }: SettingsView
                             rows={3}
                             fullWidth
                             placeholder="e.g., Focus on risk mitigation strategies..."
-                            defaultValue={org.briefingInstructions || ''}
-                            onBlur={async (e) => {
-                                const val = e.target.value;
-                                if (val !== org.briefingInstructions) {
-                                    await client.models.Organization.update({
-                                        id: org.id,
-                                        briefingInstructions: val
-                                    });
-                                    // Soft notify?
+                            value={instructions}
+                            onChange={(e) => setInstructions(e.target.value)}
+                            onBlur={async () => {
+                                if (instructions !== org.briefingInstructions) {
+                                    try {
+                                        await client.models.Organization.update({
+                                            id: org.id,
+                                            briefingInstructions: instructions
+                                        });
+                                        // Soft notify or verify?
+                                        onUpdateProfile(); // Refresh parent to ensure sync
+                                    } catch (e) {
+                                        console.error("Failed to save instructions", e);
+                                    }
                                 }
                             }}
                             sx={{ mb: 2 }}
