@@ -619,8 +619,36 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         </Typography>
                         <Stack direction="row" spacing={1}>
                             <HeartbeatStatus due={objective.nextHeartbeatDue} />
-                            <Chip label="On Track" color="success" size="small" />
-                            <Chip label="High Confidence" variant="outlined" size="small" />
+
+                            {/* Weighted Confidence Calculation */}
+                            {(() => {
+                                const totalWeight = outcomes.reduce((acc, o) => acc + (o.weight || 0), 0);
+                                let displayLabel = "No Data";
+                                let color: "default" | "success" | "warning" | "error" = "default";
+
+                                if (totalWeight > 0) {
+                                    const weightedScore = outcomes.reduce((acc, o) => {
+                                        const conf = o.latestHeartbeat?.ownerInput?.ownerConfidence || 0;
+                                        return acc + (conf * (o.weight || 0));
+                                    }, 0);
+                                    const avg = weightedScore / totalWeight;
+                                    displayLabel = `Weighted Confidence: ${avg.toFixed(1)} / 10`;
+
+                                    if (avg >= 7) color = "success";
+                                    else if (avg >= 4) color = "warning";
+                                    else color = "error";
+                                }
+
+                                return (
+                                    <Chip
+                                        label={displayLabel}
+                                        color={color}
+                                        variant={totalWeight > 0 ? "filled" : "outlined"}
+                                        size="small"
+                                        icon={<BalanceIcon />}
+                                    />
+                                );
+                            })()}
                         </Stack>
                     </Box>
 
