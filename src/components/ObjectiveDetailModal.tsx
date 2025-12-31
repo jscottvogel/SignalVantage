@@ -103,6 +103,18 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [outcomes, setOutcomes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [members, setMembers] = useState<any[]>([]);
+    const [risks, setRisks] = useState<any[]>([]);
+
+    const handleDeleteRisk = async (id: string) => {
+        if (!window.confirm("Are you sure you want to delete this risk?")) return;
+        try {
+            await client.models.Risk.delete({ id });
+            await refreshTree();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to delete risk.");
+        }
+    };
 
     useEffect(() => {
         setLocalObjective(objective);
@@ -163,6 +175,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             // Refresh main object
             const { data: refreshed } = await client.models.StrategicObjective.get({ id: objective.id });
             if (refreshed) setLocalObjective(refreshed);
+
+            // Fetch Risks
+            const { data: risksData } = await objective.risks();
+            setRisks(risksData);
 
             // Fetch outcomes
             const { data: outcomesRes } = await objective.outcomes();
@@ -628,10 +644,34 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         </Typography>
                         <Stack direction="row" spacing={1}>
                             <HeartbeatStatus due={localObjective.nextHeartbeatDue} />
-
-
                         </Stack>
                     </Box>
+
+                    {/* Risk Register Section */}
+                    {risks.length > 0 && (
+                        <Paper elevation={0} sx={{ mx: 3, mb: 3, border: 1, borderColor: 'divider', bgcolor: 'grey.50' }}>
+                            <Box px={2} py={1} display="flex" justifyContent="space-between" alignItems="center" borderBottom={1} borderColor="divider" >
+                                <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">RISK REGISTER (Active)</Typography>
+                            </Box>
+                            <Stack spacing={0}>
+                                {risks.map((risk, index) => (
+                                    <Box key={risk.id} p={1.5} display="flex" justifyContent="space-between" alignItems="center" borderBottom={index !== risks.length - 1 ? 1 : 0} borderColor="divider">
+                                        <Box>
+                                            <Typography variant="body2" fontWeight="500">{risk.description}</Typography>
+                                            <Stack direction="row" spacing={1} mt={0.5}>
+                                                <Chip label={`Impact: ${risk.impact}`} size="small" color={['HIGH', 'CRITICAL'].includes(risk.impact || '') ? 'error' : 'default'} variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                <Chip label={`Prob: ${risk.probability}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                <Chip label={`ROAM: ${risk.roamStatus}`} size="small" color={risk.roamStatus === 'RESOLVED' ? 'success' : risk.roamStatus === 'MITIGATED' ? 'info' : 'warning'} sx={{ height: 20, fontSize: '0.65rem' }} />
+                                            </Stack>
+                                        </Box>
+                                        <IconButton size="small" color="error" onClick={() => handleDeleteRisk(risk.id)}>
+                                            <DeleteIcon fontSize="small" />
+                                        </IconButton>
+                                    </Box>
+                                ))}
+                            </Stack>
+                        </Paper>
+                    )}
 
                     {loading ? (
                         <Box display="flex" justifyContent="center" alignItems="center" height="200px">
@@ -845,12 +885,13 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         </Box>
                     )}
                 </DialogContent>
-            </Dialog>
+            </Dialog >
 
             {/* Item Dialog (Create/Edit) */}
-            <Dialog
+            < Dialog
                 open={dialogState.open}
-                onClose={() => setDialogState({ ...dialogState, open: false })}
+                onClose={() => setDialogState({ ...dialogState, open: false })
+                }
                 maxWidth="sm"
                 fullWidth
             >
@@ -1059,26 +1100,30 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         {isSubmitting ? 'Saving...' : 'Save'}
                     </Button>
                 </DialogActions>
-            </Dialog>
+            </Dialog >
 
-            {heartbeatState.item && (
-                <HeartbeatWizard
-                    open={heartbeatState.open}
-                    onClose={() => setHeartbeatState({ ...heartbeatState, open: false })}
-                    item={heartbeatState.item}
-                    itemType={heartbeatState.type}
-                    onComplete={refreshTree}
-                />
-            )}
+            {
+                heartbeatState.item && (
+                    <HeartbeatWizard
+                        open={heartbeatState.open}
+                        onClose={() => setHeartbeatState({ ...heartbeatState, open: false })}
+                        item={heartbeatState.item}
+                        itemType={heartbeatState.type}
+                        onComplete={refreshTree}
+                    />
+                )
+            }
 
-            {historyState.item && (
-                <HeartbeatHistoryDialog
-                    open={historyState.open}
-                    onClose={() => setHistoryState({ ...historyState, open: false })}
-                    item={historyState.item}
-                    itemType={historyState.type}
-                />
-            )}
+            {
+                historyState.item && (
+                    <HeartbeatHistoryDialog
+                        open={historyState.open}
+                        onClose={() => setHistoryState({ ...historyState, open: false })}
+                        item={historyState.item}
+                        itemType={historyState.type}
+                    />
+                )
+            }
 
             <WeightDistributionModal
                 open={weightModalState.open}
