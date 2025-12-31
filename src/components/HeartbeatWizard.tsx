@@ -21,6 +21,7 @@ interface Risk {
     description: string;
     impact: string;
     probability: number;
+    roamStatus: 'RESOLVED' | 'OWNED' | 'ACCEPTED' | 'MITIGATED';
 }
 
 interface Dependency {
@@ -51,7 +52,7 @@ interface HeartbeatWizardProps {
             confidenceRationale?: string | null;
             ownerConfidence?: number | null;
             metricValue?: number | null;
-            newRisks?: { description: string; impact: string; probability?: number | null }[] | null;
+            newRisks?: { description: string; impact: string; probability?: number | null; roamStatus?: string | null }[] | null;
             dependencies?: { description: string; status: string }[] | null;
         } | null;
     };
@@ -76,6 +77,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
     const [newRiskDesc, setNewRiskDesc] = useState('');
     const [newRiskImpact, setNewRiskImpact] = useState('Medium');
     const [newRiskProb, setNewRiskProb] = useState<number>(50);
+    const [newRiskRoam, setNewRiskRoam] = useState<'RESOLVED' | 'OWNED' | 'ACCEPTED' | 'MITIGATED'>('OWNED');
 
     const [dependencies, setDependencies] = useState<Dependency[]>([]);
     const [newDepDesc, setNewDepDesc] = useState('');
@@ -172,7 +174,7 @@ RATIONALE: [One sentence rationale]
 ###SECTION_SPLIT###
 EXECUTIVE_NARRATIVE
 PROGRESS: [A concise progress summary paragraph]
-RISKS: [Risk 1];[Risk 2];[Risk 3]
+RISKS: [Risk Description]|[Impact: High/Medium/Low]|[Probability: 0-100];[Risk Description]|[Impact]|[Probability]
 
 DO NOT output JSON. Use the tags above.`;
 
@@ -201,9 +203,29 @@ DO NOT output JSON. Use the tags above.`;
                 // Parse Risks
                 const risksMatch = narrativePart.match(/RISKS:\s*([\s\S]*)/i);
                 if (risksMatch) {
-                    const riskList = risksMatch[1].split(';').map(r => r.trim()).filter(r => r.length > 0);
-                    const newRisks = riskList.map(r => ({ description: r, impact: 'Medium', probability: 50 }));
-                    setRisks(prev => [...prev, ...newRisks]);
+                    const rawRiskString = risksMatch[1].trim();
+                    if (rawRiskString && rawRiskString.toLowerCase() !== 'none') {
+                        const riskList = rawRiskString.split(';').map(r => r.trim()).filter(r => r.length > 0);
+                        const newRisks = riskList.map(r => {
+                            const parts = r.split('|');
+                            if (parts.length === 3) {
+                                const impactStr = parts[1].trim();
+                                // Validate Impact
+                                const validImpacts = ['High', 'Medium', 'Low', 'Critical'];
+                                const impact = validImpacts.find(i => i.toLowerCase() === impactStr.toLowerCase()) || 'Medium';
+
+                                return {
+                                    description: parts[0].trim(),
+                                    impact: impact,
+                                    probability: parseInt(parts[2].trim()) || 50,
+                                    roamStatus: 'OWNED' as const
+                                };
+                            }
+                            // Fallback for old format or failure
+                            return { description: r, impact: 'Medium', probability: 50, roamStatus: 'OWNED' as const };
+                        });
+                        setRisks(prev => [...prev, ...newRisks]);
+                    }
                 }
             }
 
@@ -229,7 +251,8 @@ DO NOT output JSON. Use the tags above.`;
                     setRisks(input.newRisks.map(r => ({
                         description: r.description,
                         impact: r.impact,
-                        probability: r.probability || 50
+                        probability: r.probability || 50,
+                        roamStatus: (r.roamStatus as any) || 'OWNED'
                     })));
                 }
                 if (input.dependencies) {
@@ -280,10 +303,11 @@ DO NOT output JSON. Use the tags above.`;
 
     const addRisk = () => {
         if (!newRiskDesc.trim()) return;
-        setRisks([...risks, { description: newRiskDesc, impact: newRiskImpact, probability: newRiskProb }]);
+        setRisks([...risks, { description: newRiskDesc, impact: newRiskImpact, probability: newRiskProb, roamStatus: newRiskRoam }]);
         setNewRiskDesc('');
         setNewRiskImpact('Medium');
         setNewRiskProb(50);
+        setNewRiskRoam('OWNED');
     };
 
     const addDependency = () => {
@@ -350,7 +374,8 @@ DO NOT output JSON. Use the tags above.`;
                         id: crypto.randomUUID(),
                         description: r.description,
                         impact: r.impact,
-                        probability: r.probability
+                        probability: r.probability,
+                        roamStatus: r.roamStatus
                     })),
                     dependencies: dependencies.map(d => ({
                         id: crypto.randomUUID(),
@@ -375,6 +400,10 @@ DO NOT output JSON. Use the tags above.`;
                         ownerInput: ownerInput,
                         systemAssessment: systemAssessment
                     });
+
+                    // Note: We are NOT syncing edits back to Risk Register here for now, per instructions simplifiction
+                    // "Existing risks will be managed in the Risk Register"
+
                     onComplete();
                     onClose();
                     return;
@@ -412,6 +441,21 @@ DO NOT output JSON. Use the tags above.`;
             }
 
             const newHeartbeat = await client.models.Heartbeat.create(heartbeatPayload as Parameters<typeof client.models.Heartbeat.create>[0]);
+
+            // Create Risk Register Entries
+            if (risks.length > 0) {
+                await Promise.all(risks.map(r => client.models.Risk.create({
+                    description: r.description,
+                    impact: r.impact.toUpperCase() as any,
+                    probability: r.probability,
+                    roamStatus: r.roamStatus as any,
+                    organizationId: (item as any).organizationId,
+                    strategicObjectiveId: itemType === 'objective' ? item.id : undefined,
+                    outcomeId: itemType === 'outcome' ? item.id : undefined,
+                    keyResultId: itemType === 'kr' ? item.id : undefined,
+                    initiativeId: itemType === 'initiative' ? item.id : undefined,
+                })));
+            }
 
             // 2. Update Parent Latest Heartbeat
             const latestHeartbeat = {
@@ -609,6 +653,19 @@ DO NOT output JSON. Use the tags above.`;
                                         <MenuItem value="Critical">Critical</MenuItem>
                                     </Select>
                                 </FormControl>
+                                <FormControl size="small" sx={{ minWidth: 120 }}>
+                                    <InputLabel>ROAM</InputLabel>
+                                    <Select
+                                        value={newRiskRoam}
+                                        label="ROAM"
+                                        onChange={(e) => setNewRiskRoam(e.target.value as any)}
+                                    >
+                                        <MenuItem value="RESOLVED">Resolved</MenuItem>
+                                        <MenuItem value="OWNED">Owned</MenuItem>
+                                        <MenuItem value="ACCEPTED">Accepted</MenuItem>
+                                        <MenuItem value="MITIGATED">Mitigated</MenuItem>
+                                    </Select>
+                                </FormControl>
                                 <Box flexGrow={1} px={1}>
                                     <Typography variant="caption" color="text.secondary">Probability: {newRiskProb}%</Typography>
                                     <Slider
@@ -628,7 +685,7 @@ DO NOT output JSON. Use the tags above.`;
                                 <ListItem key={i} secondaryAction={<IconButton edge="end" size="small" onClick={() => setRisks(risks.filter((_, idx) => idx !== i))}><DeleteIcon /></IconButton>}>
                                     <ListItemText
                                         primary={r.description}
-                                        secondary={<Typography variant="caption">Impact: {r.impact} | Prob: {r.probability}%</Typography>}
+                                        secondary={<Typography variant="caption">Impact: {r.impact} | Prob: {r.probability}% | ROAM: {r.roamStatus}</Typography>}
                                     />
                                 </ListItem>
                             ))}
