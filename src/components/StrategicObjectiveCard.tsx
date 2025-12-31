@@ -63,8 +63,8 @@ export function StrategicObjectiveCard({ objective, onClick }: Props) {
                     <Typography variant="h6" lineHeight={1.2} fontWeight={700} color="text.primary">
                         {objective.title}
                     </Typography>
-                    {trend === 'IMPROVING' && <Typography color="success.main" variant="h6" fontWeight="bold">↗</Typography>}
-                    {trend === 'DECLINING' && <Typography color="error.main" variant="h6" fontWeight="bold">↘</Typography>}
+                    {trend === 'IMPROVING' && <Typography color="success.main" variant="h6" fontWeight="bold" sx={{ fontSize: '2.5rem' }}>↗</Typography>}
+                    {trend === 'DECLINING' && <Typography color="error.main" variant="h6" fontWeight="bold" sx={{ fontSize: '2.5rem' }}>↘</Typography>}
                 </Box>
 
                 {/* Confidence Circular Indicator */}
