@@ -34,6 +34,7 @@ import BalanceIcon from '@mui/icons-material/Balance';
 import LinkIcon from '@mui/icons-material/Link';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
+import SaveIcon from '@mui/icons-material/Save';
 import HeartbeatWizard from './HeartbeatWizard';
 import HeartbeatHistoryDialog from './HeartbeatHistoryDialog';
 import WeightDistributionModal from './WeightDistributionModal';
@@ -119,6 +120,20 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         }
     };
 
+    const handleUpdateRisk = async (riskId: string, updates: { description: string, impact: any, probability: number, roamStatus: any }) => {
+        try {
+            await client.models.Risk.update({
+                id: riskId,
+                ...updates
+            });
+            setEditingRisk(null);
+            await refreshTree();
+        } catch (e) {
+            logger.error("Failed to update risk", e);
+            alert("Failed to update risk");
+        }
+    };
+
     useEffect(() => {
         setLocalObjective(objective);
     }, [objective]);
@@ -160,6 +175,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     });
 
     const [risksExpanded, setRisksExpanded] = useState(true);
+    const [editingRisk, setEditingRisk] = useState<any | null>(null);
 
     const [weightModalState, setWeightModalState] = useState<{
         open: boolean;
@@ -673,21 +689,86 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                             </Box>
                             <Collapse in={risksExpanded} timeout="auto" unmountOnExit>
                                 <Stack spacing={0}>
-                                    {risks.map((risk, index) => (
-                                        <Box key={risk.id} p={1.5} display="flex" justifyContent="space-between" alignItems="center" borderBottom={index !== risks.length - 1 ? 1 : 0} borderColor="divider">
-                                            <Box>
-                                                <Typography variant="body2" fontWeight="500">{risk.description}</Typography>
-                                                <Stack direction="row" spacing={1} mt={0.5}>
-                                                    <Chip label={`Impact: ${risk.impact}`} size="small" color={['HIGH', 'CRITICAL'].includes(risk.impact || '') ? 'error' : 'default'} variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
-                                                    <Chip label={`Prob: ${risk.probability}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
-                                                    <Chip label={`ROAM: ${risk.roamStatus}`} size="small" color={risk.roamStatus === 'RESOLVED' ? 'success' : risk.roamStatus === 'MITIGATED' ? 'info' : 'warning'} sx={{ height: 20, fontSize: '0.65rem' }} />
-                                                </Stack>
+                                    {risks.map((risk, index) => {
+                                        const isEditing = editingRisk?.id === risk.id;
+                                        return (
+                                            <Box key={risk.id} p={1.5} display="flex" justifyContent="space-between" alignItems="center" borderBottom={index !== risks.length - 1 ? 1 : 0} borderColor="divider">
+                                                {isEditing ? (
+                                                    <Stack spacing={1} width="100%">
+                                                        <TextField
+                                                            fullWidth
+                                                            size="small"
+                                                            value={editingRisk.description}
+                                                            onChange={(e) => setEditingRisk({ ...editingRisk, description: e.target.value })}
+                                                            label="Description"
+                                                        />
+                                                        <Stack direction="row" spacing={1}>
+                                                            <FormControl size="small" sx={{ minWidth: 100 }}>
+                                                                <InputLabel>Impact</InputLabel>
+                                                                <Select
+                                                                    value={editingRisk.impact}
+                                                                    label="Impact"
+                                                                    onChange={(e) => setEditingRisk({ ...editingRisk, impact: e.target.value })}
+                                                                >
+                                                                    <MenuItem value="LOW">Low</MenuItem>
+                                                                    <MenuItem value="MEDIUM">Medium</MenuItem>
+                                                                    <MenuItem value="HIGH">High</MenuItem>
+                                                                    <MenuItem value="CRITICAL">Critical</MenuItem>
+                                                                </Select>
+                                                            </FormControl>
+                                                            <TextField
+                                                                label="Prob (%)"
+                                                                type="number"
+                                                                size="small"
+                                                                sx={{ width: 100 }}
+                                                                value={editingRisk.probability}
+                                                                onChange={(e) => setEditingRisk({ ...editingRisk, probability: parseInt(e.target.value) || 0 })}
+                                                            />
+                                                            <FormControl size="small" sx={{ minWidth: 120 }}>
+                                                                <InputLabel>ROAM</InputLabel>
+                                                                <Select
+                                                                    value={editingRisk.roamStatus}
+                                                                    label="ROAM"
+                                                                    onChange={(e) => setEditingRisk({ ...editingRisk, roamStatus: e.target.value })}
+                                                                >
+                                                                    <MenuItem value="RESOLVED">Resolved</MenuItem>
+                                                                    <MenuItem value="OWNED">Owned</MenuItem>
+                                                                    <MenuItem value="ACCEPTED">Accepted</MenuItem>
+                                                                    <MenuItem value="MITIGATED">Mitigated</MenuItem>
+                                                                </Select>
+                                                            </FormControl>
+                                                            <Box flexGrow={1} />
+                                                            <IconButton size="small" color="primary" onClick={() => handleUpdateRisk(risk.id, { description: editingRisk.description, impact: editingRisk.impact, probability: editingRisk.probability, roamStatus: editingRisk.roamStatus })}>
+                                                                <SaveIcon />
+                                                            </IconButton>
+                                                            <IconButton size="small" onClick={() => setEditingRisk(null)}>
+                                                                <CloseIcon />
+                                                            </IconButton>
+                                                        </Stack>
+                                                    </Stack>
+                                                ) : (
+                                                    <>
+                                                        <Box>
+                                                            <Typography variant="body2" fontWeight="500">{risk.description}</Typography>
+                                                            <Stack direction="row" spacing={1} mt={0.5}>
+                                                                <Chip label={`Impact: ${risk.impact}`} size="small" color={['HIGH', 'CRITICAL'].includes(risk.impact || '') ? 'error' : 'default'} variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                                <Chip label={`Prob: ${risk.probability}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                                <Chip label={`ROAM: ${risk.roamStatus}`} size="small" color={risk.roamStatus === 'RESOLVED' ? 'success' : risk.roamStatus === 'MITIGATED' ? 'info' : 'warning'} sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                            </Stack>
+                                                        </Box>
+                                                        <Stack direction="row">
+                                                            <IconButton size="small" onClick={() => setEditingRisk({ ...risk })}>
+                                                                <EditIcon fontSize="small" />
+                                                            </IconButton>
+                                                            <IconButton size="small" color="error" onClick={() => handleDeleteRisk(risk.id)}>
+                                                                <DeleteIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Stack>
+                                                    </>
+                                                )}
                                             </Box>
-                                            <IconButton size="small" color="error" onClick={() => handleDeleteRisk(risk.id)}>
-                                                <DeleteIcon fontSize="small" />
-                                            </IconButton>
-                                        </Box>
-                                    ))}
+                                        );
+                                    })}
                                 </Stack>
                             </Collapse>
                         </Paper>
