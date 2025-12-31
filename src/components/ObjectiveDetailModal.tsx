@@ -20,7 +20,8 @@ import {
     FormControl,
     InputLabel,
     Tooltip,
-    Autocomplete
+    Autocomplete,
+    Collapse
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
@@ -31,6 +32,8 @@ import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import HistoryIcon from '@mui/icons-material/History';
 import BalanceIcon from '@mui/icons-material/Balance';
 import LinkIcon from '@mui/icons-material/Link';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import HeartbeatWizard from './HeartbeatWizard';
 import HeartbeatHistoryDialog from './HeartbeatHistoryDialog';
 import WeightDistributionModal from './WeightDistributionModal';
@@ -155,6 +158,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         item: null,
         type: 'initiative'
     });
+
+    const [risksExpanded, setRisksExpanded] = useState(true);
 
     const [weightModalState, setWeightModalState] = useState<{
         open: boolean;
@@ -650,26 +655,41 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     {/* Risk Register Section */}
                     {risks.length > 0 && (
                         <Paper elevation={0} sx={{ mx: 3, mb: 3, border: 1, borderColor: 'divider', bgcolor: 'grey.50' }}>
-                            <Box px={2} py={1} display="flex" justifyContent="space-between" alignItems="center" borderBottom={1} borderColor="divider" >
+                            <Box
+                                px={2}
+                                py={1}
+                                display="flex"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                borderBottom={risksExpanded ? 1 : 0}
+                                borderColor="divider"
+                                onClick={() => setRisksExpanded(!risksExpanded)}
+                                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'grey.100' } }}
+                            >
                                 <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">RISK REGISTER (Active)</Typography>
+                                <IconButton size="small" onClick={(e) => { e.stopPropagation(); setRisksExpanded(!risksExpanded); }}>
+                                    {risksExpanded ? <ExpandLess /> : <ExpandMore />}
+                                </IconButton>
                             </Box>
-                            <Stack spacing={0}>
-                                {risks.map((risk, index) => (
-                                    <Box key={risk.id} p={1.5} display="flex" justifyContent="space-between" alignItems="center" borderBottom={index !== risks.length - 1 ? 1 : 0} borderColor="divider">
-                                        <Box>
-                                            <Typography variant="body2" fontWeight="500">{risk.description}</Typography>
-                                            <Stack direction="row" spacing={1} mt={0.5}>
-                                                <Chip label={`Impact: ${risk.impact}`} size="small" color={['HIGH', 'CRITICAL'].includes(risk.impact || '') ? 'error' : 'default'} variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
-                                                <Chip label={`Prob: ${risk.probability}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
-                                                <Chip label={`ROAM: ${risk.roamStatus}`} size="small" color={risk.roamStatus === 'RESOLVED' ? 'success' : risk.roamStatus === 'MITIGATED' ? 'info' : 'warning'} sx={{ height: 20, fontSize: '0.65rem' }} />
-                                            </Stack>
+                            <Collapse in={risksExpanded} timeout="auto" unmountOnExit>
+                                <Stack spacing={0}>
+                                    {risks.map((risk, index) => (
+                                        <Box key={risk.id} p={1.5} display="flex" justifyContent="space-between" alignItems="center" borderBottom={index !== risks.length - 1 ? 1 : 0} borderColor="divider">
+                                            <Box>
+                                                <Typography variant="body2" fontWeight="500">{risk.description}</Typography>
+                                                <Stack direction="row" spacing={1} mt={0.5}>
+                                                    <Chip label={`Impact: ${risk.impact}`} size="small" color={['HIGH', 'CRITICAL'].includes(risk.impact || '') ? 'error' : 'default'} variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                    <Chip label={`Prob: ${risk.probability}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                    <Chip label={`ROAM: ${risk.roamStatus}`} size="small" color={risk.roamStatus === 'RESOLVED' ? 'success' : risk.roamStatus === 'MITIGATED' ? 'info' : 'warning'} sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                </Stack>
+                                            </Box>
+                                            <IconButton size="small" color="error" onClick={() => handleDeleteRisk(risk.id)}>
+                                                <DeleteIcon fontSize="small" />
+                                            </IconButton>
                                         </Box>
-                                        <IconButton size="small" color="error" onClick={() => handleDeleteRisk(risk.id)}>
-                                            <DeleteIcon fontSize="small" />
-                                        </IconButton>
-                                    </Box>
-                                ))}
-                            </Stack>
+                                    ))}
+                                </Stack>
+                            </Collapse>
                         </Paper>
                     )}
 
