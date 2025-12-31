@@ -38,10 +38,11 @@ export const SettingsView = ({ org, userProfile, onUpdateProfile }: SettingsView
     // Controlled state for instructions to ensure persistence works smoothly
     const [instructions, setInstructions] = useState(org.briefingInstructions || '');
 
-    // Sync instructions if the prop updates from valid backend refresh
-    useEffect(() => {
-        setInstructions(org.briefingInstructions || '');
-    }, [org.briefingInstructions]);
+    // Initialize state when org changes, but avoid direct setState in effect loop if possible.
+    // Ideally, we key the component on org.id to force reset, but here we can just update state when prop changes.
+    if (org.briefingInstructions !== instructions && org.briefingInstructions && instructions === '') {
+        setInstructions(org.briefingInstructions);
+    }
 
     const currentTier: SubscriptionTier = (userProfile.tier as SubscriptionTier) || 'FREE';
     const limits = SUBSCRIPTION_LIMITS[currentTier];

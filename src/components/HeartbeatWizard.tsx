@@ -92,12 +92,11 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
         setIsSynthesizing(true);
         try {
             let contextStr = '';
-            // @ts-ignore
             const orgId = item.organizationId;
 
             // Fetch Initiatives & KRs if needed (Outcome/KR/Objective)
-            let allInits: any[] = [];
-            let allKRs: any[] = [];
+            let allInits: Schema['Initiative']['type'][] = [];
+            let allKRs: Schema['KeyResult']['type'][] = [];
 
             if (['objective', 'outcome', 'kr'].includes(itemType)) {
                 try {
@@ -109,7 +108,7 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                     ]);
 
                     allInits = initsRes.data;
-                    allKRs = krsRes.data as any[];
+                    allKRs = krsRes.data as Schema['KeyResult']['type'][];
 
                 } catch (e) {
                     console.log("Failed to fetch context data", e);
@@ -117,16 +116,16 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
             }
 
             if (itemType === 'objective') {
-                const objective = item as any;
+                const objective = item as Schema['StrategicObjective']['type'];
                 const { data: outcomes } = await objective.outcomes();
                 contextStr = `Strategic Objective: ${objective.title}\nDescription: ${objective.description}\n\nActivity Data:\n`;
                 for (const outcome of outcomes) {
                     contextStr += `Outcome: ${outcome.title} (Status: ${outcome.status})\n`;
                     // Filter KRs in memory
-                    const krs = allKRs.filter((k: any) => k.outcomeId === outcome.id);
+                    const krs = allKRs.filter((k) => k.outcomeId === outcome.id);
 
                     for (const kr of krs) {
-                        const relevantInits = allInits.filter((init: any) => init.linkedEntities?.keyResultIds?.includes(kr.id));
+                        const relevantInits = allInits.filter((init) => init.linkedEntities?.keyResultIds?.includes(kr.id));
                         const krConf = kr.latestHeartbeat?.ownerInput?.ownerConfidence || 'N/A';
                         contextStr += `  - KR: ${kr.statement} (Confidence: ${krConf})\n`;
                         for (const init of relevantInits) {
@@ -136,13 +135,13 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                     }
                 }
             } else if (itemType === 'outcome') {
-                const outcome = item as any;
+                const outcome = item as Schema['Outcome']['type'];
                 // Filter KRs in memory
-                const krs = allKRs.filter((k: any) => k.outcomeId === outcome.id);
+                const krs = allKRs.filter((k) => k.outcomeId === outcome.id);
 
                 contextStr = `Outcome: ${outcome.title}\nDescription: ${outcome.description}\n\nActivity Data:\n`;
                 for (const kr of krs) {
-                    const relevantInits = allInits.filter((init: any) => init.linkedEntities?.keyResultIds?.includes(kr.id));
+                    const relevantInits = allInits.filter((init) => init.linkedEntities?.keyResultIds?.includes(kr.id));
                     const krConf = kr.latestHeartbeat?.ownerInput?.ownerConfidence || 'N/A';
                     contextStr += `  - KR: ${kr.statement} (Confidence: ${krConf})\n`;
                     for (const init of relevantInits) {
@@ -151,15 +150,15 @@ export default function HeartbeatWizard({ open, onClose, item, itemType, onCompl
                     }
                 }
             } else if (itemType === 'kr') {
-                const kr = item as any;
-                const relevantInits = allInits.filter((init: any) => init.linkedEntities?.keyResultIds?.includes(kr.id));
+                const kr = item as Schema['KeyResult']['type'];
+                const relevantInits = allInits.filter((init) => init.linkedEntities?.keyResultIds?.includes(kr.id));
                 contextStr = `Key Result: ${kr.statement}\nMetric: ${kr.metric?.name}\n\nActivity Data:\n`;
                 for (const init of relevantInits) {
                     const initUpdates = init.latestHeartbeat?.ownerInput?.progressSummary || "No recent updates";
                     contextStr += `    * Initiative: ${init.title}. Update: ${initUpdates}\n`;
                 }
             } else if (itemType === 'initiative') {
-                const init = item as any;
+                const init = item as Schema['Initiative']['type'];
                 contextStr = `Initiative: ${init.title}\nDescription: ${init.description}\nState: ${init.state?.lifecycle}\n\n`;
                 contextStr += "Please draft a professional update for this initiative based on its description and standard progress.";
             }
@@ -252,7 +251,7 @@ DO NOT output JSON. Use the tags above.`;
                         description: r.description,
                         impact: r.impact,
                         probability: r.probability || 50,
-                        roamStatus: (r.roamStatus as any) || 'OWNED'
+                        roamStatus: (r.roamStatus as Risk['roamStatus']) || 'OWNED'
                     })));
                 }
                 if (input.dependencies) {
@@ -446,10 +445,10 @@ DO NOT output JSON. Use the tags above.`;
             if (risks.length > 0) {
                 await Promise.all(risks.map(r => client.models.Risk.create({
                     description: r.description,
-                    impact: r.impact.toUpperCase() as any,
+                    impact: r.impact.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
                     probability: r.probability,
-                    roamStatus: r.roamStatus as any,
-                    organizationId: (item as any).organizationId,
+                    roamStatus: r.roamStatus,
+                    organizationId: item.organizationId,
                     strategicObjectiveId: itemType === 'objective' ? item.id : undefined,
                     outcomeId: itemType === 'outcome' ? item.id : undefined,
                     keyResultId: itemType === 'kr' ? item.id : undefined,
@@ -658,7 +657,7 @@ DO NOT output JSON. Use the tags above.`;
                                     <Select
                                         value={newRiskRoam}
                                         label="ROAM"
-                                        onChange={(e) => setNewRiskRoam(e.target.value as any)}
+                                        onChange={(e) => setNewRiskRoam(e.target.value as Risk['roamStatus'])}
                                     >
                                         <MenuItem value="RESOLVED">Resolved</MenuItem>
                                         <MenuItem value="OWNED">Owned</MenuItem>
