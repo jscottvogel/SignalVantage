@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
     Button, Typography, Box, TextField, Stack,
@@ -236,33 +236,46 @@ DO NOT output JSON. Use the tags above.`;
         }
     };
 
-    // Pre-populate for Edit Mode
-    useState(() => {
-        if (editHeartbeatId && initialData) {
-            const input = initialData.ownerInput;
-            if (input) {
-                setProgressSummary(input.progressSummary || '');
-                setConfidenceRationale(input.confidenceRationale || '');
-                setOwnerConfidence(input.ownerConfidence ?? 50);
-                if (input.metricValue != null) setMetricValue(input.metricValue);
+    // Reset state when opening for a new item or closing
+    useEffect(() => {
+        if (open) {
+            if (editHeartbeatId && initialData) {
+                // Edit Mode: Load Data
+                const input = initialData.ownerInput;
+                if (input) {
+                    setProgressSummary(input.progressSummary || '');
+                    setConfidenceRationale(input.confidenceRationale || '');
+                    setOwnerConfidence(input.ownerConfidence ?? 50);
+                    if (input.metricValue != null) setMetricValue(input.metricValue);
 
-                if (input.newRisks) {
-                    setRisks(input.newRisks.map(r => ({
-                        description: r.description,
-                        impact: r.impact,
-                        probability: r.probability || 50,
-                        roamStatus: (r.roamStatus as Risk['roamStatus']) || 'OWNED'
-                    })));
+                    if (input.newRisks) {
+                        setRisks(input.newRisks.map(r => ({
+                            description: r.description,
+                            impact: r.impact,
+                            probability: r.probability || 50,
+                            roamStatus: (r.roamStatus as Risk['roamStatus']) || 'OWNED'
+                        })));
+                    }
+                    if (input.dependencies) {
+                        setDependencies(input.dependencies.map(d => ({
+                            description: d.description,
+                            status: d.status
+                        })));
+                    }
                 }
-                if (input.dependencies) {
-                    setDependencies(input.dependencies.map(d => ({
-                        description: d.description,
-                        status: d.status
-                    })));
-                }
+            } else {
+                // New Mode: Reset State
+                setActiveStep(0);
+                setProgressSummary('');
+                setOwnerConfidence(50);
+                setConfidenceRationale('');
+                setMetricValue('');
+                setRisks([]);
+                setDependencies([]);
+                // Optional: Pre-fill previous confidence rationale/score if desired, but user asked for reset
             }
         }
-    });
+    }, [open, item.id, editHeartbeatId, initialData]);
 
 
     // Calculate KR Rollup on mount
