@@ -16,6 +16,7 @@ const schema = a.schema({
       outcomes: a.hasMany('Outcome', 'organizationId'),
       keyResults: a.hasMany('KeyResult', 'organizationId'),
       initiatives: a.hasMany('Initiative', 'organizationId'),
+      risks: a.hasMany('Risk', 'organizationId'),
       briefingInstructions: a.string(),
     })
     .authorization((allow) => [allow.authenticated()]),
