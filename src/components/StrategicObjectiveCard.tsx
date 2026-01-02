@@ -6,12 +6,18 @@ import { theme } from '../theme';
 import type { Schema } from '../../amplify/data/resource';
 
 interface Props {
+    /** The strategic objective object to display */
     objective: Schema['StrategicObjective']['type'];
+    /** Callback handler for when the card is clicked */
     onClick: () => void;
 }
 
 import { calculateAttentionLevel } from '../utils/heartbeatLogic';
 
+/**
+ * A card component that displays a summary of a strategic objective.
+ * Includes visual indicators for confidence, status, and risks.
+ */
 export function StrategicObjectiveCard({ objective, onClick }: Props) {
     const latestHeartbeat = objective.latestHeartbeat;
     const systemAssessment = latestHeartbeat?.systemAssessment;

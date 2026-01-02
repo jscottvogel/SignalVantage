@@ -4,6 +4,9 @@ import { calculateAttentionLevel } from './heartbeatLogic';
 
 type Objective = Schema["StrategicObjective"]["type"];
 
+/**
+ * Structure defining a section in the executive briefing.
+ */
 interface BriefingSection {
     title: string;
     items: {
@@ -14,6 +17,12 @@ interface BriefingSection {
     }[];
 }
 
+/**
+ * Generates an executive briefing report based on the current state of objectives.
+ * Categorizes objectives into Critical Attention, Watch List, Uncertainty Spotlight, and Notable Progress.
+ * @param objectives - The list of strategic objectives to analyze.
+ * @returns An array of BriefingSection objects.
+ */
 export const generateExecutiveBriefing = (objectives: Objective[]): BriefingSection[] => {
     const attentionItems: Objective[] = [];
     const watchItems: Objective[] = [];

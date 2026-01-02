@@ -4,6 +4,11 @@ import type { Schema } from '../../amplify/data/resource';
 type SystemAssessment = Schema['SystemAssessment']['type'];
 type OwnerInput = Schema['OwnerInput']['type'];
 
+/**
+ * Determines if a heartbeat is late based on its due date.
+ * @param nextHeartbeatDue - The ISO string date when the next heartbeat is/was due.
+ * @returns 'LATE' if the current time is past the due date, otherwise 'ON_TIME'.
+ */
 export const calculateFreshness = (nextHeartbeatDue: string | null | undefined): string => {
     if (!nextHeartbeatDue) return 'ON_TIME';
     const dueDate = new Date(nextHeartbeatDue);
@@ -12,6 +17,13 @@ export const calculateFreshness = (nextHeartbeatDue: string | null | undefined):
     return now > dueDate ? 'LATE' : 'ON_TIME';
 };
 
+/**
+ * Assess a heartbeat input to generate system confidence, trend, and integrity signals.
+ * @param ownerInput - The input provided by the owner (confidence, summary, etc.).
+ * @param previousHeartbeat - The previous heartbeat record for comparison (optional).
+ * @param nextHeartbeatDue - The due date for the next heartbeat (optional).
+ * @returns A SystemAssessment object containing calculated confidence, trend, and signals.
+ */
 export const assessHeartbeat = (
     ownerInput: OwnerInput,
     previousHeartbeat?: any,
@@ -97,6 +109,11 @@ const calculateTrend = (currentConf?: number | null, prevConf?: number | null): 
 
 // Key Result Rollup Logic
 // Key Result Rollup Logic
+/**
+ * Rolls up confidence scores from initiatives to a parent Key Result.
+ * @param initiatives - Array of initiatives containing confidence and title.
+ * @returns A rollup object with calculated confidence, trend, and summary.
+ */
 export const generateKeyResultRollup = (
     initiatives: { confidence: number | string, title: string, relevance?: string }[]
 ): { confidence: number, trend: string, summary: string } => {
@@ -136,6 +153,11 @@ export const generateKeyResultRollup = (
     };
 };
 
+/**
+ * Calculates the attention level for an objective based on its latest heartbeat and due date.
+ * @param objective - The objective object containing latestHeartbeat and nextHeartbeatDue.
+ * @returns 'ACTION', 'WATCH', or 'STABLE' indicating the attention level.
+ */
 export const calculateAttentionLevel = (objective: any): 'STABLE' | 'WATCH' | 'ACTION' => {
     const latestHeartbeat = objective.latestHeartbeat;
     // Handle partial objects or missing heartbeats

@@ -12,6 +12,11 @@ export interface TelemetryEvent {
     userId?: string;
 }
 
+/**
+ * Logs a User Telemetry event to the backend.
+ * Silently catches errors to prevent disrupting the user experience.
+ * @param event - The telemetry event to log.
+ */
 export const logEvent = async (event: TelemetryEvent) => {
     try {
         await client.models.UserTelemetry.create({

@@ -40,6 +40,12 @@ export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, TierLimits> = {
     }
 };
 
+/**
+ * Checks if a current usage count is within the allowed limit.
+ * @param currentCount - The current number of items.
+ * @param limit - The maximum allowed number of items.
+ * @returns True if the limit is not exceeded, otherwise False.
+ */
 export const checkLimit = (currentCount: number, limit: number): boolean => {
     return currentCount < limit;
 };
