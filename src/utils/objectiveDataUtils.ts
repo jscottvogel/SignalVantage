@@ -1,5 +1,8 @@
+import { generateClient } from 'aws-amplify/data';
 import { type Schema } from '../../amplify/data/resource';
 import { logger } from './logger';
+
+type Client = ReturnType<typeof generateClient<Schema>>;
 
 /**
  * Fetches all child data related to a Strategic Objective including
@@ -9,7 +12,7 @@ import { logger } from './logger';
  * @param objective - The strategic objective to fetch data for
  * @returns An object containing aggregated data
  */
-export async function fetchObjectiveHierarchy(client: any, objective: Schema['StrategicObjective']['type']) {
+export async function fetchObjectiveHierarchy(client: Client, objective: Schema['StrategicObjective']['type']) {
     try {
         // Refresh main object
         const { data: refreshed } = await client.models.StrategicObjective.get({ id: objective.id });
@@ -22,7 +25,7 @@ export async function fetchObjectiveHierarchy(client: any, objective: Schema['St
 
         // Fetch children for each outcome
         const outcomesWithChildren = await Promise.all(
-            outcomesRes.map(async (outcome: any) => {
+            outcomesRes.map(async (outcome: Schema['Outcome']['type']) => {
                 const { data: krs } = await outcome.keyResults();
                 return { ...outcome, keyResults: krs };
             })
@@ -30,7 +33,7 @@ export async function fetchObjectiveHierarchy(client: any, objective: Schema['St
 
         // Fetch organization to get context for fetching initiatives
         const { data: org } = await objective.organization();
-        let allInitiatives: any[] = [];
+        let allInitiatives: Schema['Initiative']['type'][] = [];
 
         if (org) {
             // Fetch initiatives directly to ensure we get them all
@@ -44,7 +47,7 @@ export async function fetchObjectiveHierarchy(client: any, objective: Schema['St
         // Map initiatives to KRs and structure the final outcome tree
         const outcomesFinal = outcomesWithChildren.map(outcome => ({
             ...outcome,
-            keyResults: outcome.keyResults.map((kr: any) => {
+            keyResults: outcome.keyResults.map((kr: Schema['KeyResult']['type']) => {
                 const linked = allInitiatives.filter(init => {
                     const ids = init.linkedEntities?.keyResultIds || [];
                     return ids.includes(kr.id);
@@ -83,27 +86,27 @@ export async function fetchObjectiveHierarchy(client: any, objective: Schema['St
  * @returns Sorted list of dependencies
  */
 async function fetchAggregatedDependencies(
-    objective: any,
-    outcomesRes: any[],
-    outcomesWithChildren: any[],
-    allInitiatives: any[]
+    objective: Schema['StrategicObjective']['type'],
+    outcomesRes: Schema['Outcome']['type'][],
+    outcomesWithChildren: (Schema['Outcome']['type'] & { keyResults: Schema['KeyResult']['type'][] })[],
+    allInitiatives: Schema['Initiative']['type'][]
 ) {
     // 1. Objective Level
     const { data: objDeps } = await objective.dependencies();
 
     // 2. Outcome Level
-    const outcomeDepsPromises = outcomesRes.map((o: any) => o.dependencies());
+    const outcomeDepsPromises = outcomesRes.map((o) => o.dependencies());
     const outcomeDepsRes = await Promise.all(outcomeDepsPromises);
     const outcomeDeps = outcomeDepsRes.flatMap(r => r.data);
 
     // 3. Key Result Level
     const allKRs = outcomesWithChildren.flatMap(o => o.keyResults);
-    const krDepsPromises = allKRs.map((k: any) => k.dependencies());
+    const krDepsPromises = allKRs.map((k) => k.dependencies());
     const krDepsRes = await Promise.all(krDepsPromises);
     const krDeps = krDepsRes.flatMap(r => r.data);
 
     // 4. Initiative Level
-    const initDepsPromises = allInitiatives.map((i: any) => i.dependencies());
+    const initDepsPromises = allInitiatives.map((i) => i.dependencies());
     const initDepsRes = await Promise.all(initDepsPromises);
     const initDeps = initDepsRes.flatMap(r => r.data);
 

@@ -51,6 +51,7 @@ describe('objectiveDataUtils', () => {
                 }
             };
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const result = await fetchObjectiveHierarchy(mockClient, mockObjective as any);
 
             expect(result.dependencies).toHaveLength(4);
@@ -78,6 +79,7 @@ describe('objectiveDataUtils', () => {
                 }
             };
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const result = await fetchObjectiveHierarchy(mockClient, mockObjective as any);
             expect(result.allInitiatives).toHaveLength(0);
         });
