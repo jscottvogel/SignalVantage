@@ -141,7 +141,7 @@ const schema = a.schema({
     roamStatus: a.enum(['RESOLVED', 'OWNED', 'ACCEPTED', 'MITIGATED']),
   }),
 
-  Dependency: a.customType({
+  DependencySnapshot: a.customType({
     id: a.string(),
     description: a.string(),
     owner: a.string(),
@@ -155,7 +155,7 @@ const schema = a.schema({
     confidenceRationale: a.string(),
     metricValue: a.float(), // Added for tracking metric data
     newRisks: a.ref('RiskSnapshot').array(),
-    dependencies: a.ref('Dependency').array(),
+    dependencies: a.ref('DependencySnapshot').array(),
   }),
 
   IntegritySignals: a.customType({

@@ -39,6 +39,7 @@ import HeartbeatWizard from './HeartbeatWizard';
 import HeartbeatHistoryDialog from './HeartbeatHistoryDialog';
 import WeightDistributionModal from './WeightDistributionModal';
 import { logger } from '../utils/logger';
+import { fetchObjectiveHierarchy } from '../utils/objectiveDataUtils';
 
 const client = generateClient<Schema>();
 
@@ -224,109 +225,32 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
 
     const refreshTree = useCallback(async () => {
         try {
-            // Refresh main object
-            const { data: refreshed } = await client.models.StrategicObjective.get({ id: objective.id });
-            if (refreshed) setLocalObjective(refreshed);
+            const data = await fetchObjectiveHierarchy(client, objective);
 
-            // Fetch Risks
-            const { data: risksData } = await objective.risks();
-            setRisks(risksData);
+            if (data.refreshedObjective) setLocalObjective(data.refreshedObjective);
+            setRisks(data.risks);
+            setOutcomes(data.outcomes);
+            setDependencies(data.dependencies);
 
-            // Fetch outcomes
-            const { data: outcomesRes } = await objective.outcomes();
-
-            // Fetch children for each outcome
-            const outcomesWithChildren = await Promise.all(
-                outcomesRes.map(async (outcome) => {
-                    const { data: krs } = await outcome.keyResults();
-                    return { ...outcome, keyResults: krs };
-                })
-            );
-
-            // Fetch organization & members
+            // Fetch Organization & Members (kept separate as it's UI/Picker specific, not strictly data hierarchy)
             const { data: org } = await objective.organization();
-            if (!org) return;
-
-            // Fetch Members for picker
-            const { data: membershipList } = await org.members();
-            const membersWithProfiles = await Promise.all(
-                membershipList.map(async (m) => {
-                    let profile = null;
-                    // Attempt 1: Fetch through relation
-                    const { data: profileRel } = await m.user();
-                    if (profileRel) {
-                        profile = profileRel;
-                    } else if (m.userProfileId) {
-                        // Attempt 2: Direct lookup if relation failing
-                        const { data: profileDirect } = await client.models.UserProfile.get({ id: m.userProfileId });
-                        profile = profileDirect;
-                    }
-                    return { ...m, profile };
-                })
-            );
-            setMembers(membersWithProfiles);
-
-            // Fetch initiatives directly to ensure we get them all
-            const { data: allInitiatives } = await client.models.Initiative.list({
-                filter: { organizationId: { eq: org.id } },
-                limit: 1000 // Ensure we get enough
-            });
-            logger.log("Debug: All Initiatives Fetched:", allInitiatives);
-
-            // Map initiatives to KRs
-            const outcomesFinal = outcomesWithChildren.map(outcome => ({
-                ...outcome,
-                keyResults: outcome.keyResults.map((kr: any) => {
-                    const linked = allInitiatives.filter(init => {
-                        const ids = init.linkedEntities?.keyResultIds || [];
-                        return ids.includes(kr.id);
-                    });
-                    logger.log(`Debug: KR ${kr.id} linked initiatives:`, linked);
-                    return {
-                        ...kr,
-                        initiatives: linked
-                    };
-                })
-            }));
-
-            setOutcomes(outcomesFinal);
-
-            // Fetch Dependencies for all levels
-            // 1. Objective Level
-            const { data: objDeps } = await objective.dependencies();
-
-            // 2. Outcome Level
-            const outcomeDepsPromises = outcomesRes.map(o => o.dependencies());
-            const outcomeDepsRes = await Promise.all(outcomeDepsPromises);
-            const outcomeDeps = outcomeDepsRes.flatMap(r => r.data);
-
-            // 3. Key Result Level (Need flattened KRs)
-            // We can get KRs from outcomesWithChildren
-            const allKRs = outcomesWithChildren.flatMap(o => o.keyResults);
-            const krDepsPromises = allKRs.map((k: any) => k.dependencies());
-            const krDepsRes = await Promise.all(krDepsPromises);
-            const krDeps = krDepsRes.flatMap(r => r.data);
-
-            // 4. Initiative Level
-            const initDepsPromises = allInitiatives.map((i: any) => i.dependencies());
-            const initDepsRes = await Promise.all(initDepsPromises);
-            const initDeps = initDepsRes.flatMap(r => r.data);
-
-            // Combine and tag? For now, just combine. 
-            // Ideally we'd map them to know their parent, but the UI request implies just "Dependencies" section.
-            // If we need to edit them, we update them by ID, so parent doesn't strictly matter for update unless we need to create new ones specific to a parent.
-            // For creation, we might need a selector or just create at Objective level by default if added from here.
-
-            // Deduplication? IDs are unique.
-            const allDeps = [...objDeps, ...outcomeDeps, ...krDeps, ...initDeps];
-            // Sort by due date?
-            allDeps.sort((a, b) => {
-                if (!a.dueDate) return 1;
-                if (!b.dueDate) return -1;
-                return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-            });
-
-            setDependencies(allDeps);
+            if (org) {
+                const { data: membershipList } = await org.members();
+                const membersWithProfiles = await Promise.all(
+                    membershipList.map(async (m) => {
+                        let profile = null;
+                        const { data: profileRel } = await m.user();
+                        if (profileRel) {
+                            profile = profileRel;
+                        } else if (m.userProfileId) {
+                            const { data: profileDirect } = await client.models.UserProfile.get({ id: m.userProfileId });
+                            profile = profileDirect;
+                        }
+                        return { ...m, profile };
+                    })
+                );
+                setMembers(membersWithProfiles);
+            }
 
         } catch (e) {
             logger.error("Error fetching details", e);
