@@ -17,6 +17,7 @@ const schema = a.schema({
       keyResults: a.hasMany('KeyResult', 'organizationId'),
       initiatives: a.hasMany('Initiative', 'organizationId'),
       risks: a.hasMany('Risk', 'organizationId'),
+      dependencies: a.hasMany('Dependency', 'organizationId'),
       briefingInstructions: a.string(),
     })
     .authorization((allow) => [allow.authenticated()]),
@@ -201,6 +202,32 @@ const schema = a.schema({
     version: a.integer(),
   }),
 
+  Dependency: a
+    .model({
+      description: a.string().required(),
+      owner: a.string(),
+      startDate: a.date(),
+      dueDate: a.date(),
+      state: a.enum(['ACTIVE', 'RESOLVED', 'PLANNED', 'PAST_DUE']),
+      status: a.enum(['ON_TRACK', 'AT_RISK', 'OFF_TRACK']),
+
+      organizationId: a.id().required(),
+      organization: a.belongsTo('Organization', 'organizationId'),
+
+      strategicObjectiveId: a.id(),
+      strategicObjective: a.belongsTo('StrategicObjective', 'strategicObjectiveId'),
+
+      outcomeId: a.id(),
+      outcome: a.belongsTo('Outcome', 'outcomeId'),
+
+      keyResultId: a.id(),
+      keyResult: a.belongsTo('KeyResult', 'keyResultId'),
+
+      initiativeId: a.id(),
+      initiative: a.belongsTo('Initiative', 'initiativeId'),
+    })
+    .authorization((allow) => [allow.authenticated()]),
+
   Risk: a
     .model({
       description: a.string().required(),
@@ -262,6 +289,7 @@ const schema = a.schema({
       latestHeartbeat: a.ref('InitiativeHeartbeat'), // Using the richer heartbeat type
       heartbeats: a.hasMany('Heartbeat', 'strategicObjectiveId'),
       risks: a.hasMany('Risk', 'strategicObjectiveId'),
+      dependencies: a.hasMany('Dependency', 'strategicObjectiveId'),
       heartbeatCadence: a.ref('HeartbeatCadence'),
       nextHeartbeatDue: a.datetime(),
 
@@ -284,6 +312,7 @@ const schema = a.schema({
       latestHeartbeat: a.ref('InitiativeHeartbeat'),
       heartbeats: a.hasMany('Heartbeat', 'outcomeId'),
       risks: a.hasMany('Risk', 'outcomeId'),
+      dependencies: a.hasMany('Dependency', 'outcomeId'),
       heartbeatCadence: a.ref('HeartbeatCadence'),
       nextHeartbeatDue: a.datetime(),
 
@@ -309,6 +338,7 @@ const schema = a.schema({
       latestHeartbeat: a.ref('LatestHeartbeat'),
       heartbeats: a.hasMany('Heartbeat', 'keyResultId'),
       risks: a.hasMany('Risk', 'keyResultId'),
+      dependencies: a.hasMany('Dependency', 'keyResultId'),
       heartbeatCadence: a.ref('HeartbeatCadence'),
       nextHeartbeatDue: a.datetime(),
 
@@ -339,6 +369,7 @@ const schema = a.schema({
       latestHeartbeat: a.ref('InitiativeHeartbeat'),
       heartbeats: a.hasMany('Heartbeat', 'initiativeId'),
       risks: a.hasMany('Risk', 'initiativeId'),
+      dependencies: a.hasMany('Dependency', 'initiativeId'),
       audit: a.ref('Audit'),
 
       weight: a.integer(),

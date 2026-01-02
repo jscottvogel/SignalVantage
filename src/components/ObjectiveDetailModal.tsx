@@ -108,6 +108,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [loading, setLoading] = useState(true);
     const [members, setMembers] = useState<any[]>([]);
     const [risks, setRisks] = useState<any[]>([]);
+    const [dependencies, setDependencies] = useState<any[]>([]);
+    const [dependenciesExpanded, setDependenciesExpanded] = useState(true);
+    const [editingDependency, setEditingDependency] = useState<any | null>(null);
+
 
     const handleDeleteRisk = async (id: string) => {
         if (!window.confirm("Are you sure you want to delete this risk?")) return;
@@ -133,6 +137,32 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             alert("Failed to update risk");
         }
     };
+
+    const handleUpdateDependency = async (depId: string, updates: any) => {
+        try {
+            await client.models.Dependency.update({
+                id: depId,
+                ...updates
+            });
+            setEditingDependency(null);
+            await refreshTree();
+        } catch (e) {
+            logger.error("Failed to update dependency", e);
+            alert("Failed to update dependency");
+        }
+    };
+
+    const handleDeleteDependency = async (id: string) => {
+        if (!window.confirm("Are you sure you want to delete this dependency?")) return;
+        try {
+            await client.models.Dependency.delete({ id });
+            await refreshTree();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to delete dependency.");
+        }
+    };
+
 
     useEffect(() => {
         setLocalObjective(objective);
@@ -260,6 +290,44 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             }));
 
             setOutcomes(outcomesFinal);
+
+            // Fetch Dependencies for all levels
+            // 1. Objective Level
+            const { data: objDeps } = await objective.dependencies();
+
+            // 2. Outcome Level
+            const outcomeDepsPromises = outcomesRes.map(o => o.dependencies());
+            const outcomeDepsRes = await Promise.all(outcomeDepsPromises);
+            const outcomeDeps = outcomeDepsRes.flatMap(r => r.data);
+
+            // 3. Key Result Level (Need flattened KRs)
+            // We can get KRs from outcomesWithChildren
+            const allKRs = outcomesWithChildren.flatMap(o => o.keyResults);
+            const krDepsPromises = allKRs.map((k: any) => k.dependencies());
+            const krDepsRes = await Promise.all(krDepsPromises);
+            const krDeps = krDepsRes.flatMap(r => r.data);
+
+            // 4. Initiative Level
+            const initDepsPromises = allInitiatives.map((i: any) => i.dependencies());
+            const initDepsRes = await Promise.all(initDepsPromises);
+            const initDeps = initDepsRes.flatMap(r => r.data);
+
+            // Combine and tag? For now, just combine. 
+            // Ideally we'd map them to know their parent, but the UI request implies just "Dependencies" section.
+            // If we need to edit them, we update them by ID, so parent doesn't strictly matter for update unless we need to create new ones specific to a parent.
+            // For creation, we might need a selector or just create at Objective level by default if added from here.
+
+            // Deduplication? IDs are unique.
+            const allDeps = [...objDeps, ...outcomeDeps, ...krDeps, ...initDeps];
+            // Sort by due date?
+            allDeps.sort((a, b) => {
+                if (!a.dueDate) return 1;
+                if (!b.dueDate) return -1;
+                return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+            });
+
+            setDependencies(allDeps);
+
         } catch (e) {
             logger.error("Error fetching details", e);
         } finally {
@@ -762,6 +830,99 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                 <EditIcon fontSize="small" />
                                                             </IconButton>
                                                             <IconButton size="small" color="error" onClick={() => handleDeleteRisk(risk.id)}>
+                                                                <DeleteIcon fontSize="small" />
+                                                            </IconButton>
+                                                        </Stack>
+                                                    </>
+                                                )}
+                                            </Box>
+                                        );
+                                    })}
+                                </Stack>
+                            </Collapse>
+                        </Paper>
+                    )}
+
+                    {/* Dependencies Section */}
+                    {dependencies.length > 0 && (
+                        <Paper elevation={0} sx={{ mx: 3, mb: 3, border: 1, borderColor: 'divider', bgcolor: 'grey.50' }}>
+                            <Box
+                                px={2}
+                                py={1}
+                                display="flex"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                borderBottom={dependenciesExpanded ? 1 : 0}
+                                borderColor="divider"
+                                onClick={() => setDependenciesExpanded(!dependenciesExpanded)}
+                                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'grey.100' } }}
+                            >
+                                <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">DEPENDENCIES</Typography>
+                                <IconButton size="small" onClick={(e) => { e.stopPropagation(); setDependenciesExpanded(!dependenciesExpanded); }}>
+                                    {dependenciesExpanded ? <ExpandLess /> : <ExpandMore />}
+                                </IconButton>
+                            </Box>
+                            <Collapse in={dependenciesExpanded} timeout="auto" unmountOnExit>
+                                <Stack spacing={0}>
+                                    {dependencies.map((dep, index) => {
+                                        const isEditing = editingDependency?.id === dep.id;
+                                        return (
+                                            <Box key={dep.id} p={1.5} display="flex" justifyContent="space-between" alignItems="center" borderBottom={index !== dependencies.length - 1 ? 1 : 0} borderColor="divider">
+                                                {isEditing ? (
+                                                    <Stack spacing={1} width="100%">
+                                                        <TextField
+                                                            fullWidth
+                                                            size="small"
+                                                            value={editingDependency.description}
+                                                            onChange={(e) => setEditingDependency({ ...editingDependency, description: e.target.value })}
+                                                            label="Description"
+                                                        />
+                                                        <Box display="grid" gridTemplateColumns="repeat(2, 1fr)" gap={1}>
+                                                            <TextField value={editingDependency.owner || ''} onChange={(e) => setEditingDependency({ ...editingDependency, owner: e.target.value })} label="Owner" size="small" />
+                                                            <FormControl size="small">
+                                                                <InputLabel>State</InputLabel>
+                                                                <Select value={editingDependency.state || 'ACTIVE'} label="State" onChange={(e) => setEditingDependency({ ...editingDependency, state: e.target.value })}>
+                                                                    <MenuItem value="ACTIVE">Active</MenuItem>
+                                                                    <MenuItem value="RESOLVED">Resolved</MenuItem>
+                                                                    <MenuItem value="PLANNED">Planned</MenuItem>
+                                                                    <MenuItem value="PAST_DUE">Past Due</MenuItem>
+                                                                </Select>
+                                                            </FormControl>
+                                                            <FormControl size="small">
+                                                                <InputLabel>Status</InputLabel>
+                                                                <Select value={editingDependency.status || 'ON_TRACK'} label="Status" onChange={(e) => setEditingDependency({ ...editingDependency, status: e.target.value })}>
+                                                                    <MenuItem value="ON_TRACK">On Track</MenuItem>
+                                                                    <MenuItem value="AT_RISK">At Risk</MenuItem>
+                                                                    <MenuItem value="OFF_TRACK">Off Track</MenuItem>
+                                                                </Select>
+                                                            </FormControl>
+                                                            <TextField type="date" value={editingDependency.dueDate ? editingDependency.dueDate.split('T')[0] : ''} onChange={(e) => setEditingDependency({ ...editingDependency, dueDate: e.target.value })} label="Due Date" size="small" InputLabelProps={{ shrink: true }} />
+                                                        </Box>
+                                                        <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                                                            <IconButton size="small" color="primary" onClick={() => handleUpdateDependency(dep.id, { description: editingDependency.description, owner: editingDependency.owner, state: editingDependency.state, status: editingDependency.status, dueDate: editingDependency.dueDate })}>
+                                                                <SaveIcon />
+                                                            </IconButton>
+                                                            <IconButton size="small" onClick={() => setEditingDependency(null)}>
+                                                                <CloseIcon />
+                                                            </IconButton>
+                                                        </Stack>
+                                                    </Stack>
+                                                ) : (
+                                                    <>
+                                                        <Box>
+                                                            <Typography variant="body2" fontWeight="500">{dep.description}</Typography>
+                                                            <Stack direction="row" spacing={1} mt={0.5} flexWrap="wrap">
+                                                                <Chip label={dep.state} size="small" color={dep.state === 'ACTIVE' ? 'primary' : 'default'} variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                                <Chip label={dep.status} size="small" color={dep.status === 'ON_TRACK' ? 'success' : 'error'} variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                                {dep.owner && <Chip label={`Owner: ${dep.owner}`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />}
+                                                                {dep.dueDate && <Chip label={`Due: ${new Date(dep.dueDate).toLocaleDateString()}`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />}
+                                                            </Stack>
+                                                        </Box>
+                                                        <Stack direction="row">
+                                                            <IconButton size="small" onClick={() => setEditingDependency({ ...dep })}>
+                                                                <EditIcon fontSize="small" />
+                                                            </IconButton>
+                                                            <IconButton size="small" color="error" onClick={() => handleDeleteDependency(dep.id)}>
                                                                 <DeleteIcon fontSize="small" />
                                                             </IconButton>
                                                         </Stack>
