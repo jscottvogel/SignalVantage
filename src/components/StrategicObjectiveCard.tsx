@@ -17,18 +17,27 @@ export function StrategicObjectiveCard({ objective, onClick }: Props) {
     const systemAssessment = latestHeartbeat?.systemAssessment;
     const ownerInput = latestHeartbeat?.ownerInput;
 
-    // derived signals
-    const rawConf: any = systemAssessment?.systemConfidence || ownerInput?.ownerConfidence;
-    const confidence = typeof rawConf === 'number' ? rawConf : (rawConf === 'HIGH' ? 90 : rawConf === 'MEDIUM' ? 70 : rawConf === 'LOW' ? 30 : 50);
+    const getConfidenceValue = (val: number | string | null | undefined): number => {
+        if (typeof val === 'number') return val;
+        if (val === 'HIGH') return 90;
+        if (val === 'MEDIUM') return 70;
+        if (val === 'LOW') return 30;
+        return 50;
+    };
+
+    const rawConf = systemAssessment?.systemConfidence ?? ownerInput?.ownerConfidence;
+    const confidence = getConfidenceValue(rawConf);
     const trend = systemAssessment?.confidenceTrend || 'STABLE';
 
     // Calculate Attention Level
     const attentionLevel = calculateAttentionLevel(objective);
 
     const getStatusColor = () => {
-        if (attentionLevel === 'ACTION') return theme.palette.error.main;
-        if (attentionLevel === 'WATCH') return theme.palette.warning.main;
-        return theme.palette.success.main;
+        switch (attentionLevel) {
+            case 'ACTION': return theme.palette.error.main;
+            case 'WATCH': return theme.palette.warning.main;
+            default: return theme.palette.success.main;
+        }
     };
 
     const statusColor = getStatusColor();
@@ -36,8 +45,9 @@ export function StrategicObjectiveCard({ objective, onClick }: Props) {
     // Extract Risks
     const risks = [
         ...(systemAssessment?.uncertaintyFlags || []),
-        ...(ownerInput?.newRisks?.map(r => r?.description).filter(Boolean) || [])
-    ].slice(0, 3); // Top 3
+        ...(ownerInput?.newRisks?.map(r => r?.description).filter((d): d is string => !!d) || [])
+    ].slice(0, 3);
+
 
     return (
         <Card
