@@ -10,17 +10,17 @@ const isDebugEnabled = () => {
 };
 
 export const logger = {
-    log: (...args: any[]) => {
+    log: (...args: unknown[]) => {
         if (isDebugEnabled()) {
             console.log(...args);
         }
     },
-    warn: (...args: any[]) => {
+    warn: (...args: unknown[]) => {
         if (isDebugEnabled()) {
             console.warn(...args);
         }
     },
-    error: (...args: any[]) => {
+    error: (...args: unknown[]) => {
         // Errors should arguably always be logged, or at least in most cases.
         // But we can stick to the pattern if strict silence is desired.
         // Usually, errors are important enough to see even in prod console unless captured by a service.
@@ -29,7 +29,7 @@ export const logger = {
         // Let's wrap it anyway for consistency, but maybe default to showing errors unless explicitly silenced?
         console.error(...args);
     },
-    debug: (...args: any[]) => {
+    debug: (...args: unknown[]) => {
         if (isDebugEnabled()) {
             console.debug(...args);
         }

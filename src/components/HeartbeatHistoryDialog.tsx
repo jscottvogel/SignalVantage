@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     Dialog, DialogTitle, DialogContent,
     Typography, IconButton,
@@ -16,23 +16,24 @@ const client = generateClient<Schema>();
 interface Props {
     open: boolean;
     onClose: () => void;
-    item: any;
+    item: { id: string, [key: string]: unknown };
     itemType: 'initiative' | 'outcome' | 'objective' | 'kr';
 }
 
 export default function HeartbeatHistoryDialog({ open, onClose, item, itemType }: Props) {
-    const [heartbeats, setHeartbeats] = useState<any[]>([]);
+    const [heartbeats, setHeartbeats] = useState<Schema['Heartbeat']['type'][]>([]);
     const [loading, setLoading] = useState(true);
-    const [editWizardState, setEditWizardState] = useState<{ open: boolean, heartbeat: any | null }>({
+    const [editWizardState, setEditWizardState] = useState<{ open: boolean, heartbeat: Schema['Heartbeat']['type'] | null }>({
         open: false,
         heartbeat: null
     });
 
-    const fetchHistory = async () => {
+    // Use callback to stabilize function reference
+    const fetchHistory = useCallback(async () => {
         setLoading(true);
         try {
             // Filter heartbeats by the appropriate ID field
-            let filter: any = {};
+            let filter: Record<string, unknown> = {};
             // Strict ID check
             if (!item?.id) return;
 
@@ -58,13 +59,13 @@ export default function HeartbeatHistoryDialog({ open, onClose, item, itemType }
         } finally {
             setLoading(false);
         }
-    };
+    }, [item?.id, itemType]);
 
     useEffect(() => {
         if (open) fetchHistory();
-    }, [open, item.id]);
+    }, [open, fetchHistory]);
 
-    const handleEdit = (hb: any) => {
+    const handleEdit = (hb: Schema['Heartbeat']['type']) => {
         setEditWizardState({ open: true, heartbeat: hb });
     };
 

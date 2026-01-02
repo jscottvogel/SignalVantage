@@ -7,7 +7,7 @@ export interface TelemetryEvent {
     type: 'CLICK' | 'VIEW' | 'SUBMIT' | 'ERROR';
     component: string;
     action: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     organizationId?: string;
     userId?: string;
 }

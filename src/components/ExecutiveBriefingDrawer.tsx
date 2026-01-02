@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     Drawer, Box, Typography, IconButton, Stack, Button,
     Paper, CircularProgress, Alert
@@ -35,7 +35,7 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
             setGeneratedSummary('');
             loadContext();
         }
-    }, [open, organizationId]);
+    }, [open, organizationId, loadContext]);
 
     useEffect(() => {
         if (!open) {
@@ -44,7 +44,7 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
         }
     }, [open]);
 
-    const loadContext = async () => {
+    const loadContext = useCallback(async () => {
         setLoading(true);
         try {
             // 1. Fetch Org Settings (Instructions)
@@ -100,7 +100,7 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
         } finally {
             setLoading(false);
         }
-    };
+    }, [organizationId]);
 
     const getPrompt = () => {
         const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives.
@@ -125,9 +125,9 @@ DO NOT MAKE UP ANY FACTS or embellish the material. Use the provided context dat
             const { data, errors } = await client.queries.generateBriefing({ prompt: fullPrompt });
             if (errors) throw new Error(errors[0].message);
             if (data) {
-                // @ts-ignore - Schema updated but types might lag in IDE
+                // @ts-expect-error - Schema updated but types might lag in IDE
                 setGeneratedNarrative(data.narrative || '');
-                // @ts-ignore
+                // @ts-expect-error - Schema updated
                 setGeneratedSummary(data.summary || '');
             }
         } catch (e) {

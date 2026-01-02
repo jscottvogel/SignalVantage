@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { StrategicObjectiveCard } from './StrategicObjectiveCard';
+import type { Schema } from '../../amplify/data/resource';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 // Mock theme to avoid import issues or just use a standard one
@@ -26,9 +27,9 @@ describe('StrategicObjectiveCard', () => {
             systemAssessment: { systemConfidence: 85, confidenceTrend: 'IMPROVING' }
         },
         organizationId: 'org-1'
-    } as any;
+    } as Schema['StrategicObjective']['type'];
 
-    const renderCard = (objective: any, onClick = vi.fn()) => {
+    const renderCard = (objective: Schema['StrategicObjective']['type'], onClick = vi.fn()) => {
         return render(
             <ThemeProvider theme={theme}>
                 <StrategicObjectiveCard objective={objective} onClick={onClick} />

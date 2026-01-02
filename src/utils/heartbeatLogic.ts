@@ -26,7 +26,7 @@ export const calculateFreshness = (nextHeartbeatDue: string | null | undefined):
  */
 export const assessHeartbeat = (
     ownerInput: OwnerInput,
-    previousHeartbeat?: any,
+    previousHeartbeat?: Schema['Heartbeat']['type'] | null,
     nextHeartbeatDue?: string | null
 ): SystemAssessment => {
     const specificity = calculateSpecificity(ownerInput);
@@ -52,7 +52,7 @@ export const assessHeartbeat = (
     }
 
     const recommendations: string[] = [];
-    const rawConf: any = ownerInput.ownerConfidence;
+    const rawConf: number | string | null | undefined = ownerInput.ownerConfidence;
     const confVal = typeof rawConf === 'number' ? rawConf : (rawConf === 'HIGH' ? 100 : rawConf === 'MEDIUM' ? 70 : 30);
 
     if (confVal < 40) recommendations.push("Review risks and consider escalating blockers.");
@@ -83,7 +83,7 @@ const calculateSpecificity = (input: OwnerInput): string => {
     return 'SPECIFIC';
 };
 
-const checkConsistency = (_current: OwnerInput, previous: any): string => {
+const checkConsistency = (_current: OwnerInput, previous: Schema['Heartbeat']['type'] | null | undefined): string => {
     if (!previous) return 'ALIGNED';
     // Example logic: specific checks could go here.
     return 'ALIGNED';
@@ -91,7 +91,7 @@ const checkConsistency = (_current: OwnerInput, previous: any): string => {
 
 const calculateTrend = (currentConf?: number | null, prevConf?: number | null): string => {
     // If we receive strings (legacy data), perform quick mapping or treat as 50
-    const parse = (c: any) => {
+    const parse = (c: number | string | null | undefined) => {
         if (typeof c === 'number') return c;
         if (c === 'HIGH') return 90;
         if (c === 'MEDIUM') return 70;
@@ -158,7 +158,7 @@ export const generateKeyResultRollup = (
  * @param objective - The objective object containing latestHeartbeat and nextHeartbeatDue.
  * @returns 'ACTION', 'WATCH', or 'STABLE' indicating the attention level.
  */
-export const calculateAttentionLevel = (objective: any): 'STABLE' | 'WATCH' | 'ACTION' => {
+export const calculateAttentionLevel = (objective: { latestHeartbeat?: Schema['Heartbeat']['type'] | null; nextHeartbeatDue?: string | null }): 'STABLE' | 'WATCH' | 'ACTION' => {
     const latestHeartbeat = objective.latestHeartbeat;
     // Handle partial objects or missing heartbeats
     const rawConf = latestHeartbeat?.systemAssessment?.systemConfidence || latestHeartbeat?.ownerInput?.ownerConfidence;

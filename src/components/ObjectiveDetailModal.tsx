@@ -110,6 +110,12 @@ type OutcomeWithChildren = Schema['Outcome']['type'] & {
     })[]
 };
 
+type StrategyItem =
+    | Schema['StrategicObjective']['type']
+    | Schema['Outcome']['type']
+    | Schema['KeyResult']['type']
+    | Schema['Initiative']['type'];
+
 export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [localObjective, setLocalObjective] = useState(objective);
     const [outcomes, setOutcomes] = useState<OutcomeWithChildren[]>([]);
@@ -241,11 +247,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
 
 
 
-    type StrategyItem =
-        | Schema['StrategicObjective']['type']
-        | Schema['Outcome']['type']
-        | Schema['KeyResult']['type']
-        | Schema['Initiative']['type'];
+
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -270,7 +272,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
 
     const [weightModalState, setWeightModalState] = useState<{
         open: boolean;
-        items: any[]; // Using any[] here as it needs to handle generic items with weight/id, refining fully is complex due to structure diffs
+        items: { id: string; title?: string | null; statement?: string | null; weight?: number | null }[];
         parentTitle: string;
         childType: 'Outcome' | 'Key Result' | 'Initiative';
         onSave: (updates: { id: string, weight: number }[]) => Promise<void>;
@@ -327,7 +329,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         mode: 'create' | 'edit',
         type: ItemType,
         parentId: string = '',
-        item?: any
+        item?: StrategyItem | null
     ) => {
         let initText = '';
         let initOwner = '';
@@ -389,7 +391,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         setItemCadenceHour(initHour);
     };
 
-    const openHeartbeatWizard = (type: 'initiative' | 'outcome' | 'objective' | 'kr', item: any) => {
+    const openHeartbeatWizard = (type: 'initiative' | 'outcome' | 'objective' | 'kr', item: StrategyItem) => {
         setHeartbeatState({ open: true, item, type });
     };
 
@@ -436,8 +438,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             }
 
             const cadenceObj = itemCadenceFreq ? {
-                frequency: itemCadenceFreq as any,
-                dayOfWeek: (itemCadenceFreq !== 'DAILY' ? itemCadenceDay : null) as any,
+                frequency: itemCadenceFreq as Schema['HeartbeatCadence']['type']['frequency'],
+                dayOfWeek: (itemCadenceFreq !== 'DAILY' ? itemCadenceDay : null) as Schema['HeartbeatCadence']['type']['dayOfWeek'],
                 hour: itemCadenceHour
             } : null;
 
@@ -475,7 +477,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         strategicObjectiveId: objective.id,
                         title: itemText,
                         description: itemDescription,
-                        status: itemStatus as any,
+                        status: itemStatus as Schema['Outcome']['type']['status'],
                         owner: ownerObj,
                         heartbeatCadence: cadenceObj || undefined,
                         nextHeartbeatDue: nextDue || undefined,
@@ -488,7 +490,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     const newCount = siblings.length + 1;
                     const newWeight = Math.floor(100 / newCount);
 
-                    await Promise.all(siblings.map((s: any) =>
+                    await Promise.all(siblings.map((s) =>
                         client.models.KeyResult.update({ id: s.id, weight: newWeight })
                     ));
 
@@ -497,7 +499,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         strategicObjectiveId: objective.id,
                         outcomeId: dialogState.parentId!,
                         statement: itemText,
-                        status: itemStatus as any,
+                        status: itemStatus as Schema['KeyResult']['type']['status'],
                         owners: ownerObj ? [ownerObj] : [],
                         metric: metricObj,
                         heartbeatCadence: cadenceObj || undefined,
@@ -508,7 +510,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     // Balancing Logic for Initiative
                     // Need to find siblings.
                     // Flatten KRs to find parent KR
-                    let siblings: any[] = [];
+                    let siblings: Schema['Initiative']['type'][] = [];
                     for (const o of outcomes) {
                         for (const k of o.keyResults) {
                             if (k.id === dialogState.parentId) {
@@ -521,7 +523,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     const newCount = siblings.length + 1;
                     const newWeight = Math.floor(100 / newCount);
 
-                    await Promise.all(siblings.map((s: any) =>
+                    await Promise.all(siblings.map((s) =>
                         client.models.Initiative.update({ id: s.id, weight: newWeight })
                     ));
 
@@ -562,7 +564,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         id,
                         title: itemText,
                         description: itemDescription,
-                        status: itemStatus as any,
+                        status: itemStatus as Schema['Outcome']['type']['status'],
                         owner: ownerObj,
                         heartbeatCadence: cadenceObj,
                         nextHeartbeatDue: nextDue || undefined
@@ -571,7 +573,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     await client.models.KeyResult.update({
                         id,
                         statement: itemText,
-                        status: itemStatus as any,
+                        status: itemStatus as Schema['KeyResult']['type']['status'],
                         owners: ownerObj ? [ownerObj] : [],
                         metric: metricObj,
                         heartbeatCadence: cadenceObj,
@@ -601,10 +603,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         }
     };
     const openWeightModal = (
-        items: any[],
+        items: { id: string; weight?: number | null; title?: string | null; statement?: string | null }[],
         parentTitle: string,
         childType: 'Outcome' | 'Key Result' | 'Initiative',
-        modelClient: any
+        modelClient: { update: (args: { id: string, weight: number }) => Promise<unknown> }
     ) => {
         setWeightModalState({
             open: true,
@@ -618,7 +620,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         });
     };
 
-    const OwnerChip = ({ owner }: { owner: any }) => {
+    const OwnerChip = ({ owner }: { owner: { displayName?: string | null } | null | undefined }) => {
         if (!owner) return null;
         const name = owner.displayName || 'Unassigned';
         return (
@@ -703,7 +705,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                     <HistoryIcon fontSize="small" />
                                 </IconButton>
                             </Tooltip>
-                            <Tooltip title="Edit Objective"><IconButton size="small" onClick={() => openDialog('edit', 'objective' as any, '', localObjective)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                            <Tooltip title="Edit Objective"><IconButton size="small" onClick={() => openDialog('edit', 'objective', '', localObjective)}><EditIcon fontSize="small" /></IconButton></Tooltip>
                             <Tooltip title="Delete Objective"><IconButton size="small" onClick={() => handleDelete('objective', localObjective.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
                         </Stack>
                     </Box>
@@ -1137,7 +1139,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                         <Typography variant="body2" color="text.secondary" fontStyle="italic" sx={{ py: 1 }}>No Key Results. Add one to measure success.</Typography>
                                                     ) : (
                                                         <Stack spacing={2}>
-                                                            {outcome.keyResults.map((kr: any) => (
+                                                            {outcome.keyResults.map((kr) => (
                                                                 <Box key={kr.id}>
                                                                     <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ mb: 1 }}>
                                                                         <Box mt={0.8} minWidth={8} height={8} borderRadius="50%" bgcolor="success.main" />
@@ -1198,7 +1200,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                     {kr.initiatives && kr.initiatives.length > 0 && (
                                                                         <Box ml={3} pl={2} borderLeft={1} borderColor="divider">
                                                                             <Stack spacing={1}>
-                                                                                {kr.initiatives.map((init: any) => (
+                                                                                {kr.initiatives.map((init) => (
                                                                                     <Paper key={init.id} elevation={0} sx={{ p: 1, bgcolor: 'grey.50', border: 1, borderColor: 'divider' }}>
                                                                                         <Stack direction="row" alignItems="center" spacing={1}>
                                                                                             <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
@@ -1410,12 +1412,12 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                     options={METRIC_OPTIONS}
                                     groupBy={(option) => {
                                         if (!option || typeof option !== 'object') return 'Custom';
-                                        return (option as any).group || 'Other';
+                                        return (option as { group: string }).group || 'Other';
                                     }}
                                     getOptionLabel={(option) => {
                                         if (typeof option === 'string') return option;
                                         // Safety check for option object
-                                        if (option && typeof option === 'object' && 'label' in option) return (option as any).label;
+                                        if (option && typeof option === 'object' && 'label' in option) return (option as { label: string }).label;
                                         return '';
                                     }}
                                     // Control inputValue directly for free text
@@ -1426,7 +1428,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                         if (typeof newValue === 'string') {
                                             setItemMetricName(newValue);
                                         } else if (newValue && typeof newValue === 'object') {
-                                            setItemMetricName((newValue as any).label);
+                                            setItemMetricName((newValue as { label: string }).label);
                                         }
                                     }}
                                     renderInput={(params) => (

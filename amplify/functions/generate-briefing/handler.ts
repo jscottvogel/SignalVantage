@@ -2,7 +2,7 @@ import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedroc
 
 const client = new BedrockRuntimeClient({ region: process.env.AWS_REGION });
 
-export const handler = async (event: any) => {
+export const handler = async (event: { arguments: { prompt: string } }) => {
     const { prompt } = event.arguments;
 
     if (!prompt) {
