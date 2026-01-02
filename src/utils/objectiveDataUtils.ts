@@ -17,11 +17,13 @@ export async function fetchObjectiveHierarchy(client: Client, objective: Schema[
         // Refresh main object
         const { data: refreshed } = await client.models.StrategicObjective.get({ id: objective.id });
 
+        const sourceObjective = refreshed || objective;
+
         // Fetch Risks
-        const { data: risks } = await objective.risks();
+        const { data: risks } = await sourceObjective.risks();
 
         // Fetch outcomes
-        const { data: outcomesRes } = await objective.outcomes();
+        const { data: outcomesRes } = await sourceObjective.outcomes();
 
         // Fetch children for each outcome
         const outcomesWithChildren = await Promise.all(
@@ -32,7 +34,7 @@ export async function fetchObjectiveHierarchy(client: Client, objective: Schema[
         );
 
         // Fetch organization to get context for fetching initiatives
-        const { data: org } = await objective.organization();
+        const { data: org } = await sourceObjective.organization();
         let allInitiatives: Schema['Initiative']['type'][] = [];
 
         if (org) {
@@ -60,7 +62,7 @@ export async function fetchObjectiveHierarchy(client: Client, objective: Schema[
         }));
 
         // Fetch Dependencies for all levels
-        const allDependencies = await fetchAggregatedDependencies(objective, outcomesRes, outcomesWithChildren, allInitiatives);
+        const allDependencies = await fetchAggregatedDependencies(sourceObjective, outcomesRes, outcomesWithChildren, allInitiatives);
 
         return {
             refreshedObjective: refreshed,
