@@ -72,7 +72,8 @@ export const CreateOrganizationWizard = ({ open, onClose, onSuccess, userProfile
             }
 
             // 2. Create Membership (OWNER)
-            const { data: newMem, errors: memErrors } = await client.models.Membership.create({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: newMem, errors: memErrors } = await (client.models.Membership as any).create({
                 role: "OWNER",
                 organizationId: newOrg.id,
                 userProfileId: userProfile.id,
