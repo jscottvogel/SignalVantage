@@ -38,12 +38,14 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
             setInstructions(org?.briefingInstructions || '');
 
             // 2. Fetch All Initiatives for the Org (to map later)
-            const { data: allInitiatives } = await client.models.Initiative.list({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: allInitiatives } = await (client.models.Initiative as any).list({
                 filter: { organizationId: { eq: organizationId! } }
             });
 
             // 3. Fetch Deep Tree
-            const { data: objs } = await client.models.StrategicObjective.list({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: objs } = await (client.models.StrategicObjective as any).list({
                 filter: { organizationId: { eq: organizationId! } }
             });
 

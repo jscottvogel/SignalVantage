@@ -157,7 +157,8 @@ export const SettingsView = ({ org, userProfile, onUpdateProfile }: SettingsView
                             onBlur={async () => {
                                 if (instructions !== org.briefingInstructions) {
                                     try {
-                                        await client.models.Organization.update({
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        await (client.models.Organization as any).update({
                                             id: org.id,
                                             briefingInstructions: instructions
                                         });

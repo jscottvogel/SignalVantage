@@ -173,7 +173,7 @@ export const ProfileView = ({ userProfile, onProfileUpdate, onCreateOrganization
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const newOwners = k.owners!.map((ow: any) => ow?.userId === removedUserId ? targetOwner : ow).filter(Boolean); // Filter nulls if any
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    updates.push(client.models.KeyResult.update({ id: k.id, owners: newOwners as any }));
+                    updates.push((client.models.KeyResult as any).update({ id: k.id, owners: newOwners as any }));
                 }
             });
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -185,7 +185,8 @@ export const ProfileView = ({ userProfile, onProfileUpdate, onCreateOrganization
             await Promise.all(updates);
 
             // 5. Delete Membership
-            await client.models.Membership.delete({ id: membership.id });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (client.models.Membership as any).delete({ id: membership.id });
 
             alert(`You have left ${orgName}.`);
             onProfileUpdate(); // Refresh UI/Re-bootstrap
