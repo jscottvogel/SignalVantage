@@ -226,7 +226,7 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
               const invite = invites[0];
 
               // Link profile to membership and activate
-              const { data: updatedMember, errors: updateErrors } = await client.models.Membership.update({
+              const { data: updatedMember, errors: updateErrors } = await (client.models.Membership as any).update({
                 id: invite.id,
                 userProfileId: foundProfile.id,
                 status: 'ACTIVE'

@@ -17,111 +17,95 @@ export async function fetchObjectiveHierarchy(client: Client, objective: Schema[
         // Refresh main object
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: refreshed } = await (client.models.StrategicObjective as any).get({ id: objective.id });
-
         const sourceObjective = refreshed || objective;
 
-        // Fetch Risks
-        const { data: risks } = await sourceObjective.risks();
-
-        // Fetch outcomes
-        const { data: outcomesRes } = await sourceObjective.outcomes();
-
-        // Fetch children for each outcome
-        const outcomesWithChildren = await Promise.all(
-            outcomesRes.map(async (outcome: Schema['Outcome']['type']) => {
-                const { data: krs } = await outcome.keyResults();
-                return { ...outcome, keyResults: krs };
-            })
-        );
-
-        // Fetch organization to get context for fetching initiatives
+        // Fetch Org context for proper Initiative scoping
         const { data: org } = await sourceObjective.organization();
-        let allInitiatives: Schema['Initiative']['type'][] = [];
+        let allInitiativesRaw: Schema['Initiative']['type'][] = [];
 
         if (org) {
-            // Fetch initiatives directly to ensure we get them all
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data: inits } = await (client.models.Initiative as any).list({
                 filter: { organizationId: { eq: org.id } },
                 limit: 1000
             });
-            allInitiatives = inits;
+            allInitiativesRaw = inits;
         }
 
-        // Map initiatives to KRs and structure the final outcome tree
-        const outcomesFinal = outcomesWithChildren.map(outcome => ({
-            ...outcome,
-            keyResults: outcome.keyResults.map((kr: Schema['KeyResult']['type']) => {
-                const linked = allInitiatives.filter(init => {
+        // Fetch Outcomes
+        const { data: outcomesRes } = await sourceObjective.outcomes();
+
+        // Build the Tree with Dependencies & Risks attached
+        const outcomesFinal = await Promise.all(outcomesRes.map(async (outcome: Schema['Outcome']['type']) => {
+            const { data: outcomeDeps } = await outcome.dependencies();
+            const { data: outcomeRisks } = await outcome.risks();
+            const { data: krs } = await outcome.keyResults();
+
+            const krsEnriched = await Promise.all(krs.map(async (kr: Schema['KeyResult']['type']) => {
+                const { data: krDeps } = await kr.dependencies();
+                const { data: krRisks } = await kr.risks();
+
+                // Find linked initiatives
+                const linkedInits = allInitiativesRaw.filter(init => {
                     const ids = init.linkedEntities?.keyResultIds || [];
                     return ids.includes(kr.id);
                 });
-                return {
-                    ...kr,
-                    initiatives: linked
-                };
-            })
+
+                // Enrich initiatives
+                const initsEnriched = await Promise.all(linkedInits.map(async (init) => {
+                    const { data: iDeps } = await init.dependencies();
+                    const { data: iRisks } = await init.risks();
+                    return { ...init, dependencies: iDeps, risks: iRisks };
+                }));
+
+                return { ...kr, initiatives: initsEnriched, dependencies: krDeps, risks: krRisks };
+            }));
+
+            return { ...outcome, keyResults: krsEnriched, dependencies: outcomeDeps, risks: outcomeRisks };
         }));
 
-        // Fetch Dependencies for all levels
-        const allDependencies = await fetchAggregatedDependencies(sourceObjective, outcomesRes, outcomesWithChildren, allInitiatives);
+        // Fetch Objective Level Data
+        const { data: objDeps } = await sourceObjective.dependencies();
+        const { data: objRisks } = await sourceObjective.risks();
+
+        // Aggregation for Summary / Legacy Global View
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let allDeps: any[] = [...objDeps];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let allRisks: any[] = [...objRisks];
+
+        outcomesFinal.forEach(o => {
+            allDeps = allDeps.concat(o.dependencies);
+            allRisks = allRisks.concat(o.risks);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            o.keyResults.forEach((k: any) => {
+                allDeps = allDeps.concat(k.dependencies);
+                allRisks = allRisks.concat(k.risks);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                k.initiatives.forEach((i: any) => {
+                    allDeps = allDeps.concat(i.dependencies);
+                    allRisks = allRisks.concat(i.risks);
+                });
+            });
+        });
+
+        //Sort Global Dependencies
+        allDeps.sort((a, b) => {
+            if (!a.dueDate) return 1;
+            if (!b.dueDate) return -1;
+            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        });
 
         return {
             refreshedObjective: refreshed,
-            risks,
+            risks: allRisks,
             outcomes: outcomesFinal,
-            dependencies: allDependencies,
-            allInitiatives // Returning raw list might be useful for other lookups
+            dependencies: allDeps,
+            allInitiatives: allInitiativesRaw
         };
 
     } catch (e) {
         logger.error("Error fetching objective hierarchy", e);
         throw e;
     }
-}
-
-/**
- * Aggregates dependencies from the Objective and all its child entities.
- * 
- * @param objective - The root objective
- * @param outcomesRes - List of outcomes (raw)
- * @param outcomesWithChildren - List of outcomes with structure (for KRs)
- * @param allInitiatives - List of all initiatives
- * @returns Sorted list of dependencies
- */
-async function fetchAggregatedDependencies(
-    objective: Schema['StrategicObjective']['type'],
-    outcomesRes: Schema['Outcome']['type'][],
-    outcomesWithChildren: (Omit<Schema['Outcome']['type'], 'keyResults'> & { keyResults: Schema['KeyResult']['type'][] })[],
-    allInitiatives: Schema['Initiative']['type'][]
-) {
-    // 1. Objective Level
-    const { data: objDeps } = await objective.dependencies();
-
-    // 2. Outcome Level
-    const outcomeDepsPromises = outcomesRes.map((o) => o.dependencies());
-    const outcomeDepsRes = await Promise.all(outcomeDepsPromises);
-    const outcomeDeps = outcomeDepsRes.flatMap(r => r.data);
-
-    // 3. Key Result Level
-    const allKRs = outcomesWithChildren.flatMap(o => o.keyResults);
-    const krDepsPromises = allKRs.map((k) => k.dependencies());
-    const krDepsRes = await Promise.all(krDepsPromises);
-    const krDeps = krDepsRes.flatMap(r => r.data);
-
-    // 4. Initiative Level
-    const initDepsPromises = allInitiatives.map((i) => i.dependencies());
-    const initDepsRes = await Promise.all(initDepsPromises);
-    const initDeps = initDepsRes.flatMap(r => r.data);
-
-    const allDeps = [...objDeps, ...outcomeDeps, ...krDeps, ...initDeps];
-
-    // Sort by due date
-    allDeps.sort((a, b) => {
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-    });
-
-    return allDeps;
 }

@@ -38,6 +38,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import HeartbeatWizard from './HeartbeatWizard';
 import HeartbeatHistoryDialog from './HeartbeatHistoryDialog';
 import WeightDistributionModal from './WeightDistributionModal';
+import DependencyManagementDialog from './DependencyManagementDialog';
 import { logger } from '../utils/logger';
 import { fetchObjectiveHierarchy } from '../utils/objectiveDataUtils';
 
@@ -106,8 +107,12 @@ interface ItemDialogState {
 
 type OutcomeWithChildren = Omit<Schema['Outcome']['type'], 'keyResults'> & {
     keyResults: (Omit<Schema['KeyResult']['type'], 'initiatives'> & {
-        initiatives: Schema['Initiative']['type'][]
-    })[]
+        initiatives: (Schema['Initiative']['type'] & { dependencies?: Schema['Dependency']['type'][], risks?: Schema['Risk']['type'][] })[],
+        dependencies?: Schema['Dependency']['type'][],
+        risks?: Schema['Risk']['type'][]
+    })[],
+    dependencies?: Schema['Dependency']['type'][],
+    risks?: Schema['Risk']['type'][]
 };
 
 type StrategyItem =
@@ -317,6 +322,35 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         childType: 'Outcome',
         onSave: async () => { }
     });
+
+    const [dependencyDialogState, setDependencyDialogState] = useState<{
+        open: boolean;
+        targetId: string;
+        targetTitle: string;
+        targetType: 'objective' | 'outcome' | 'kr' | 'initiative';
+        dependencies: Schema['Dependency']['type'][];
+    }>({
+        open: false,
+        targetId: '',
+        targetTitle: '',
+        targetType: 'objective',
+        dependencies: []
+    });
+
+    const openDependencyDialog = (
+        id: string,
+        title: string,
+        type: 'objective' | 'outcome' | 'kr' | 'initiative',
+        dependencies: Schema['Dependency']['type'][] = []
+    ) => {
+        setDependencyDialogState({
+            open: true,
+            targetId: id,
+            targetTitle: title,
+            targetType: type,
+            dependencies
+        });
+    };
 
 
     const refreshTree = useCallback(async () => {
@@ -1166,6 +1200,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                 <HistoryIcon fontSize="small" />
                                                             </IconButton>
                                                         </Tooltip>
+                                                        <Tooltip title="Manage Dependencies">
+                                                            <IconButton size="small" onClick={() => openDependencyDialog(outcome.id, outcome.title, 'outcome', outcome.dependencies)}>
+                                                                <LinkIcon fontSize="small" color={outcome.dependencies && outcome.dependencies.length > 0 ? "secondary" : "inherit"} />
+                                                            </IconButton>
+                                                        </Tooltip>
 
                                                         <Tooltip title="Edit Outcome"><IconButton size="small" onClick={() => openDialog('edit', 'outcome', '', outcome)}><EditIcon fontSize="small" /></IconButton></Tooltip>
                                                         <Tooltip title="Delete Outcome"><IconButton size="small" onClick={() => handleDelete('outcome', outcome.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
@@ -1232,6 +1271,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                         <Tooltip title="View History">
                                                                             <IconButton size="small" sx={{ p: 0.5 }} onClick={() => setHistoryState({ open: true, item: kr, type: 'kr' })}>
                                                                                 <HistoryIcon sx={{ fontSize: 14 }} />
+                                                                            </IconButton>
+                                                                        </Tooltip>
+                                                                        <Tooltip title="Manage Dependencies">
+                                                                            <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDependencyDialog(kr.id, kr.statement, 'kr', kr.dependencies)}>
+                                                                                <LinkIcon sx={{ fontSize: 14, color: kr.dependencies && kr.dependencies.length > 0 ? "secondary.main" : "inherit" }} />
                                                                             </IconButton>
                                                                         </Tooltip>
                                                                         <Tooltip title="Edit KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'kr', '', kr)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
@@ -1301,6 +1345,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                             <Tooltip title="View History">
                                                                                                 <IconButton size="small" onClick={() => setHistoryState({ open: true, item: init, type: 'initiative' })}>
                                                                                                     <HistoryIcon fontSize="small" />
+                                                                                                </IconButton>
+                                                                                            </Tooltip>
+                                                                                            <Tooltip title="Manage Dependencies">
+                                                                                                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDependencyDialog(init.id, init.title, 'initiative', init.dependencies)}>
+                                                                                                    <LinkIcon sx={{ fontSize: 14, color: init.dependencies && init.dependencies.length > 0 ? "secondary.main" : "inherit" }} />
                                                                                                 </IconButton>
                                                                                             </Tooltip>
 
@@ -1574,6 +1623,17 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 parentTitle={weightModalState.parentTitle}
                 childType={weightModalState.childType}
                 onSave={weightModalState.onSave}
+            />
+
+            <DependencyManagementDialog
+                open={dependencyDialogState.open}
+                onClose={() => setDependencyDialogState({ ...dependencyDialogState, open: false })}
+                targetId={dependencyDialogState.targetId}
+                targetTitle={dependencyDialogState.targetTitle}
+                targetType={dependencyDialogState.targetType}
+                organizationId={localObjective.organizationId}
+                dependencies={dependencyDialogState.dependencies}
+                onRefresh={refreshTree}
             />
         </>
     );
