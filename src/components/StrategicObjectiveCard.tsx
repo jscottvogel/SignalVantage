@@ -36,7 +36,8 @@ export function StrategicObjectiveCard({ objective, onClick }: Props) {
     const trend = systemAssessment?.confidenceTrend || 'STABLE';
 
     // Calculate Attention Level
-    const attentionLevel = calculateAttentionLevel(objective);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const attentionLevel = calculateAttentionLevel(objective as any);
 
     const getStatusColor = () => {
         switch (attentionLevel) {

@@ -30,7 +30,8 @@ export const generateExecutiveBriefing = (objectives: Objective[]): BriefingSect
     const uncertainItems: Objective[] = [];
 
     objectives.forEach(obj => {
-        const level = calculateAttentionLevel(obj);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const level = calculateAttentionLevel(obj as any);
         if (level === 'ACTION') attentionItems.push(obj);
         else if (level === 'WATCH') watchItems.push(obj);
         else {

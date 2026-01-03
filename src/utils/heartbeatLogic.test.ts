@@ -9,7 +9,7 @@ import {
 import type { Schema } from '../../amplify/data/resource';
 
 type MockOwnerInput = Partial<Schema['OwnerInput']['type']>;
-type MockHeartbeat = Partial<Schema['Heartbeat']['type']>;
+
 
 
 describe('heartbeatLogic', () => {
@@ -48,7 +48,7 @@ describe('heartbeatLogic', () => {
 
         it('calculates freshness correctly', () => {
             const result = assessHeartbeat(mockOwnerInput as unknown as MockOwnerInput, undefined, null);
-            expect(result.integritySignals.updateFreshness).toBe('ON_TIME');
+            expect(result.integritySignals!.updateFreshness).toBe('ON_TIME');
         });
 
         it('calculates specificity as SPECIFIC for long text', () => {
@@ -58,32 +58,33 @@ describe('heartbeatLogic', () => {
             // "Everything is on track." -> 4 words
             // Total 10 words.
             const result = assessHeartbeat(mockOwnerInput as unknown as MockOwnerInput);
-            expect(result.integritySignals.languageSpecificity).toBe('VAGUE');
+            expect(result.integritySignals!.languageSpecificity).toBe('VAGUE');
         });
 
         it('calculates specificity as SPECIFIC for very long text', () => {
             const longText = new Array(50).fill('word').join(' ');
             const input = { ...mockOwnerInput, progressSummary: longText };
             const result = assessHeartbeat(input as unknown as MockOwnerInput);
-            expect(result.integritySignals.languageSpecificity).toBe('SPECIFIC');
+            expect(result.integritySignals!.languageSpecificity).toBe('SPECIFIC');
         });
 
         it('adds inference for vague input', () => {
             const result = assessHeartbeat(mockOwnerInput as unknown as MockOwnerInput); // Vague (<15 words)
-            expect(result.factsInferencesRecommendations.inferences).toContain('Brief update content suggests potential lack of detail or visibility.');
-            expect(result.factsInferencesRecommendations.recommendations).toContain('Provide more detailed progress metrics in next update.');
+            expect(result.factsInferencesRecommendations!.inferences).toContain('Brief update content suggests potential lack of detail or visibility.');
+            expect(result.factsInferencesRecommendations!.recommendations).toContain('Provide more detailed progress metrics in next update.');
         });
 
         it('adds recommendation for low confidence', () => {
             const input = { ...mockOwnerInput, ownerConfidence: 30 };
             const result = assessHeartbeat(input as unknown as MockOwnerInput);
-            expect(result.factsInferencesRecommendations.recommendations).toContain('Review risks and consider escalating blockers.');
+            expect(result.factsInferencesRecommendations!.recommendations).toContain('Review risks and consider escalating blockers.');
         });
 
         it('handles confidence trend', () => {
             const input = { ...mockOwnerInput, ownerConfidence: 90 };
             const prev = { ownerInput: { ownerConfidence: 80 } };
-            const result = assessHeartbeat(input as unknown as MockOwnerInput, prev as unknown as MockHeartbeat);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const result = assessHeartbeat(input as unknown as MockOwnerInput, prev as any);
             expect(result.confidenceTrend).toBe('IMPROVING');
             // 90 > 80 + 5 -> IMPROVING
         });
@@ -91,14 +92,16 @@ describe('heartbeatLogic', () => {
         it('handles stable trend', () => {
             const input = { ...mockOwnerInput, ownerConfidence: 84 };
             const prev = { ownerInput: { ownerConfidence: 80 } };
-            const result = assessHeartbeat(input as unknown as MockOwnerInput, prev as unknown as MockHeartbeat);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const result = assessHeartbeat(input as unknown as MockOwnerInput, prev as any);
             expect(result.confidenceTrend).toBe('STABLE');
         });
 
         it('handles declining trend', () => {
             const input = { ...mockOwnerInput, ownerConfidence: 70 };
             const prev = { ownerInput: { ownerConfidence: 80 } };
-            const result = assessHeartbeat(input as unknown as MockOwnerInput, prev as unknown as MockHeartbeat);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const result = assessHeartbeat(input as unknown as MockOwnerInput, prev as any);
             expect(result.confidenceTrend).toBe('DECLINING');
             // 70 < 80 - 5
         });
