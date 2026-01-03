@@ -39,6 +39,9 @@ import HeartbeatWizard from './HeartbeatWizard';
 import HeartbeatHistoryDialog from './HeartbeatHistoryDialog';
 import WeightDistributionModal from './WeightDistributionModal';
 import DependencyManagementDialog from './DependencyManagementDialog';
+import RiskManagementDialog from './RiskManagementDialog';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+
 import { logger } from '../utils/logger';
 import { fetchObjectiveHierarchy } from '../utils/objectiveDataUtils';
 
@@ -337,6 +340,20 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         dependencies: []
     });
 
+    const [riskDialogState, setRiskDialogState] = useState<{
+        open: boolean;
+        targetId: string;
+        targetTitle: string;
+        targetType: 'objective' | 'outcome' | 'kr' | 'initiative';
+        risks: Schema['Risk']['type'][];
+    }>({
+        open: false,
+        targetId: '',
+        targetTitle: '',
+        targetType: 'objective',
+        risks: []
+    });
+
     // Temporary State for Creation Wizards
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [tempRisks, setTempRisks] = useState<any[]>([]);
@@ -373,6 +390,21 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             targetTitle: title,
             targetType: type,
             dependencies
+        });
+    };
+
+    const openRiskDialog = (
+        id: string,
+        title: string,
+        type: 'objective' | 'outcome' | 'kr' | 'initiative',
+        risks: Schema['Risk']['type'][] = []
+    ) => {
+        setRiskDialogState({
+            open: true,
+            targetId: id,
+            targetTitle: title,
+            targetType: type,
+            risks
         });
     };
 
@@ -958,6 +990,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                     <LinkIcon fontSize="small" color={outcome.dependencies && outcome.dependencies.length > 0 ? "secondary" : "inherit"} />
                                                                 </IconButton>
                                                             </Tooltip>
+                                                            <Tooltip title="Manage Risks">
+                                                                <IconButton size="small" onClick={() => openRiskDialog(outcome.id, outcome.title, 'outcome', outcome.risks)}>
+                                                                    <WarningAmberIcon fontSize="small" color={outcome.risks && outcome.risks.length > 0 ? "error" : "inherit"} />
+                                                                </IconButton>
+                                                            </Tooltip>
 
                                                             <Tooltip title="Edit Outcome"><IconButton size="small" onClick={() => openDialog('edit', 'outcome', '', outcome)}><EditIcon fontSize="small" /></IconButton></Tooltip>
                                                             <Tooltip title="Delete Outcome"><IconButton size="small" onClick={() => handleDelete('outcome', outcome.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
@@ -1029,6 +1066,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                             <Tooltip title="Manage Dependencies">
                                                                                 <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDependencyDialog(kr.id, kr.statement, 'kr', kr.dependencies)}>
                                                                                     <LinkIcon sx={{ fontSize: 14, color: kr.dependencies && kr.dependencies.length > 0 ? "secondary.main" : "inherit" }} />
+                                                                                </IconButton>
+                                                                            </Tooltip>
+                                                                            <Tooltip title="Manage Risks">
+                                                                                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openRiskDialog(kr.id, kr.statement, 'kr', kr.risks)}>
+                                                                                    <WarningAmberIcon sx={{ fontSize: 14, color: kr.risks && kr.risks.length > 0 ? "error.main" : "inherit" }} />
                                                                                 </IconButton>
                                                                             </Tooltip>
                                                                             <Tooltip title="Edit KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'kr', '', kr)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
@@ -1103,6 +1145,11 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                                 <Tooltip title="Manage Dependencies">
                                                                                                     <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDependencyDialog(init.id, init.title, 'initiative', init.dependencies)}>
                                                                                                         <LinkIcon sx={{ fontSize: 14, color: init.dependencies && init.dependencies.length > 0 ? "secondary.main" : "inherit" }} />
+                                                                                                    </IconButton>
+                                                                                                </Tooltip>
+                                                                                                <Tooltip title="Manage Risks">
+                                                                                                    <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openRiskDialog(init.id, init.title, 'initiative', init.risks)}>
+                                                                                                        <WarningAmberIcon sx={{ fontSize: 14, color: init.risks && init.risks.length > 0 ? "error.main" : "inherit" }} />
                                                                                                     </IconButton>
                                                                                                 </Tooltip>
 
@@ -1833,6 +1880,17 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 targetType={dependencyDialogState.targetType}
                 organizationId={localObjective.organizationId}
                 dependencies={dependencyDialogState.dependencies}
+                onRefresh={refreshTree}
+            />
+
+            <RiskManagementDialog
+                open={riskDialogState.open}
+                onClose={() => setRiskDialogState({ ...riskDialogState, open: false })}
+                targetId={riskDialogState.targetId}
+                targetTitle={riskDialogState.targetTitle}
+                targetType={riskDialogState.targetType}
+                organizationId={localObjective.organizationId}
+                risks={riskDialogState.risks}
                 onRefresh={refreshTree}
             />
         </>
