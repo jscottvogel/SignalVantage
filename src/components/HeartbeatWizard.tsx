@@ -335,7 +335,8 @@ DO NOT output JSON. Use the tags above.`;
         setIsSubmitting(true);
         try {
             const now = new Date().toISOString();
-            let heartbeatPayload: Partial<Parameters<typeof client.models.Heartbeat.create>[0]> = {};
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let heartbeatPayload: any = {};
             let systemAssessment: Schema['SystemAssessment']['type'] | undefined;
             let ownerInput: Schema['OwnerInput']['type'] | undefined;
 

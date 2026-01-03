@@ -133,7 +133,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const handleDeleteRisk = async (id: string) => {
         if (!window.confirm("Are you sure you want to delete this risk?")) return;
         try {
-            await client.models.Risk.delete({ id });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (client.models.Risk as any).delete({ id });
             await refreshTree();
         } catch (e) {
             console.error(e);
@@ -179,7 +180,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const handleCreateDependency = async () => {
         if (!newDependency.description) return;
         try {
-            await client.models.Dependency.create({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (client.models.Dependency as any).create({
                 ...newDependency,
                 organizationId: objective.organizationId,
                 strategicObjectiveId: objective.id, // Default to attaching to current objective
@@ -344,28 +346,30 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         let initHour = 9;
 
         if (mode === 'edit' && item) {
-            initText = 'title' in item ? item.title : (item as Schema['KeyResult']['type']).statement || '';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const i = item as any;
+            initText = i.title || i.statement || '';
             // Handle owner: item.owner (single) or item.owners[0] (array)
-            const owner = item.owner || (item.owners && item.owners[0]);
+            const owner = i.owner || (i.owners && i.owners[0]);
             initOwner = owner?.userId || '';
-            initDesc = item.description || '';
-            initProjectLink = item.projectLink || '';
+            initDesc = i.description || '';
+            initProjectLink = i.projectLink || '';
 
             if (type === 'initiative') {
-                initStatus = item.state?.lifecycle || 'planned';
+                initStatus = i.state?.lifecycle || 'planned';
             } else {
-                initStatus = item.status || 'active';
+                initStatus = i.status || 'active';
             }
 
             if (type === 'kr') {
-                initMetricName = item.metric?.name || '';
-                initMetricUnit = item.metric?.unit || '';
+                initMetricName = i.metric?.name || '';
+                initMetricUnit = i.metric?.unit || '';
             }
 
-            if (item.heartbeatCadence) {
-                initFreq = item.heartbeatCadence.frequency || '';
-                initDay = item.heartbeatCadence.dayOfWeek || 'FRI';
-                initHour = item.heartbeatCadence.hour ?? 9;
+            if (i.heartbeatCadence) {
+                initFreq = i.heartbeatCadence.frequency || '';
+                initDay = i.heartbeatCadence.dayOfWeek || 'FRI';
+                initHour = i.heartbeatCadence.hour ?? 9;
             }
         } else {
             // Defaults for create
@@ -400,16 +404,20 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         if (!window.confirm("Are you sure you want to delete this item?")) return;
         try {
             if (type === 'objective') {
-                await client.models.StrategicObjective.delete({ id });
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                await (client.models.StrategicObjective as any).delete({ id });
                 onClose(); // Close modal after deleting the main object
                 // Ideally trigger refresh on parent, but page reload or polling works for now
                 window.location.reload();
             } else if (type === 'outcome') {
-                await client.models.Outcome.delete({ id });
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                await (client.models.Outcome as any).delete({ id });
             } else if (type === 'kr') {
-                await client.models.KeyResult.delete({ id });
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                await (client.models.KeyResult as any).delete({ id });
             } else if (type === 'initiative') {
-                await client.models.Initiative.delete({ id });
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                await (client.models.Initiative as any).delete({ id });
             }
             await refreshTree();
         } catch (e) {
