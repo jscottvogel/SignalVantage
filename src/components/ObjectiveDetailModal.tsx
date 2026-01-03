@@ -1206,246 +1206,244 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                             <CircularProgress />
                         </Box>
                     ) : (
-                        <Box p={3}>
+                        <Paper elevation={0} sx={{ mx: 3, mb: 3, border: 1, borderColor: 'divider', bgcolor: 'grey.50' }}>
                             <Box
+                                px={2}
+                                py={1}
                                 display="flex"
                                 justifyContent="space-between"
                                 alignItems="center"
-                                mb={2}
+                                borderBottom={outcomesExpanded ? 1 : 0}
+                                borderColor="divider"
                                 onClick={() => setOutcomesExpanded(!outcomesExpanded)}
-                                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'grey.50' }, borderRadius: 1, p: 1 }}
+                                sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'grey.100' } }}
                             >
-                                <Stack direction="row" alignItems="center" spacing={1}>
+                                <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">OUTCOMES</Typography>
+                                <Stack direction="row" spacing={1}>
+                                    <Button size="small" startIcon={<AddIcon />} onClick={(e) => { e.stopPropagation(); openDialog('create', 'outcome'); setOutcomesExpanded(true); }}>
+                                        Add
+                                    </Button>
                                     <IconButton size="small" onClick={(e) => { e.stopPropagation(); setOutcomesExpanded(!outcomesExpanded); }}>
                                         {outcomesExpanded ? <ExpandLess /> : <ExpandMore />}
                                     </IconButton>
-                                    <Typography variant="h6" color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.875rem', fontWeight: 700, letterSpacing: 1 }}>
-                                        Outcomes
-                                    </Typography>
                                 </Stack>
-                                <Button
-                                    startIcon={<AddIcon />}
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={(e) => { e.stopPropagation(); openDialog('create', 'outcome'); }}
-                                >
-                                    Add Outcome
-                                </Button>
                             </Box>
+                            <Box p={2}>
 
-                            <Collapse in={outcomesExpanded} timeout="auto" unmountOnExit>
-                                {outcomes.length === 0 ? (
-                                    <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderStyle: 'dashed' }}>
-                                        <Typography color="text.secondary" fontStyle="italic" gutterBottom>No outcomes defined yet.</Typography>
-                                        <Button variant="text" onClick={() => openDialog('create', 'outcome')}>+ Add First Outcome</Button>
-                                    </Paper>
-                                ) : (
-                                    <Stack spacing={3}>
-                                        {outcomes.map(outcome => (
-                                            <Paper key={outcome.id} variant="outlined" sx={{ overflow: 'hidden' }}>
-                                                <Box p={2} sx={{ backgroundColor: '#eff6ff', borderBottom: 1, borderColor: '#dbeafe', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <Stack direction="row" alignItems="center" spacing={1}>
-                                                        <Chip label="Outcome" size="small" color="primary" sx={{ borderRadius: 1, height: 20, fontSize: '0.7rem' }} />
-                                                        <Typography variant="subtitle1" fontWeight="600" color="text.primary">
-                                                            {outcome.title}
-                                                        </Typography>
-                                                        <Chip label={`${outcome.weight || 0}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
-                                                        {outcome.latestHeartbeat?.ownerInput?.ownerConfidence && (
-                                                            <Tooltip title="Latest Confidence & Trend">
-                                                                <Box display="flex" alignItems="center">
-                                                                    <StatusChip status={outcome.latestHeartbeat.ownerInput.ownerConfidence ?? undefined} />
-                                                                    <TrendIcon trend={outcome.latestHeartbeat.systemAssessment?.confidenceTrend ?? undefined} />
-                                                                </Box>
-                                                            </Tooltip>
-                                                        )}
-                                                        <HeartbeatStatus due={outcome.nextHeartbeatDue} />
-                                                        <StatusChip status={outcome.status} />
-                                                        <OwnerChip owner={outcome.owner} />
-                                                    </Stack>
-                                                    <Stack direction="row" spacing={1}>
-                                                        <Tooltip title="Log Heartbeat">
-                                                            <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('outcome', outcome)}>
-                                                                <MonitorHeartIcon fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                        <Tooltip title="View History">
-                                                            <IconButton size="small" onClick={() => setHistoryState({ open: true, item: outcome, type: 'outcome' })}>
-                                                                <HistoryIcon fontSize="small" />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                        <Tooltip title="Manage Dependencies">
-                                                            <IconButton size="small" onClick={() => openDependencyDialog(outcome.id, outcome.title, 'outcome', outcome.dependencies)}>
-                                                                <LinkIcon fontSize="small" color={outcome.dependencies && outcome.dependencies.length > 0 ? "secondary" : "inherit"} />
-                                                            </IconButton>
-                                                        </Tooltip>
-
-                                                        <Tooltip title="Edit Outcome"><IconButton size="small" onClick={() => openDialog('edit', 'outcome', '', outcome)}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                                                        <Tooltip title="Delete Outcome"><IconButton size="small" onClick={() => handleDelete('outcome', outcome.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
-                                                        <Button
-                                                            size="small"
-                                                            startIcon={<AddIcon />}
-                                                            sx={{ fontSize: '0.75rem', ml: 1 }}
-                                                            onClick={() => openDialog('create', 'kr', outcome.id)}
-                                                        >
-                                                            Add KR
-                                                        </Button>
-                                                        {outcome.keyResults?.length > 0 && (
-                                                            <Tooltip title="Adjust KR Weights">
-                                                                <IconButton size="small" onClick={() => {
-                                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                                    openWeightModal(outcome.keyResults, outcome.title, 'Key Result', (client.models.KeyResult as any))
-                                                                }}>
-                                                                    <BalanceIcon fontSize="small" />
+                                <Collapse in={outcomesExpanded} timeout="auto" unmountOnExit>
+                                    {outcomes.length === 0 ? (
+                                        <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderStyle: 'dashed' }}>
+                                            <Typography color="text.secondary" fontStyle="italic" gutterBottom>No outcomes defined yet.</Typography>
+                                            <Button variant="text" onClick={() => openDialog('create', 'outcome')}>+ Add First Outcome</Button>
+                                        </Paper>
+                                    ) : (
+                                        <Stack spacing={3}>
+                                            {outcomes.map(outcome => (
+                                                <Paper key={outcome.id} variant="outlined" sx={{ overflow: 'hidden' }}>
+                                                    <Box p={2} sx={{ backgroundColor: '#eff6ff', borderBottom: 1, borderColor: '#dbeafe', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <Stack direction="row" alignItems="center" spacing={1}>
+                                                            <Chip label="Outcome" size="small" color="primary" sx={{ borderRadius: 1, height: 20, fontSize: '0.7rem' }} />
+                                                            <Typography variant="subtitle1" fontWeight="600" color="text.primary">
+                                                                {outcome.title}
+                                                            </Typography>
+                                                            <Chip label={`${outcome.weight || 0}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
+                                                            {outcome.latestHeartbeat?.ownerInput?.ownerConfidence && (
+                                                                <Tooltip title="Latest Confidence & Trend">
+                                                                    <Box display="flex" alignItems="center">
+                                                                        <StatusChip status={outcome.latestHeartbeat.ownerInput.ownerConfidence ?? undefined} />
+                                                                        <TrendIcon trend={outcome.latestHeartbeat.systemAssessment?.confidenceTrend ?? undefined} />
+                                                                    </Box>
+                                                                </Tooltip>
+                                                            )}
+                                                            <HeartbeatStatus due={outcome.nextHeartbeatDue} />
+                                                            <StatusChip status={outcome.status} />
+                                                            <OwnerChip owner={outcome.owner} />
+                                                        </Stack>
+                                                        <Stack direction="row" spacing={1}>
+                                                            <Tooltip title="Log Heartbeat">
+                                                                <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('outcome', outcome)}>
+                                                                    <MonitorHeartIcon fontSize="small" />
                                                                 </IconButton>
                                                             </Tooltip>
-                                                        )}
-                                                    </Stack>
-                                                </Box>
+                                                            <Tooltip title="View History">
+                                                                <IconButton size="small" onClick={() => setHistoryState({ open: true, item: outcome, type: 'outcome' })}>
+                                                                    <HistoryIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                            <Tooltip title="Manage Dependencies">
+                                                                <IconButton size="small" onClick={() => openDependencyDialog(outcome.id, outcome.title, 'outcome', outcome.dependencies)}>
+                                                                    <LinkIcon fontSize="small" color={outcome.dependencies && outcome.dependencies.length > 0 ? "secondary" : "inherit"} />
+                                                                </IconButton>
+                                                            </Tooltip>
 
-                                                <Box p={2}>
-                                                    {outcome.description && <Typography variant="body2" color="text.secondary" gutterBottom>{outcome.description}</Typography>}
-                                                    {outcome.keyResults.length === 0 ? (
-                                                        <Typography variant="body2" color="text.secondary" fontStyle="italic" sx={{ py: 1 }}>No Key Results. Add one to measure success.</Typography>
-                                                    ) : (
-                                                        <Stack spacing={2}>
-                                                            {outcome.keyResults.map((kr) => (
-                                                                <Box key={kr.id}>
-                                                                    <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ mb: 1 }}>
-                                                                        <Box mt={0.8} minWidth={8} height={8} borderRadius="50%" bgcolor="success.main" />
-                                                                        <Box flexGrow={1}>
-                                                                            <Stack direction="row" spacing={1} alignItems="center">
-                                                                                <Typography variant="subtitle2" color="text.primary">
-                                                                                    {kr.statement}
-                                                                                </Typography>
-                                                                                <Chip label={`${kr.weight || 0}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
-                                                                                {kr.latestHeartbeat?.ownerInput?.ownerConfidence && (
-                                                                                    <Tooltip title="Latest Confidence & Trend">
-                                                                                        <Box display="flex" alignItems="center">
-                                                                                            <StatusChip status={kr.latestHeartbeat.ownerInput.ownerConfidence ?? undefined} />
-                                                                                            <TrendIcon trend={kr.latestHeartbeat.systemAssessment?.confidenceTrend ?? undefined} />
-                                                                                        </Box>
-                                                                                    </Tooltip>
+                                                            <Tooltip title="Edit Outcome"><IconButton size="small" onClick={() => openDialog('edit', 'outcome', '', outcome)}><EditIcon fontSize="small" /></IconButton></Tooltip>
+                                                            <Tooltip title="Delete Outcome"><IconButton size="small" onClick={() => handleDelete('outcome', outcome.id)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                                                            <Button
+                                                                size="small"
+                                                                startIcon={<AddIcon />}
+                                                                sx={{ fontSize: '0.75rem', ml: 1 }}
+                                                                onClick={() => openDialog('create', 'kr', outcome.id)}
+                                                            >
+                                                                Add KR
+                                                            </Button>
+                                                            {outcome.keyResults?.length > 0 && (
+                                                                <Tooltip title="Adjust KR Weights">
+                                                                    <IconButton size="small" onClick={() => {
+                                                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                                        openWeightModal(outcome.keyResults, outcome.title, 'Key Result', (client.models.KeyResult as any))
+                                                                    }}>
+                                                                        <BalanceIcon fontSize="small" />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            )}
+                                                        </Stack>
+                                                    </Box>
+
+                                                    <Box p={2}>
+                                                        {outcome.description && <Typography variant="body2" color="text.secondary" gutterBottom>{outcome.description}</Typography>}
+                                                        {outcome.keyResults.length === 0 ? (
+                                                            <Typography variant="body2" color="text.secondary" fontStyle="italic" sx={{ py: 1 }}>No Key Results. Add one to measure success.</Typography>
+                                                        ) : (
+                                                            <Stack spacing={2}>
+                                                                {outcome.keyResults.map((kr) => (
+                                                                    <Box key={kr.id}>
+                                                                        <Stack direction="row" alignItems="flex-start" spacing={1.5} sx={{ mb: 1 }}>
+                                                                            <Box mt={0.8} minWidth={8} height={8} borderRadius="50%" bgcolor="success.main" />
+                                                                            <Box flexGrow={1}>
+                                                                                <Stack direction="row" spacing={1} alignItems="center">
+                                                                                    <Typography variant="subtitle2" color="text.primary">
+                                                                                        {kr.statement}
+                                                                                    </Typography>
+                                                                                    <Chip label={`${kr.weight || 0}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
+                                                                                    {kr.latestHeartbeat?.ownerInput?.ownerConfidence && (
+                                                                                        <Tooltip title="Latest Confidence & Trend">
+                                                                                            <Box display="flex" alignItems="center">
+                                                                                                <StatusChip status={kr.latestHeartbeat.ownerInput.ownerConfidence ?? undefined} />
+                                                                                                <TrendIcon trend={kr.latestHeartbeat.systemAssessment?.confidenceTrend ?? undefined} />
+                                                                                            </Box>
+                                                                                        </Tooltip>
+                                                                                    )}
+                                                                                    <HeartbeatStatus due={kr.nextHeartbeatDue} />
+                                                                                    <StatusChip status={kr.status} />
+                                                                                    {kr.owners && kr.owners.length > 0 && <OwnerChip owner={kr.owners[0]} />}
+                                                                                </Stack>
+                                                                                {kr.metric?.name && (
+                                                                                    <Typography variant="caption" display="block" color="text.secondary">
+                                                                                        Metric: {kr.metric.name}
+                                                                                    </Typography>
                                                                                 )}
-                                                                                <HeartbeatStatus due={kr.nextHeartbeatDue} />
-                                                                                <StatusChip status={kr.status} />
-                                                                                {kr.owners && kr.owners.length > 0 && <OwnerChip owner={kr.owners[0]} />}
-                                                                            </Stack>
-                                                                            {kr.metric?.name && (
-                                                                                <Typography variant="caption" display="block" color="text.secondary">
-                                                                                    Metric: {kr.metric.name}
-                                                                                </Typography>
-                                                                            )}
-                                                                        </Box>
-                                                                        <Tooltip title="Log Heartbeat">
-                                                                            <IconButton size="small" sx={{ p: 0.5 }} color="primary" onClick={() => openHeartbeatWizard('kr', kr)}>
-                                                                                <MonitorHeartIcon sx={{ fontSize: 14 }} />
-                                                                            </IconButton>
-                                                                        </Tooltip>
-                                                                        <Tooltip title="View History">
-                                                                            <IconButton size="small" sx={{ p: 0.5 }} onClick={() => setHistoryState({ open: true, item: kr, type: 'kr' })}>
-                                                                                <HistoryIcon sx={{ fontSize: 14 }} />
-                                                                            </IconButton>
-                                                                        </Tooltip>
-                                                                        <Tooltip title="Manage Dependencies">
-                                                                            <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDependencyDialog(kr.id, kr.statement, 'kr', kr.dependencies)}>
-                                                                                <LinkIcon sx={{ fontSize: 14, color: kr.dependencies && kr.dependencies.length > 0 ? "secondary.main" : "inherit" }} />
-                                                                            </IconButton>
-                                                                        </Tooltip>
-                                                                        <Tooltip title="Edit KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'kr', '', kr)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
-                                                                        <Tooltip title="Delete KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('kr', kr.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
-                                                                        <Button
-                                                                            size="small"
-                                                                            color="secondary"
-                                                                            startIcon={<AddIcon />}
-                                                                            onClick={() => openDialog('create', 'initiative', kr.id)}
-                                                                        >
-                                                                            Add Init
-                                                                        </Button>
-                                                                        {kr.initiatives?.length > 0 && (
-                                                                            <Tooltip title="Adjust Initiative Weights">
-                                                                                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => {
-                                                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                                                    openWeightModal(kr.initiatives, kr.statement, 'Initiative', (client.models.Initiative as any))
-                                                                                }}>
-                                                                                    <BalanceIcon sx={{ fontSize: 14 }} />
+                                                                            </Box>
+                                                                            <Tooltip title="Log Heartbeat">
+                                                                                <IconButton size="small" sx={{ p: 0.5 }} color="primary" onClick={() => openHeartbeatWizard('kr', kr)}>
+                                                                                    <MonitorHeartIcon sx={{ fontSize: 14 }} />
                                                                                 </IconButton>
                                                                             </Tooltip>
-                                                                        )}
-                                                                    </Stack>
+                                                                            <Tooltip title="View History">
+                                                                                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => setHistoryState({ open: true, item: kr, type: 'kr' })}>
+                                                                                    <HistoryIcon sx={{ fontSize: 14 }} />
+                                                                                </IconButton>
+                                                                            </Tooltip>
+                                                                            <Tooltip title="Manage Dependencies">
+                                                                                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDependencyDialog(kr.id, kr.statement, 'kr', kr.dependencies)}>
+                                                                                    <LinkIcon sx={{ fontSize: 14, color: kr.dependencies && kr.dependencies.length > 0 ? "secondary.main" : "inherit" }} />
+                                                                                </IconButton>
+                                                                            </Tooltip>
+                                                                            <Tooltip title="Edit KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'kr', '', kr)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                            <Tooltip title="Delete KR"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('kr', kr.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                            <Button
+                                                                                size="small"
+                                                                                color="secondary"
+                                                                                startIcon={<AddIcon />}
+                                                                                onClick={() => openDialog('create', 'initiative', kr.id)}
+                                                                            >
+                                                                                Add Init
+                                                                            </Button>
+                                                                            {kr.initiatives?.length > 0 && (
+                                                                                <Tooltip title="Adjust Initiative Weights">
+                                                                                    <IconButton size="small" sx={{ p: 0.5 }} onClick={() => {
+                                                                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                                                        openWeightModal(kr.initiatives, kr.statement, 'Initiative', (client.models.Initiative as any))
+                                                                                    }}>
+                                                                                        <BalanceIcon sx={{ fontSize: 14 }} />
+                                                                                    </IconButton>
+                                                                                </Tooltip>
+                                                                            )}
+                                                                        </Stack>
 
-                                                                    {/* Initiatives */}
-                                                                    {kr.initiatives && kr.initiatives.length > 0 && (
-                                                                        <Box ml={3} pl={2} borderLeft={1} borderColor="divider">
-                                                                            <Stack spacing={1}>
-                                                                                {kr.initiatives.map((init) => (
-                                                                                    <Paper key={init.id} elevation={0} sx={{ p: 1, bgcolor: 'grey.50', border: 1, borderColor: 'divider' }}>
-                                                                                        <Stack direction="row" alignItems="center" spacing={1}>
-                                                                                            <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
-                                                                                            <Typography variant="body2">{init.title}</Typography>
-                                                                                            {init.projectLink && (
-                                                                                                <Tooltip title="Open Project Plan">
-                                                                                                    <IconButton
-                                                                                                        size="small"
-                                                                                                        component="a"
-                                                                                                        href={init.projectLink ?? ''}
-                                                                                                        target="_blank"
-                                                                                                        onClick={(e) => e.stopPropagation()}
-                                                                                                        sx={{ p: 0.2, ml: 0.5, color: 'primary.main' }}
-                                                                                                    >
-                                                                                                        <LinkIcon sx={{ fontSize: 16 }} />
+                                                                        {/* Initiatives */}
+                                                                        {kr.initiatives && kr.initiatives.length > 0 && (
+                                                                            <Box ml={3} pl={2} borderLeft={1} borderColor="divider">
+                                                                                <Stack spacing={1}>
+                                                                                    {kr.initiatives.map((init) => (
+                                                                                        <Paper key={init.id} elevation={0} sx={{ p: 1, bgcolor: 'grey.50', border: 1, borderColor: 'divider' }}>
+                                                                                            <Stack direction="row" alignItems="center" spacing={1}>
+                                                                                                <Typography variant="caption" fontWeight="bold" color="secondary.main">INIT</Typography>
+                                                                                                <Typography variant="body2">{init.title}</Typography>
+                                                                                                {init.projectLink && (
+                                                                                                    <Tooltip title="Open Project Plan">
+                                                                                                        <IconButton
+                                                                                                            size="small"
+                                                                                                            component="a"
+                                                                                                            href={init.projectLink ?? ''}
+                                                                                                            target="_blank"
+                                                                                                            onClick={(e) => e.stopPropagation()}
+                                                                                                            sx={{ p: 0.2, ml: 0.5, color: 'primary.main' }}
+                                                                                                        >
+                                                                                                            <LinkIcon sx={{ fontSize: 16 }} />
+                                                                                                        </IconButton>
+                                                                                                    </Tooltip>
+                                                                                                )}
+                                                                                                <Chip label={`${init.weight || 0}%`} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
+                                                                                                {init.latestHeartbeat?.ownerInput?.ownerConfidence && (
+                                                                                                    <Tooltip title="Latest Confidence & Trend">
+                                                                                                        <Box display="flex" alignItems="center">
+                                                                                                            <StatusChip status={init.latestHeartbeat.ownerInput.ownerConfidence ?? undefined} />
+                                                                                                            <TrendIcon trend={init.latestHeartbeat.systemAssessment?.confidenceTrend ?? undefined} />
+                                                                                                        </Box>
+                                                                                                    </Tooltip>
+                                                                                                )}
+                                                                                                <HeartbeatStatus due={init.nextHeartbeatDue} />
+                                                                                                <StatusChip status={init.state?.lifecycle} />
+                                                                                                <OwnerChip owner={init.owner} />
+                                                                                                <Box flexGrow={1} />
+
+                                                                                                <Tooltip title="Log Heartbeat">
+                                                                                                    <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('initiative', init)}>
+                                                                                                        <MonitorHeartIcon fontSize="small" />
                                                                                                     </IconButton>
                                                                                                 </Tooltip>
-                                                                                            )}
-                                                                                            <Chip label={`${init.weight || 0}%`} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.65rem' }} />
-                                                                                            {init.latestHeartbeat?.ownerInput?.ownerConfidence && (
-                                                                                                <Tooltip title="Latest Confidence & Trend">
-                                                                                                    <Box display="flex" alignItems="center">
-                                                                                                        <StatusChip status={init.latestHeartbeat.ownerInput.ownerConfidence ?? undefined} />
-                                                                                                        <TrendIcon trend={init.latestHeartbeat.systemAssessment?.confidenceTrend ?? undefined} />
-                                                                                                    </Box>
+                                                                                                <Tooltip title="View History">
+                                                                                                    <IconButton size="small" onClick={() => setHistoryState({ open: true, item: init, type: 'initiative' })}>
+                                                                                                        <HistoryIcon fontSize="small" />
+                                                                                                    </IconButton>
                                                                                                 </Tooltip>
-                                                                                            )}
-                                                                                            <HeartbeatStatus due={init.nextHeartbeatDue} />
-                                                                                            <StatusChip status={init.state?.lifecycle} />
-                                                                                            <OwnerChip owner={init.owner} />
-                                                                                            <Box flexGrow={1} />
+                                                                                                <Tooltip title="Manage Dependencies">
+                                                                                                    <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDependencyDialog(init.id, init.title, 'initiative', init.dependencies)}>
+                                                                                                        <LinkIcon sx={{ fontSize: 14, color: init.dependencies && init.dependencies.length > 0 ? "secondary.main" : "inherit" }} />
+                                                                                                    </IconButton>
+                                                                                                </Tooltip>
 
-                                                                                            <Tooltip title="Log Heartbeat">
-                                                                                                <IconButton size="small" color="primary" onClick={() => openHeartbeatWizard('initiative', init)}>
-                                                                                                    <MonitorHeartIcon fontSize="small" />
-                                                                                                </IconButton>
-                                                                                            </Tooltip>
-                                                                                            <Tooltip title="View History">
-                                                                                                <IconButton size="small" onClick={() => setHistoryState({ open: true, item: init, type: 'initiative' })}>
-                                                                                                    <HistoryIcon fontSize="small" />
-                                                                                                </IconButton>
-                                                                                            </Tooltip>
-                                                                                            <Tooltip title="Manage Dependencies">
-                                                                                                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDependencyDialog(init.id, init.title, 'initiative', init.dependencies)}>
-                                                                                                    <LinkIcon sx={{ fontSize: 14, color: init.dependencies && init.dependencies.length > 0 ? "secondary.main" : "inherit" }} />
-                                                                                                </IconButton>
-                                                                                            </Tooltip>
-
-                                                                                            <Tooltip title="Edit Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'initiative', '', init)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
-                                                                                            <Tooltip title="Delete Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('initiative', init.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
-                                                                                        </Stack>
-                                                                                        {init.description && <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>{init.description}</Typography>}
-                                                                                    </Paper>
-                                                                                ))}
-                                                                            </Stack>
-                                                                        </Box>
-                                                                    )}
-                                                                </Box>
-                                                            ))}
-                                                        </Stack>
-                                                    )}
-                                                </Box>
-                                            </Paper>
-                                        ))}
-                                    </Stack>
-                                )}
-                            </Collapse>
-                        </Box>
+                                                                                                <Tooltip title="Edit Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => openDialog('edit', 'initiative', '', init)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                                                <Tooltip title="Delete Initiative"><IconButton size="small" sx={{ p: 0.5 }} onClick={() => handleDelete('initiative', init.id)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                                                                                            </Stack>
+                                                                                            {init.description && <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>{init.description}</Typography>}
+                                                                                        </Paper>
+                                                                                    ))}
+                                                                                </Stack>
+                                                                            </Box>
+                                                                        )}
+                                                                    </Box>
+                                                                ))}
+                                                            </Stack>
+                                                        )}
+                                                    </Box>
+                                                </Paper>
+                                            ))}
+                                        </Stack>
+                                    )}
+                                </Collapse>
+                            </Box>
+                        </Paper>
                     )}
                 </DialogContent>
             </Dialog >
