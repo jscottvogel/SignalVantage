@@ -151,7 +151,8 @@ export const TeamView = ({ org }: TeamViewProps) => {
                 }
             }
 
-            await client.models.Membership.delete({ id: member.id });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (client.models.Membership as any).delete({ id: member.id });
             fetchMembers();
         } catch (e) {
             console.error("Remove failed", e);
