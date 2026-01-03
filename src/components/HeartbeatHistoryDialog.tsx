@@ -45,7 +45,8 @@ export default function HeartbeatHistoryDialog({ open, onClose, item, itemType }
             // Explicitly ensure we are filtering for non-null ID
             console.log("Fetching history for", itemType, item.id);
 
-            const { data } = await client.models.Heartbeat.list({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data } = await (client.models.Heartbeat as any).list({
                 filter: filter,
                 limit: 100 // Last 100
                 // sortDirection: 'DESC' // Not supported in list unless indexed, usually client sort is safer

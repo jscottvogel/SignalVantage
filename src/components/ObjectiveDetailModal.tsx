@@ -477,11 +477,14 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     const newWeight = Math.floor(100 / newCount);
 
                     // Update siblings
+                    // Update siblings
                     await Promise.all(siblings.map(s =>
-                        client.models.Outcome.update({ id: s.id, weight: newWeight })
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (client.models.Outcome as any).update({ id: s.id, weight: newWeight })
                     ));
 
-                    await client.models.Outcome.create({
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    await (client.models.Outcome as any).create({
                         organizationId: SafeOrgId,
                         strategicObjectiveId: objective.id,
                         title: itemText,
@@ -500,10 +503,12 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     const newWeight = Math.floor(100 / newCount);
 
                     await Promise.all(siblings.map((s) =>
-                        client.models.KeyResult.update({ id: s.id, weight: newWeight })
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (client.models.KeyResult as any).update({ id: s.id, weight: newWeight })
                     ));
 
-                    await client.models.KeyResult.create({
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    await (client.models.KeyResult as any).create({
                         organizationId: SafeOrgId,
                         strategicObjectiveId: objective.id,
                         outcomeId: dialogState.parentId!,
@@ -533,10 +538,12 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     const newWeight = Math.floor(100 / newCount);
 
                     await Promise.all(siblings.map((s) =>
-                        client.models.Initiative.update({ id: s.id, weight: newWeight })
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (client.models.Initiative as any).update({ id: s.id, weight: newWeight })
                     ));
 
-                    await client.models.Initiative.create({
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    await (client.models.Initiative as any).create({
                         organizationId: SafeOrgId,
                         title: itemText,
                         description: itemDescription,
@@ -556,7 +563,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 // UPDATE MODE
                 const id = dialogState.id!;
                 if (dialogState.type === 'objective') {
-                    await client.models.StrategicObjective.update({
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    await (client.models.StrategicObjective as any).update({
                         id,
                         title: itemText,
                         description: itemDescription,
@@ -569,7 +577,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     // objective prop is stale. We might need to refetch it or just reload page.
                     window.location.reload();
                 } else if (dialogState.type === 'outcome') {
-                    await client.models.Outcome.update({
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    await (client.models.Outcome as any).update({
                         id,
                         title: itemText,
                         description: itemDescription,
@@ -579,7 +588,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         nextHeartbeatDue: nextDue || undefined
                     });
                 } else if (dialogState.type === 'kr') {
-                    await client.models.KeyResult.update({
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    await (client.models.KeyResult as any).update({
                         id,
                         statement: itemText,
                         status: itemStatus as Schema['KeyResult']['type']['status'],
@@ -589,7 +599,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         nextHeartbeatDue: nextDue || undefined
                     });
                 } else if (dialogState.type === 'initiative') {
-                    await client.models.Initiative.update({
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    await (client.models.Initiative as any).update({
                         id,
                         title: itemText,
                         description: itemDescription,
@@ -869,7 +880,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                             </Select>
                                                         </FormControl>
                                                         <Box flexGrow={1} />
-                                                        <IconButton size="small" color="primary" onClick={() => handleUpdateRisk(risk.id, { description: editingRisk.description, impact: editingRisk.impact, probability: editingRisk.probability, roamStatus: editingRisk.roamStatus })}>
+                                                        <IconButton size="small" color="primary" onClick={() => handleUpdateRisk(risk.id, { description: editingRisk.description, impact: editingRisk.impact, probability: editingRisk.probability || 0, roamStatus: editingRisk.roamStatus })}>
                                                             <SaveIcon />
                                                         </IconButton>
                                                         <IconButton size="small" onClick={() => setEditingRisk(null)}>
@@ -1101,8 +1112,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                         {outcome.latestHeartbeat?.ownerInput?.ownerConfidence && (
                                                             <Tooltip title="Latest Confidence & Trend">
                                                                 <Box display="flex" alignItems="center">
-                                                                    <StatusChip status={outcome.latestHeartbeat.ownerInput.ownerConfidence} />
-                                                                    <TrendIcon trend={outcome.latestHeartbeat.systemAssessment?.confidenceTrend} />
+                                                                    <StatusChip status={outcome.latestHeartbeat.ownerInput.ownerConfidence ?? undefined} />
+                                                                    <TrendIcon trend={outcome.latestHeartbeat.systemAssessment?.confidenceTrend ?? undefined} />
                                                                 </Box>
                                                             </Tooltip>
                                                         )}
@@ -1161,8 +1172,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                 {kr.latestHeartbeat?.ownerInput?.ownerConfidence && (
                                                                                     <Tooltip title="Latest Confidence & Trend">
                                                                                         <Box display="flex" alignItems="center">
-                                                                                            <StatusChip status={kr.latestHeartbeat.ownerInput.ownerConfidence} />
-                                                                                            <TrendIcon trend={kr.latestHeartbeat.systemAssessment?.confidenceTrend} />
+                                                                                            <StatusChip status={kr.latestHeartbeat.ownerInput.ownerConfidence ?? undefined} />
+                                                                                            <TrendIcon trend={kr.latestHeartbeat.systemAssessment?.confidenceTrend ?? undefined} />
                                                                                         </Box>
                                                                                     </Tooltip>
                                                                                 )}
@@ -1219,7 +1230,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                                     <IconButton
                                                                                                         size="small"
                                                                                                         component="a"
-                                                                                                        href={init.projectLink}
+                                                                                                        href={init.projectLink ?? ''}
                                                                                                         target="_blank"
                                                                                                         onClick={(e) => e.stopPropagation()}
                                                                                                         sx={{ p: 0.2, ml: 0.5, color: 'primary.main' }}
