@@ -79,7 +79,8 @@ export const TeamView = ({ org }: TeamViewProps) => {
         if (!inviteEmail.trim()) return;
         setIsInviting(true);
         try {
-            const { errors } = await client.models.Membership.create({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { errors } = await (client.models.Membership as any).create({
                 organizationId: org.id,
                 inviteEmail: inviteEmail,
                 status: 'INVITED',
@@ -138,7 +139,7 @@ export const TeamView = ({ org }: TeamViewProps) => {
                         if (k.owners?.some((ow) => ow?.userId === removedUserId)) {
                             const newOwners = k.owners!.map((ow) => ow?.userId === removedUserId ? targetOwner : ow).filter(Boolean);
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            updates.push(client.models.KeyResult.update({ id: k.id, owners: newOwners as any }));
+                            updates.push((client.models.KeyResult as any).update({ id: k.id, owners: newOwners as any }));
                         }
                     });
                     inits.forEach(i => {

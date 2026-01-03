@@ -49,13 +49,17 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
                 filter: { organizationId: { eq: organizationId! } }
             });
 
-            const deepContext = await Promise.all(objs.map(async (obj) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const deepContext = await Promise.all(objs.map(async (obj: any) => {
                 const { data: outcomes } = await obj.outcomes();
-                const outcomesWithChildren = await Promise.all(outcomes.map(async (outcome) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const outcomesWithChildren = await Promise.all(outcomes.map(async (outcome: any) => {
                     const { data: krs } = await outcome.keyResults();
-                    const krsWithChildren = await Promise.all(krs.map(async (kr) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const krsWithChildren = await Promise.all(krs.map(async (kr: any) => {
                         // Filter initiatives that link to this KR
-                        const linkedInits = allInitiatives.filter(init =>
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const linkedInits = allInitiatives.filter((init: any) =>
                             init.linkedEntities?.keyResultIds?.includes(kr.id)
                         );
 

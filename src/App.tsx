@@ -120,7 +120,8 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
   const loadOrganization = useCallback(async (organizationId: string) => {
     try {
       setLoading(true);
-      const { data: organization } = await client.models.Organization.get({ id: organizationId });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: organization } = await (client.models.Organization as any).get({ id: organizationId });
       if (organization) {
         setOrg(organization);
         const { data: objs } = await organization.objectives();
