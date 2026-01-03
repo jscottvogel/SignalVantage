@@ -68,9 +68,9 @@ describe('StrategicObjectiveCard', () => {
             ...mockObjective,
             id: 'action',
             latestHeartbeat: {
-                ...mockObjective.latestHeartbeat,
+                ...mockObjective.latestHeartbeat!,
                 ownerInput: {
-                    ...mockObjective.latestHeartbeat.ownerInput,
+                    ...mockObjective.latestHeartbeat!.ownerInput,
                     newRisks: [{ description: 'Bad thing' }]
                 }
             }
@@ -84,7 +84,7 @@ describe('StrategicObjectiveCard', () => {
         const stringConfObj = {
             ...mockObjective,
             latestHeartbeat: {
-                ...mockObjective.latestHeartbeat,
+                ...mockObjective.latestHeartbeat!,
                 systemAssessment: { systemConfidence: null },
                 ownerInput: { ownerConfidence: 'HIGH' }
             }

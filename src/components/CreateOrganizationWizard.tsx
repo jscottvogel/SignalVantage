@@ -62,7 +62,8 @@ export const CreateOrganizationWizard = ({ open, onClose, onSuccess, userProfile
 
         try {
             // 1. Create Organization
-            const { data: newOrg, errors: orgErrors } = await client.models.Organization.create({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: newOrg, errors: orgErrors } = await (client.models.Organization as any).create({
                 name: orgName.trim(),
             });
 

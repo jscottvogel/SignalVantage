@@ -127,10 +127,12 @@ export const TeamView = ({ org }: TeamViewProps) => {
                     const updates: Promise<unknown>[] = [];
 
                     objs.forEach(o => {
-                        if (o.owner?.userId === removedUserId) updates.push(client.models.StrategicObjective.update({ id: o.id, owner: targetOwner }));
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        if (o.owner?.userId === removedUserId) updates.push((client.models.StrategicObjective as any).update({ id: o.id, owner: targetOwner }));
                     });
                     outcomes.forEach(o => {
-                        if (o.owner?.userId === removedUserId) updates.push(client.models.Outcome.update({ id: o.id, owner: targetOwner }));
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        if (o.owner?.userId === removedUserId) updates.push((client.models.Outcome as any).update({ id: o.id, owner: targetOwner }));
                     });
                     krs.forEach(k => {
                         if (k.owners?.some((ow) => ow?.userId === removedUserId)) {
@@ -140,7 +142,8 @@ export const TeamView = ({ org }: TeamViewProps) => {
                         }
                     });
                     inits.forEach(i => {
-                        if (i.owner?.userId === removedUserId) updates.push(client.models.Initiative.update({ id: i.id, owner: targetOwner }));
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        if (i.owner?.userId === removedUserId) updates.push((client.models.Initiative as any).update({ id: i.id, owner: targetOwner }));
                     });
 
                     await Promise.all(updates);

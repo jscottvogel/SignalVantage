@@ -161,7 +161,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const handleCreateRisk = async () => {
         if (!newRisk.description) return;
         try {
-            await client.models.Risk.create({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (client.models.Risk as any).create({
                 ...newRisk,
                 organizationId: objective.organizationId,
                 strategicObjectiveId: objective.id, // Attach to current objective
@@ -217,7 +218,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const handleDeleteDependency = async (id: string) => {
         if (!window.confirm("Are you sure you want to delete this dependency?")) return;
         try {
-            await client.models.Dependency.delete({ id });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (client.models.Dependency as any).delete({ id });
             await refreshTree();
         } catch (e) {
             console.error(e);
@@ -1150,7 +1152,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                         </Button>
                                                         {outcome.keyResults?.length > 0 && (
                                                             <Tooltip title="Adjust KR Weights">
-                                                                <IconButton size="small" onClick={() => openWeightModal(outcome.keyResults, outcome.title, 'Key Result', client.models.KeyResult)}>
+                                                                <IconButton size="small" onClick={() => {
+                                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                                    openWeightModal(outcome.keyResults, outcome.title, 'Key Result', (client.models.KeyResult as any))
+                                                                }}>
                                                                     <BalanceIcon fontSize="small" />
                                                                 </IconButton>
                                                             </Tooltip>
