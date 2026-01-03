@@ -29,21 +29,6 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
 
 
 
-    useEffect(() => {
-        if (open && organizationId) {
-            setGeneratedNarrative('');
-            setGeneratedSummary('');
-            loadContext();
-        }
-    }, [open, organizationId, loadContext]);
-
-    useEffect(() => {
-        if (!open) {
-            setGeneratedNarrative('');
-            setGeneratedSummary('');
-        }
-    }, [open]);
-
     const loadContext = useCallback(async () => {
         setLoading(true);
         try {
@@ -102,6 +87,14 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
         }
     }, [organizationId]);
 
+    useEffect(() => {
+        if (open && organizationId) {
+            setGeneratedNarrative('');
+            setGeneratedSummary('');
+            loadContext();
+        }
+    }, [open, organizationId, loadContext]);
+
     const getPrompt = () => {
         const systemPrompt = `As a senior executive, please summarize the current state of our strategic objectives.
 Format your response exactly as follows:
@@ -125,9 +118,7 @@ DO NOT MAKE UP ANY FACTS or embellish the material. Use the provided context dat
             const { data, errors } = await client.queries.generateBriefing({ prompt: fullPrompt });
             if (errors) throw new Error(errors[0].message);
             if (data) {
-                // @ts-expect-error - Schema updated but types might lag in IDE
                 setGeneratedNarrative(data.narrative || '');
-                // @ts-expect-error - Schema updated
                 setGeneratedSummary(data.summary || '');
             }
         } catch (e) {

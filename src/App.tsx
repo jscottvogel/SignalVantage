@@ -366,7 +366,8 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
       default: {
         const stats = { action: 0, watch: 0, stable: 0 };
         objectives.forEach(obj => {
-          const level = calculateAttentionLevel(obj);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const level = calculateAttentionLevel(obj as any);
           if (level === 'ACTION') stats.action++;
           else if (level === 'WATCH') stats.watch++;
           else stats.stable++;

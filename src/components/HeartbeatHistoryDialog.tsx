@@ -107,7 +107,7 @@ export default function HeartbeatHistoryDialog({ open, onClose, item, itemType }
                                                 />
                                             </TableCell>
                                             <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                {hb.ownerInput?.progressSummary || hb.summary || '-'}
+                                                {hb.ownerInput?.progressSummary || '-'}
                                             </TableCell>
                                             <TableCell align="right">
                                                 <IconButton size="small" onClick={() => handleEdit(hb)}>
@@ -130,11 +130,13 @@ export default function HeartbeatHistoryDialog({ open, onClose, item, itemType }
                         setEditWizardState({ open: false, heartbeat: null });
                         fetchHistory(); // Refresh after edit
                     }}
-                    item={item} // Pass the parent item for context
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    item={item as any} // Pass the parent item for context
                     itemType={itemType}
                     onComplete={fetchHistory}
                     editHeartbeatId={editWizardState.heartbeat.id}
-                    initialData={editWizardState.heartbeat}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    initialData={editWizardState.heartbeat as any}
                 />
             )}
         </>
