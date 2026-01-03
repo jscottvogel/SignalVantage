@@ -135,11 +135,15 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await (client.models.Risk as any).delete({ id });
-            await refreshTree();
         } catch (e) {
             console.error(e);
-            alert("Failed to delete risk.");
+            alert(`Failed to delete risk: ${(e as Error).message}`);
+            return;
         }
+
+        try {
+            await refreshTree();
+        } catch (e) { console.error("Refresh failed", e); }
     };
 
     const handleUpdateRisk = async (riskId: string, updates: { description: string, impact: Schema['Risk']['type']['impact'], probability: number, roamStatus: Schema['Risk']['type']['roamStatus'] }) => {
@@ -150,12 +154,15 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 ...updates
             });
             setEditingRisk(null);
-            await refreshTree();
-            await refreshTree();
         } catch (e) {
             logger.error("Failed to update risk", e);
-            alert("Failed to update risk");
+            alert(`Failed to update risk: ${(e as Error).message}`);
+            return;
         }
+
+        try {
+            await refreshTree();
+        } catch (e) { console.error("Refresh failed", e); }
     };
 
     const handleCreateRisk = async () => {
@@ -172,10 +179,16 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             });
             setIsCreatingRisk(false);
             setNewRisk({ description: '', impact: 'LOW', probability: 50, roamStatus: 'OWNED' });
-            await refreshTree();
         } catch (e) {
             logger.error("Failed to create risk", e);
-            alert("Failed to create risk");
+            alert(`Failed to create risk: ${(e as Error).message}`);
+            return;
+        }
+
+        try {
+            await refreshTree();
+        } catch (e) {
+            console.error("Failed to refresh data", e);
         }
     };
 
@@ -193,10 +206,16 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             });
             setIsCreatingDependency(false);
             setNewDependency({ description: '', owner: '', state: 'ACTIVE', status: 'ON_TRACK', dueDate: '' });
-            await refreshTree();
         } catch (e) {
             logger.error("Failed to create dependency", e);
-            alert("Failed to create dependency");
+            alert(`Failed to create dependency: ${(e as Error).message}`);
+            return;
+        }
+
+        try {
+            await refreshTree();
+        } catch (e) {
+            console.error("Failed to refresh data", e);
         }
     };
 
@@ -208,11 +227,15 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                 ...updates
             });
             setEditingDependency(null);
-            await refreshTree();
         } catch (e) {
             logger.error("Failed to update dependency", e);
-            alert("Failed to update dependency");
+            alert(`Failed to update dependency: ${(e as Error).message}`);
+            return;
         }
+
+        try {
+            await refreshTree();
+        } catch (e) { console.error("Refresh failed", e); }
     };
 
     const handleDeleteDependency = async (id: string) => {
@@ -220,11 +243,15 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await (client.models.Dependency as any).delete({ id });
-            await refreshTree();
         } catch (e) {
             console.error(e);
-            alert("Failed to delete dependency.");
+            alert(`Failed to delete dependency: ${(e as Error).message}`);
+            return;
         }
+
+        try {
+            await refreshTree();
+        } catch (e) { console.error("Refresh failed", e); }
     };
 
 
