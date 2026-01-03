@@ -213,7 +213,8 @@ function Dashboard({ user, signOut }: { user: AuthUser | undefined; signOut: ((d
         const email = currentUser?.signInDetails?.loginId;
         if (email) {
           try {
-            const { data: invites } = await client.models.Membership.list({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: invites } = await (client.models.Membership as any).list({
               filter: {
                 inviteEmail: { eq: email },
                 status: { eq: 'INVITED' }
