@@ -104,8 +104,8 @@ interface ItemDialogState {
 }
 
 
-type OutcomeWithChildren = Schema['Outcome']['type'] & {
-    keyResults: (Schema['KeyResult']['type'] & {
+type OutcomeWithChildren = Omit<Schema['Outcome']['type'], 'keyResults'> & {
+    keyResults: (Omit<Schema['KeyResult']['type'], 'initiatives'> & {
         initiatives: Schema['Initiative']['type'][]
     })[]
 };
@@ -120,7 +120,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [localObjective, setLocalObjective] = useState(objective);
     const [outcomes, setOutcomes] = useState<OutcomeWithChildren[]>([]);
     const [loading, setLoading] = useState(true);
-    const [members, setMembers] = useState<Schema['OrganizationMember']['type'][]>([]);
+    const [members, setMembers] = useState<(Schema['Membership']['type'] & { profile?: Schema['UserProfile']['type'] | null })[]>([]);
     const [risks, setRisks] = useState<Schema['Risk']['type'][]>([]);
     const [dependencies, setDependencies] = useState<Schema['Dependency']['type'][]>([]);
     const [dependenciesExpanded, setDependenciesExpanded] = useState(true);
@@ -161,6 +161,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         try {
             await client.models.Risk.create({
                 ...newRisk,
+                organizationId: objective.organizationId,
                 strategicObjectiveId: objective.id, // Attach to current objective
                 impact: newRisk.impact,
                 probability: newRisk.probability,
@@ -343,7 +344,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         let initHour = 9;
 
         if (mode === 'edit' && item) {
-            initText = item.title || item.statement || '';
+            initText = 'title' in item ? item.title : (item as Schema['KeyResult']['type']).statement || '';
             // Handle owner: item.owner (single) or item.owners[0] (array)
             const owner = item.owner || (item.owners && item.owners[0]);
             initOwner = owner?.userId || '';
