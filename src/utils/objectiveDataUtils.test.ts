@@ -52,7 +52,7 @@ describe('objectiveDataUtils', () => {
             };
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const result = await fetchObjectiveHierarchy(mockClient, mockObjective as any);
+            const result = await fetchObjectiveHierarchy(mockClient as any, mockObjective as any);
 
             expect(result.dependencies).toHaveLength(4);
             // Check sorting by date (dep-3 is earliest)
@@ -80,7 +80,7 @@ describe('objectiveDataUtils', () => {
             };
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const result = await fetchObjectiveHierarchy(mockClient, mockObjective as any);
+            const result = await fetchObjectiveHierarchy(mockClient as any, mockObjective as any);
             expect(result.allInitiatives).toHaveLength(0);
         });
     });

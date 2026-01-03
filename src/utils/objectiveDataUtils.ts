@@ -90,7 +90,7 @@ export async function fetchObjectiveHierarchy(client: Client, objective: Schema[
 async function fetchAggregatedDependencies(
     objective: Schema['StrategicObjective']['type'],
     outcomesRes: Schema['Outcome']['type'][],
-    outcomesWithChildren: (Schema['Outcome']['type'] & { keyResults: Schema['KeyResult']['type'][] })[],
+    outcomesWithChildren: (Omit<Schema['Outcome']['type'], 'keyResults'> & { keyResults: Schema['KeyResult']['type'][] })[],
     allInitiatives: Schema['Initiative']['type'][]
 ) {
     // 1. Objective Level

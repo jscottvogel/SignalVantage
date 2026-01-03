@@ -52,10 +52,10 @@ export const assessHeartbeat = (
     }
 
     const recommendations: string[] = [];
-    const rawConf: number | string | null | undefined = ownerInput.ownerConfidence;
+    const rawConf = ownerInput.ownerConfidence as unknown; // Cast to unknown to allow legacy string checks
     const confVal = typeof rawConf === 'number' ? rawConf : (rawConf === 'HIGH' ? 100 : rawConf === 'MEDIUM' ? 70 : 30);
 
-    if (confVal < 40) recommendations.push("Review risks and consider escalating blockers.");
+    if (typeof confVal === 'number' && confVal < 40) recommendations.push("Review risks and consider escalating blockers.");
     if (specificity === 'VAGUE') recommendations.push("Provide more detailed progress metrics in next update.");
 
     return {
@@ -161,7 +161,7 @@ export const generateKeyResultRollup = (
 export const calculateAttentionLevel = (objective: { latestHeartbeat?: Schema['Heartbeat']['type'] | null; nextHeartbeatDue?: string | null }): 'STABLE' | 'WATCH' | 'ACTION' => {
     const latestHeartbeat = objective.latestHeartbeat;
     // Handle partial objects or missing heartbeats
-    const rawConf = latestHeartbeat?.systemAssessment?.systemConfidence || latestHeartbeat?.ownerInput?.ownerConfidence;
+    const rawConf = (latestHeartbeat?.systemAssessment?.systemConfidence ?? latestHeartbeat?.ownerInput?.ownerConfidence) as unknown;
 
     let confidence = 50;
     if (typeof rawConf === 'number') confidence = rawConf;

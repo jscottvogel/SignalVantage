@@ -6,6 +6,14 @@ import {
     generateKeyResultRollup,
     calculateAttentionLevel
 } from './heartbeatLogic';
+import type { Schema } from '../../amplify/data/resource';
+
+type MockOwnerInput = Partial<Schema['OwnerInput']['type']>;
+type MockHeartbeat = Partial<Schema['Heartbeat']['type']>;
+type MockObjective = Partial<{
+    latestHeartbeat: MockHeartbeat | null;
+    nextHeartbeatDue: string | null;
+}>;
 
 describe('heartbeatLogic', () => {
     describe('calculateFreshness', () => {
@@ -42,7 +50,7 @@ describe('heartbeatLogic', () => {
         };
 
         it('calculates freshness correctly', () => {
-            const result = assessHeartbeat(mockOwnerInput, undefined, null);
+            const result = assessHeartbeat(mockOwnerInput as unknown as MockOwnerInput, undefined, null);
             expect(result.integritySignals.updateFreshness).toBe('ON_TIME');
         });
 
@@ -52,33 +60,33 @@ describe('heartbeatLogic', () => {
             // "Making great progress, completed all milestones." -> 6 words
             // "Everything is on track." -> 4 words
             // Total 10 words.
-            const result = assessHeartbeat(mockOwnerInput);
+            const result = assessHeartbeat(mockOwnerInput as unknown as MockOwnerInput);
             expect(result.integritySignals.languageSpecificity).toBe('VAGUE');
         });
 
         it('calculates specificity as SPECIFIC for very long text', () => {
             const longText = new Array(50).fill('word').join(' ');
             const input = { ...mockOwnerInput, progressSummary: longText };
-            const result = assessHeartbeat(input);
+            const result = assessHeartbeat(input as unknown as MockOwnerInput);
             expect(result.integritySignals.languageSpecificity).toBe('SPECIFIC');
         });
 
         it('adds inference for vague input', () => {
-            const result = assessHeartbeat(mockOwnerInput); // Vague (<15 words)
+            const result = assessHeartbeat(mockOwnerInput as unknown as MockOwnerInput); // Vague (<15 words)
             expect(result.factsInferencesRecommendations.inferences).toContain('Brief update content suggests potential lack of detail or visibility.');
             expect(result.factsInferencesRecommendations.recommendations).toContain('Provide more detailed progress metrics in next update.');
         });
 
         it('adds recommendation for low confidence', () => {
             const input = { ...mockOwnerInput, ownerConfidence: 30 };
-            const result = assessHeartbeat(input);
+            const result = assessHeartbeat(input as unknown as MockOwnerInput);
             expect(result.factsInferencesRecommendations.recommendations).toContain('Review risks and consider escalating blockers.');
         });
 
         it('handles confidence trend', () => {
             const input = { ...mockOwnerInput, ownerConfidence: 90 };
             const prev = { ownerInput: { ownerConfidence: 80 } };
-            const result = assessHeartbeat(input, prev);
+            const result = assessHeartbeat(input as unknown as MockOwnerInput, prev as unknown as MockHeartbeat);
             expect(result.confidenceTrend).toBe('IMPROVING');
             // 90 > 80 + 5 -> IMPROVING
         });
@@ -86,14 +94,14 @@ describe('heartbeatLogic', () => {
         it('handles stable trend', () => {
             const input = { ...mockOwnerInput, ownerConfidence: 84 };
             const prev = { ownerInput: { ownerConfidence: 80 } };
-            const result = assessHeartbeat(input, prev);
+            const result = assessHeartbeat(input as unknown as MockOwnerInput, prev as unknown as MockHeartbeat);
             expect(result.confidenceTrend).toBe('STABLE');
         });
 
         it('handles declining trend', () => {
             const input = { ...mockOwnerInput, ownerConfidence: 70 };
             const prev = { ownerInput: { ownerConfidence: 80 } };
-            const result = assessHeartbeat(input, prev);
+            const result = assessHeartbeat(input as unknown as MockOwnerInput, prev as unknown as MockHeartbeat);
             expect(result.confidenceTrend).toBe('DECLINING');
             // 70 < 80 - 5
         });
@@ -140,7 +148,7 @@ describe('heartbeatLogic', () => {
     describe('calculateAttentionLevel', () => {
         it('returns ACTION if confidence < 50', () => {
             const obj = { latestHeartbeat: { systemAssessment: { systemConfidence: 40 } } };
-            expect(calculateAttentionLevel(obj)).toBe('ACTION');
+            expect(calculateAttentionLevel(obj as unknown as MockObjective)).toBe('ACTION');
         });
 
         it('returns ACTION if confidence declining and < 75', () => {
@@ -149,7 +157,7 @@ describe('heartbeatLogic', () => {
                     systemAssessment: { systemConfidence: 70, confidenceTrend: 'DECLINING' }
                 }
             };
-            expect(calculateAttentionLevel(obj)).toBe('ACTION');
+            expect(calculateAttentionLevel(obj as unknown as MockObjective)).toBe('ACTION');
         });
 
         it('returns WATCH if confidence < 75 but stable', () => {
@@ -158,7 +166,7 @@ describe('heartbeatLogic', () => {
                     systemAssessment: { systemConfidence: 70, confidenceTrend: 'STABLE' }
                 }
             };
-            expect(calculateAttentionLevel(obj)).toBe('WATCH');
+            expect(calculateAttentionLevel(obj as unknown as MockObjective)).toBe('WATCH');
         });
 
         it('returns STABLE if confidence >= 75 and not declining', () => {
@@ -167,7 +175,7 @@ describe('heartbeatLogic', () => {
                     systemAssessment: { systemConfidence: 80, confidenceTrend: 'STABLE' }
                 }
             };
-            expect(calculateAttentionLevel(obj)).toBe('STABLE');
+            expect(calculateAttentionLevel(obj as unknown as MockObjective)).toBe('STABLE');
         });
 
         // Test lateness escalation
@@ -180,7 +188,7 @@ describe('heartbeatLogic', () => {
                 },
                 nextHeartbeatDue: yesterday.toISOString()
             };
-            expect(calculateAttentionLevel(obj)).toBe('WATCH');
+            expect(calculateAttentionLevel(obj as unknown as MockObjective)).toBe('WATCH');
         });
     });
 });
