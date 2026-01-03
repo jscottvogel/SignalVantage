@@ -53,7 +53,8 @@ export default function HeartbeatHistoryDialog({ open, onClose, item, itemType }
             });
 
             // Client side sort
-            const sorted = data.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const sorted = data.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
             setHeartbeats(sorted);
         } catch (e) {
             console.error("Failed to fetch history", e);

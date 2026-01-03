@@ -47,7 +47,8 @@ export const ProfileView = ({ userProfile, onProfileUpdate, onCreateOrganization
                 });
 
                 // Enrich invites with org data
-                const enrichedInvites = await Promise.all(foundInvites.map(async (inv) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const enrichedInvites = await Promise.all(foundInvites.map(async (inv: any) => {
                     const { data: org } = await inv.organization();
                     return { ...inv, organization: org };
                 }));
@@ -78,7 +79,8 @@ export const ProfileView = ({ userProfile, onProfileUpdate, onCreateOrganization
 
     const handleAccept = async (inviteId: string) => {
         try {
-            await client.models.Membership.update({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (client.models.Membership as any).update({
                 id: inviteId,
                 userProfileId: userProfile.id,
                 status: 'ACTIVE'
@@ -111,7 +113,8 @@ export const ProfileView = ({ userProfile, onProfileUpdate, onCreateOrganization
             const { data: allMembers } = await orgRestored.members();
 
             // Enrich members to get profile info
-            const membersWithProfiles = await Promise.all(allMembers.map(async (m) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const membersWithProfiles = await Promise.all(allMembers.map(async (m: any) => {
                 if (m.userProfileId) {
                     const { data: p } = await m.user();
                     return { ...m, profile: p };
@@ -153,22 +156,30 @@ export const ProfileView = ({ userProfile, onProfileUpdate, onCreateOrganization
 
             const updates: Promise<unknown>[] = [];
 
-            objs.forEach(o => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            objs.forEach((o: any) => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 if (o.owner?.userId === removedUserId) updates.push((client.models.StrategicObjective as any).update({ id: o.id, owner: targetOwner }));
             });
-            outcomes.forEach(o => {
-                if (o.owner?.userId === removedUserId) updates.push(client.models.Outcome.update({ id: o.id, owner: targetOwner }));
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            outcomes.forEach((o: any) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                if (o.owner?.userId === removedUserId) updates.push((client.models.Outcome as any).update({ id: o.id, owner: targetOwner }));
             });
-            krs.forEach(k => {
-                if (k.owners?.some((ow) => ow?.userId === removedUserId)) {
-                    const newOwners = k.owners!.map((ow) => ow?.userId === removedUserId ? targetOwner : ow).filter(Boolean); // Filter nulls if any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            krs.forEach((k: any) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                if (k.owners?.some((ow: any) => ow?.userId === removedUserId)) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const newOwners = k.owners!.map((ow: any) => ow?.userId === removedUserId ? targetOwner : ow).filter(Boolean); // Filter nulls if any
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     updates.push(client.models.KeyResult.update({ id: k.id, owners: newOwners as any }));
                 }
             });
-            inits.forEach(i => {
-                if (i.owner?.userId === removedUserId) updates.push(client.models.Initiative.update({ id: i.id, owner: targetOwner }));
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            inits.forEach((i: any) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                if (i.owner?.userId === removedUserId) updates.push((client.models.Initiative as any).update({ id: i.id, owner: targetOwner }));
             });
 
             await Promise.all(updates);

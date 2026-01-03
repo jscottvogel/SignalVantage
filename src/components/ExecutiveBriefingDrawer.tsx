@@ -33,7 +33,8 @@ export function ExecutiveBriefingDrawer({ open, onClose, organizationId }: Props
         setLoading(true);
         try {
             // 1. Fetch Org Settings (Instructions)
-            const { data: org } = await client.models.Organization.get({ id: organizationId! });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: org } = await (client.models.Organization as any).get({ id: organizationId! });
             setInstructions(org?.briefingInstructions || '');
 
             // 2. Fetch All Initiatives for the Org (to map later)

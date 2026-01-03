@@ -144,7 +144,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
 
     const handleUpdateRisk = async (riskId: string, updates: { description: string, impact: Schema['Risk']['type']['impact'], probability: number, roamStatus: Schema['Risk']['type']['roamStatus'] }) => {
         try {
-            await client.models.Risk.update({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (client.models.Risk as any).update({
                 id: riskId,
                 ...updates
             });
@@ -200,7 +201,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
 
     const handleUpdateDependency = async (depId: string, updates: Partial<Schema['Dependency']['type']>) => {
         try {
-            await client.models.Dependency.update({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (client.models.Dependency as any).update({
                 id: depId,
                 ...updates
             });
@@ -715,7 +717,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                             </Tooltip>
                             {outcomes.length > 0 && (
                                 <Tooltip title="Adjust Outcome Weights">
-                                    <IconButton size="small" onClick={() => openWeightModal(outcomes, localObjective.title, 'Outcome', client.models.Outcome)}>
+                                    <IconButton size="small" onClick={() => {
+                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                        openWeightModal(outcomes, localObjective.title, 'Outcome', (client.models.Outcome as any))
+                                    }}>
                                         <BalanceIcon fontSize="small" />
                                     </IconButton>
                                 </Tooltip>
@@ -1490,7 +1495,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                             >
                                 <MenuItem value=""><em>None</em></MenuItem>
                                 {members.map((m) => (
-                                    <MenuItem key={m.userProfileId} value={m.userProfileId}>
+                                    <MenuItem key={m.userProfileId} value={m.userProfileId ?? ''}>
                                         {m.profile?.preferredName || m.profile?.email || m.inviteEmail || 'Unknown Member'}
                                     </MenuItem>
                                 ))}
@@ -1532,7 +1537,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             <WeightDistributionModal
                 open={weightModalState.open}
                 onClose={() => setWeightModalState(prev => ({ ...prev, open: false }))}
-                items={weightModalState.items}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                items={weightModalState.items as any}
                 parentTitle={weightModalState.parentTitle}
                 childType={weightModalState.childType}
                 onSave={weightModalState.onSave}
