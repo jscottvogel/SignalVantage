@@ -38,7 +38,8 @@ export const ProfileView = ({ userProfile, onProfileUpdate, onCreateOrganization
         try {
             // Load pending invites
             if (userProfile?.email) {
-                const { data: foundInvites } = await client.models.Membership.list({
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const { data: foundInvites } = await (client.models.Membership as any).list({
                     filter: {
                         inviteEmail: { eq: userProfile.email },
                         status: { eq: 'INVITED' }
@@ -98,7 +99,8 @@ export const ProfileView = ({ userProfile, onProfileUpdate, onCreateOrganization
             setLoading(true);
             // 1. Fetch organization details to get all members (for ownership check and reassignment)
             const orgId = membership.organizationId;
-            const { data: orgRestored } = await client.models.Organization.get({ id: orgId });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: orgRestored } = await (client.models.Organization as any).get({ id: orgId });
 
             if (!orgRestored) {
                 alert("Organization not found.");
@@ -152,7 +154,8 @@ export const ProfileView = ({ userProfile, onProfileUpdate, onCreateOrganization
             const updates: Promise<unknown>[] = [];
 
             objs.forEach(o => {
-                if (o.owner?.userId === removedUserId) updates.push(client.models.StrategicObjective.update({ id: o.id, owner: targetOwner }));
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                if (o.owner?.userId === removedUserId) updates.push((client.models.StrategicObjective as any).update({ id: o.id, owner: targetOwner }));
             });
             outcomes.forEach(o => {
                 if (o.owner?.userId === removedUserId) updates.push(client.models.Outcome.update({ id: o.id, owner: targetOwner }));

@@ -23,7 +23,7 @@ describe('generateExecutiveBriefing', () => {
 
     it('returns "All clear" when objectives have no notable status', () => {
         vi.mocked(heartbeatLogic.calculateAttentionLevel).mockReturnValue('STABLE');
-        const objectives = [{ id: '1', title: 'Obj 1' }] as Schema['StrategicObjective']['type'][];
+        const objectives = [{ id: '1', title: 'Obj 1' }] as unknown as Schema['StrategicObjective']['type'][];
         const result = generateExecutiveBriefing(objectives);
         expect(result).toHaveLength(1);
         expect(result[0].title).toBe('Executive Summary');
@@ -38,7 +38,7 @@ describe('generateExecutiveBriefing', () => {
                 ownerInput: { ownerConfidence: 30, newRisks: [{ description: 'Big Risk' }] },
                 systemAssessment: { confidenceTrend: 'DECLINING' }
             }
-        }] as Schema['StrategicObjective']['type'][];
+        }] as unknown as Schema['StrategicObjective']['type'][];
 
         const result = generateExecutiveBriefing(objectives);
         const section = result.find(s => s.title.includes('Critical Attention'));
@@ -55,7 +55,7 @@ describe('generateExecutiveBriefing', () => {
             latestHeartbeat: {
                 ownerInput: { ownerConfidence: 60 },
             }
-        }] as Schema['StrategicObjective']['type'][];
+        }] as unknown as Schema['StrategicObjective']['type'][];
 
         const result = generateExecutiveBriefing(objectives);
         const section = result.find(s => s.title.includes('Watch List'));
@@ -72,7 +72,7 @@ describe('generateExecutiveBriefing', () => {
             latestHeartbeat: {
                 systemAssessment: { uncertaintyFlags: ['Vague Input'] }
             }
-        }] as Schema['StrategicObjective']['type'][];
+        }] as unknown as Schema['StrategicObjective']['type'][];
 
         const result = generateExecutiveBriefing(objectives);
         const section = result.find(s => s.title.includes('Uncertainty Spotlight'));
@@ -89,7 +89,7 @@ describe('generateExecutiveBriefing', () => {
                 summary: 'Achieved XYZ',
                 systemAssessment: { uncertaintyFlags: [] }
             }
-        }] as Schema['StrategicObjective']['type'][];
+        }] as unknown as Schema['StrategicObjective']['type'][];
 
         const result = generateExecutiveBriefing(objectives);
         const section = result.find(s => s.title.includes('Notable Progress'));

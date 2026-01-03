@@ -38,23 +38,27 @@ describe('StrategicObjectiveCard', () => {
     };
 
     it('renders the objective title', () => {
-        renderCard(mockObjective);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        renderCard(mockObjective as any);
         expect(screen.getByText('Test Objective')).toBeInTheDocument();
     });
 
     it('displays the confidence percentage', () => {
-        renderCard(mockObjective);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        renderCard(mockObjective as any);
         expect(screen.getByText('85%')).toBeInTheDocument();
     });
 
     it('displays the summary', () => {
-        renderCard(mockObjective);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        renderCard(mockObjective as any);
         expect(screen.getByText('Everything is fine.')).toBeInTheDocument();
     });
 
     it('calls onClick when clicked', () => {
         const handleClick = vi.fn();
-        renderCard(mockObjective, handleClick);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        renderCard(mockObjective as any, handleClick);
         fireEvent.click(screen.getByText('Test Objective').closest('.MuiCard-root') as Element);
         expect(handleClick).toHaveBeenCalledTimes(1);
     });
@@ -71,7 +75,8 @@ describe('StrategicObjectiveCard', () => {
                 }
             }
         };
-        renderCard(actionObj);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        renderCard(actionObj as any);
         expect(screen.getByText(/Risk Drivers Identified/)).toBeInTheDocument();
     });
 
@@ -84,7 +89,8 @@ describe('StrategicObjectiveCard', () => {
                 ownerInput: { ownerConfidence: 'HIGH' }
             }
         };
-        renderCard(stringConfObj);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        renderCard(stringConfObj as any);
         expect(screen.getByText('90%')).toBeInTheDocument();
     });
 });

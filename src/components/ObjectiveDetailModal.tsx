@@ -1209,7 +1209,10 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                         </Button>
                                                                         {kr.initiatives?.length > 0 && (
                                                                             <Tooltip title="Adjust Initiative Weights">
-                                                                                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => openWeightModal(kr.initiatives, kr.statement, 'Initiative', client.models.Initiative)}>
+                                                                                <IconButton size="small" sx={{ p: 0.5 }} onClick={() => {
+                                                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                                                    openWeightModal(kr.initiatives, kr.statement, 'Initiative', (client.models.Initiative as any))
+                                                                                }}>
                                                                                     <BalanceIcon sx={{ fontSize: 14 }} />
                                                                                 </IconButton>
                                                                             </Tooltip>
@@ -1243,8 +1246,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                                                                             {init.latestHeartbeat?.ownerInput?.ownerConfidence && (
                                                                                                 <Tooltip title="Latest Confidence & Trend">
                                                                                                     <Box display="flex" alignItems="center">
-                                                                                                        <StatusChip status={init.latestHeartbeat.ownerInput.ownerConfidence} />
-                                                                                                        <TrendIcon trend={init.latestHeartbeat.systemAssessment?.confidenceTrend} />
+                                                                                                        <StatusChip status={init.latestHeartbeat.ownerInput.ownerConfidence ?? undefined} />
+                                                                                                        <TrendIcon trend={init.latestHeartbeat.systemAssessment?.confidenceTrend ?? undefined} />
                                                                                                     </Box>
                                                                                                 </Tooltip>
                                                                                             )}
