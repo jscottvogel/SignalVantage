@@ -15,7 +15,8 @@ type Client = ReturnType<typeof generateClient<Schema>>;
 export async function fetchObjectiveHierarchy(client: Client, objective: Schema['StrategicObjective']['type']) {
     try {
         // Refresh main object
-        const { data: refreshed } = await client.models.StrategicObjective.get({ id: objective.id });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: refreshed } = await (client.models.StrategicObjective as any).get({ id: objective.id });
 
         const sourceObjective = refreshed || objective;
 
@@ -39,7 +40,8 @@ export async function fetchObjectiveHierarchy(client: Client, objective: Schema[
 
         if (org) {
             // Fetch initiatives directly to ensure we get them all
-            const { data: inits } = await client.models.Initiative.list({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: inits } = await (client.models.Initiative as any).list({
                 filter: { organizationId: { eq: org.id } },
                 limit: 1000
             });

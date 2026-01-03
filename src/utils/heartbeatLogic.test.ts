@@ -10,10 +10,7 @@ import type { Schema } from '../../amplify/data/resource';
 
 type MockOwnerInput = Partial<Schema['OwnerInput']['type']>;
 type MockHeartbeat = Partial<Schema['Heartbeat']['type']>;
-type MockObjective = Partial<{
-    latestHeartbeat: MockHeartbeat | null;
-    nextHeartbeatDue: string | null;
-}>;
+
 
 describe('heartbeatLogic', () => {
     describe('calculateFreshness', () => {
@@ -148,7 +145,8 @@ describe('heartbeatLogic', () => {
     describe('calculateAttentionLevel', () => {
         it('returns ACTION if confidence < 50', () => {
             const obj = { latestHeartbeat: { systemAssessment: { systemConfidence: 40 } } };
-            expect(calculateAttentionLevel(obj as unknown as MockObjective)).toBe('ACTION');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect(calculateAttentionLevel(obj as any)).toBe('ACTION');
         });
 
         it('returns ACTION if confidence declining and < 75', () => {
@@ -157,7 +155,8 @@ describe('heartbeatLogic', () => {
                     systemAssessment: { systemConfidence: 70, confidenceTrend: 'DECLINING' }
                 }
             };
-            expect(calculateAttentionLevel(obj as unknown as MockObjective)).toBe('ACTION');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect(calculateAttentionLevel(obj as any)).toBe('ACTION');
         });
 
         it('returns WATCH if confidence < 75 but stable', () => {
@@ -166,7 +165,8 @@ describe('heartbeatLogic', () => {
                     systemAssessment: { systemConfidence: 70, confidenceTrend: 'STABLE' }
                 }
             };
-            expect(calculateAttentionLevel(obj as unknown as MockObjective)).toBe('WATCH');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect(calculateAttentionLevel(obj as any)).toBe('WATCH');
         });
 
         it('returns STABLE if confidence >= 75 and not declining', () => {
@@ -175,7 +175,8 @@ describe('heartbeatLogic', () => {
                     systemAssessment: { systemConfidence: 80, confidenceTrend: 'STABLE' }
                 }
             };
-            expect(calculateAttentionLevel(obj as unknown as MockObjective)).toBe('STABLE');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect(calculateAttentionLevel(obj as any)).toBe('STABLE');
         });
 
         // Test lateness escalation
@@ -188,7 +189,8 @@ describe('heartbeatLogic', () => {
                 },
                 nextHeartbeatDue: yesterday.toISOString()
             };
-            expect(calculateAttentionLevel(obj as unknown as MockObjective)).toBe('WATCH');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect(calculateAttentionLevel(obj as any)).toBe('WATCH');
         });
     });
 });
