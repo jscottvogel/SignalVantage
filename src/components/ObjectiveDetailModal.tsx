@@ -337,6 +337,30 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         dependencies: []
     });
 
+    // Temporary State for Creation Wizards
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [tempRisks, setTempRisks] = useState<any[]>([]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [tempDependencies, setTempDependencies] = useState<any[]>([]);
+    const [isAddingTempRisk, setIsAddingTempRisk] = useState(false);
+    const [isAddingTempDependency, setIsAddingTempDependency] = useState(false);
+    const [newTempRisk, setNewTempRisk] = useState({ description: '', impact: 'LOW', probability: 50, roamStatus: 'OWNED' });
+    const [newTempDependency, setNewTempDependency] = useState({ description: '', owner: '', state: 'ACTIVE', status: 'ON_TRACK', dueDate: '' });
+
+    const handleAddTempRisk = () => {
+        if (!newTempRisk.description) return;
+        setTempRisks([...tempRisks, { ...newTempRisk }]);
+        setNewTempRisk({ description: '', impact: 'LOW', probability: 50, roamStatus: 'OWNED' });
+        setIsAddingTempRisk(false);
+    };
+
+    const handleAddTempDependency = () => {
+        if (!newTempDependency.description) return;
+        setTempDependencies([...tempDependencies, { ...newTempDependency }]);
+        setNewTempDependency({ description: '', owner: '', state: 'ACTIVE', status: 'ON_TRACK', dueDate: '' });
+        setIsAddingTempDependency(false);
+    };
+
     const openDependencyDialog = (
         id: string,
         title: string,
@@ -459,6 +483,12 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         setItemCadenceFreq(initFreq);
         setItemCadenceDay(initDay);
         setItemCadenceHour(initHour);
+
+        // Reset Temp State
+        setTempRisks([]);
+        setTempDependencies([]);
+        setIsAddingTempRisk(false);
+        setIsAddingTempDependency(false);
     };
 
     const openHeartbeatWizard = (type: 'initiative' | 'outcome' | 'objective' | 'kr', item: StrategyItem) => {
@@ -549,7 +579,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     ));
 
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    await (client.models.Outcome as any).create({
+                    const { data: newOutcome } = await (client.models.Outcome as any).create({
                         organizationId: SafeOrgId,
                         strategicObjectiveId: objective.id,
                         title: itemText,
@@ -560,6 +590,20 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         nextHeartbeatDue: nextDue || undefined,
                         weight: newWeight
                     });
+
+                    if (newOutcome) {
+                        // Create Risks
+                        await Promise.all(tempRisks.map(r =>
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (client.models.Risk as any).create({ ...r, organizationId: SafeOrgId, outcomeId: newOutcome.id, strategicObjectiveId: objective.id })
+                        ));
+                        // Create Dependencies
+                        await Promise.all(tempDependencies.map(d =>
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (client.models.Dependency as any).create({ ...d, organizationId: SafeOrgId, outcomeId: newOutcome.id, strategicObjectiveId: objective.id, dueDate: d.dueDate || undefined })
+                        ));
+                    }
+
                 } else if (dialogState.type === 'kr') {
                     // Balancing Logic for KR
                     const parentOutcome = outcomes.find(o => o.id === dialogState.parentId);
@@ -573,7 +617,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     ));
 
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    await (client.models.KeyResult as any).create({
+                    const { data: newKR } = await (client.models.KeyResult as any).create({
                         organizationId: SafeOrgId,
                         strategicObjectiveId: objective.id,
                         outcomeId: dialogState.parentId!,
@@ -585,11 +629,27 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         nextHeartbeatDue: nextDue || undefined,
                         weight: newWeight
                     });
+
+                    if (newKR) {
+                        // Create Risks
+                        await Promise.all(tempRisks.map(r =>
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (client.models.Risk as any).create({ ...r, organizationId: SafeOrgId, keyResultId: newKR.id, strategicObjectiveId: objective.id, outcomeId: dialogState.parentId! })
+                        ));
+                        // Create Dependencies
+                        await Promise.all(tempDependencies.map(d =>
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (client.models.Dependency as any).create({ ...d, organizationId: SafeOrgId, keyResultId: newKR.id, strategicObjectiveId: objective.id, outcomeId: dialogState.parentId!, dueDate: d.dueDate || undefined })
+                        ));
+                    }
+
                 } else if (dialogState.type === 'initiative') {
                     // Balancing Logic for Initiative
                     // Need to find siblings.
                     // Flatten KRs to find parent KR
                     let siblings: Schema['Initiative']['type'][] = [];
+
+
                     for (const o of outcomes) {
                         for (const k of o.keyResults) {
                             if (k.id === dialogState.parentId) {
@@ -608,7 +668,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                     ));
 
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    await (client.models.Initiative as any).create({
+                    const { data: newInit } = await (client.models.Initiative as any).create({
                         organizationId: SafeOrgId,
                         title: itemText,
                         description: itemDescription,
@@ -623,6 +683,19 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                         nextHeartbeatDue: nextDue || undefined,
                         weight: newWeight
                     });
+
+                    if (newInit) {
+                        // Create Risks
+                        await Promise.all(tempRisks.map(r =>
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (client.models.Risk as any).create({ ...r, organizationId: SafeOrgId, initiativeId: newInit.id })
+                        ));
+                        // Create Dependencies
+                        await Promise.all(tempDependencies.map(d =>
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (client.models.Dependency as any).create({ ...d, organizationId: SafeOrgId, initiativeId: newInit.id, dueDate: d.dueDate || undefined })
+                        ));
+                    }
                 }
             } else {
                 // UPDATE MODE
@@ -1378,7 +1451,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
             </Dialog >
 
             {/* Item Dialog (Create/Edit) */}
-            < Dialog
+            <Dialog
                 open={dialogState.open}
                 onClose={() => setDialogState({ ...dialogState, open: false })
                 }
@@ -1582,8 +1655,136 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
                                 ))}
                             </Select>
                         </FormControl>
+
+                        {/* Risks & Dependencies (Only allow creation here for now) */}
+                        {dialogState.mode === 'create' && (
+                            <>
+                                {/* Temp Risks */}
+                                {/* Temp Risks */}
+                                <Box border={1} borderColor="divider" borderRadius={1} p={2} mb={2}>
+                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                        <Typography variant="subtitle2">Risks</Typography>
+                                        <Button size="small" startIcon={<AddIcon />} onClick={() => setIsAddingTempRisk(true)} disabled={isAddingTempRisk}>
+                                            Add
+                                        </Button>
+                                    </Box>
+
+                                    {/* List Temp Risks */}
+                                    <Stack spacing={1} mb={isAddingTempRisk ? 2 : 0}>
+                                        {tempRisks.map((r, idx) => (
+                                            <Paper key={idx} variant="outlined" sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Box>
+                                                    <Typography variant="body2">{r.description}</Typography>
+                                                    <Stack direction="row" spacing={1}>
+                                                        <Chip label={r.impact} size="small" color={['HIGH', 'CRITICAL'].includes(r.impact) ? 'error' : 'default'} variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                        <Chip label={`${r.probability}%`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                    </Stack>
+                                                </Box>
+                                                <IconButton size="small" onClick={() => setTempRisks(tempRisks.filter((_, i) => i !== idx))}>
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </Paper>
+                                        ))}
+                                    </Stack>
+
+                                    {isAddingTempRisk && (
+                                        <Box p={1} bgcolor="grey.50" borderRadius={1}>
+                                            <Stack spacing={1}>
+                                                <TextField label="Description" fullWidth size="small" value={newTempRisk.description} onChange={(e) => setNewTempRisk({ ...newTempRisk, description: e.target.value })} />
+                                                <Stack direction="row" spacing={1}>
+                                                    <FormControl size="small" fullWidth>
+                                                        <InputLabel>Impact</InputLabel>
+                                                        <Select label="Impact" value={newTempRisk.impact} onChange={(e) => setNewTempRisk({ ...newTempRisk, impact: e.target.value })}>
+                                                            <MenuItem value="LOW">Low</MenuItem>
+                                                            <MenuItem value="MEDIUM">Med</MenuItem>
+                                                            <MenuItem value="HIGH">High</MenuItem>
+                                                            <MenuItem value="CRITICAL">Critical</MenuItem>
+                                                        </Select>
+                                                    </FormControl>
+                                                    <TextField label="Prob %" type="number" size="small" value={newTempRisk.probability} onChange={(e) => setNewTempRisk({ ...newTempRisk, probability: Number(e.target.value) })} sx={{ width: 100 }} />
+                                                    <FormControl size="small" fullWidth>
+                                                        <InputLabel>ROAM</InputLabel>
+                                                        <Select label="ROAM" value={newTempRisk.roamStatus} onChange={(e) => setNewTempRisk({ ...newTempRisk, roamStatus: e.target.value })}>
+                                                            <MenuItem value="OWNED">Owned</MenuItem>
+                                                            <MenuItem value="RESOLVED">Resolved</MenuItem>
+                                                            <MenuItem value="ACCEPTED">Accepted</MenuItem>
+                                                            <MenuItem value="MITIGATED">Mitigated</MenuItem>
+                                                        </Select>
+                                                    </FormControl>
+                                                </Stack>
+                                                <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                                                    <Button size="small" onClick={() => setIsAddingTempRisk(false)}>Cancel</Button>
+                                                    <Button size="small" variant="contained" onClick={handleAddTempRisk}>Add</Button>
+                                                </Stack>
+                                            </Stack>
+                                        </Box>
+                                    )}
+                                </Box>
+
+                                {/* Temp Dependencies */}
+                                <Box border={1} borderColor="divider" borderRadius={1} p={2}>
+                                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                        <Typography variant="subtitle2">Dependencies</Typography>
+                                        <Button size="small" startIcon={<AddIcon />} onClick={() => setIsAddingTempDependency(true)} disabled={isAddingTempDependency}>
+                                            Add
+                                        </Button>
+                                    </Box>
+
+                                    <Stack spacing={1} mb={isAddingTempDependency ? 2 : 0}>
+                                        {tempDependencies.map((d, idx) => (
+                                            <Paper key={idx} variant="outlined" sx={{ p: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Box key={idx}>
+                                                    <Typography variant="body2">{d.description}</Typography>
+                                                    <Stack direction="row" spacing={1} mt={0.5}>
+                                                        <Chip label={d.state} size="small" color={d.state === 'ACTIVE' ? 'primary' : 'default'} variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                        <Chip label={d.status} size="small" color={d.status === 'ON_TRACK' ? 'success' : 'error'} variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                                                        {d.owner && <Chip label={`Owner: ${d.owner}`} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />}
+                                                    </Stack>
+                                                </Box>
+                                                <IconButton size="small" onClick={() => setTempDependencies(tempDependencies.filter((_, i) => i !== idx))}>
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </Paper>
+                                        ))}
+                                    </Stack>
+
+                                    {isAddingTempDependency && (
+                                        <Box p={1} bgcolor="grey.50" borderRadius={1}>
+                                            <Stack spacing={1}>
+                                                <TextField label="Description" fullWidth size="small" value={newTempDependency.description} onChange={(e) => setNewTempDependency({ ...newTempDependency, description: e.target.value })} />
+                                                <Box display="grid" gridTemplateColumns="repeat(2, 1fr)" gap={1}>
+                                                    <TextField label="Owner" size="small" value={newTempDependency.owner} onChange={(e) => setNewTempDependency({ ...newTempDependency, owner: e.target.value })} />
+                                                    <FormControl size="small">
+                                                        <InputLabel>State</InputLabel>
+                                                        <Select value={newTempDependency.state} label="State" onChange={(e) => setNewTempDependency({ ...newTempDependency, state: e.target.value })}>
+                                                            <MenuItem value="ACTIVE">Active</MenuItem>
+                                                            <MenuItem value="RESOLVED">Resolved</MenuItem>
+                                                            <MenuItem value="PLANNED">Planned</MenuItem>
+                                                            <MenuItem value="PAST_DUE">Past Due</MenuItem>
+                                                        </Select>
+                                                    </FormControl>
+                                                    <FormControl size="small">
+                                                        <InputLabel>Status</InputLabel>
+                                                        <Select value={newTempDependency.status} label="Status" onChange={(e) => setNewTempDependency({ ...newTempDependency, status: e.target.value })}>
+                                                            <MenuItem value="ON_TRACK">On Track</MenuItem>
+                                                            <MenuItem value="AT_RISK">At Risk</MenuItem>
+                                                            <MenuItem value="OFF_TRACK">Off Track</MenuItem>
+                                                        </Select>
+                                                    </FormControl>
+                                                    <TextField type="date" size="small" value={newTempDependency.dueDate} onChange={(e) => setNewTempDependency({ ...newTempDependency, dueDate: e.target.value })} InputLabelProps={{ shrink: true }} label="Due Date" />
+                                                </Box>
+                                                <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                                                    <Button size="small" onClick={() => setIsAddingTempDependency(false)}>Cancel</Button>
+                                                    <Button size="small" variant="contained" onClick={handleAddTempDependency}>Add</Button>
+                                                </Stack>
+                                            </Stack>
+                                        </Box>
+                                    )}
+                                </Box>
+                            </>
+                        )}
                     </Box>
-                </DialogContent>
+                </DialogContent >
                 <DialogActions>
                     <Button onClick={() => setDialogState({ ...dialogState, open: false })}>Cancel</Button>
                     <Button onClick={handleSubmit} variant="contained" disabled={!itemText.trim() || isSubmitting}>
