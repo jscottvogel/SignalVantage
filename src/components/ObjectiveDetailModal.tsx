@@ -131,7 +131,7 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
     const [members, setMembers] = useState<(Schema['Membership']['type'] & { profile?: Schema['UserProfile']['type'] | null })[]>([]);
     const [risks, setRisks] = useState<Schema['Risk']['type'][]>([]);
     const [dependencies, setDependencies] = useState<Schema['Dependency']['type'][]>([]);
-    const [dependenciesExpanded, setDependenciesExpanded] = useState(true);
+    const [dependenciesExpanded, setDependenciesExpanded] = useState(false);
     const [editingDependency, setEditingDependency] = useState<Schema['Dependency']['type'] | null>(null);
     const [isCreatingDependency, setIsCreatingDependency] = useState(false);
     const [newDependency, setNewDependency] = useState({ description: '', owner: '', state: 'ACTIVE', status: 'ON_TRACK', dueDate: '' });
@@ -306,8 +306,8 @@ export function ObjectiveDetailModal({ objective, onClose }: Props) {
         type: 'initiative'
     });
 
-    const [risksExpanded, setRisksExpanded] = useState(true);
-    const [outcomesExpanded, setOutcomesExpanded] = useState(true);
+    const [risksExpanded, setRisksExpanded] = useState(false);
+    const [outcomesExpanded, setOutcomesExpanded] = useState(false);
     const [editingRisk, setEditingRisk] = useState<Schema['Risk']['type'] | null>(null);
     const [isCreatingRisk, setIsCreatingRisk] = useState(false);
     const [newRisk, setNewRisk] = useState({ description: '', impact: 'LOW' as Schema['Risk']['type']['impact'], probability: 50, roamStatus: 'OWNED' as Schema['Risk']['type']['roamStatus'] });
